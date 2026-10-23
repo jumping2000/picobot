@@ -32,7 +32,8 @@ RUN [ "$(npm root -g)" = "$NODE_PATH" ] || { echo "NODE_PATH ($NODE_PATH) divers
 RUN bash /tmp/deps/setup.sh && rm -rf /tmp/deps
 
 COPY src/ ./src/
-RUN uv sync --no-dev
+# --inexact: non rimuovere le librerie delle skill installate da deps/pip.txt (non sono nel lock)
+RUN uv sync --no-dev --inexact
 
 # utente non-root. src/, .venv e skills/ restano di root (il codice generato non puo' modificarli);
 # scrivibili solo data/ (DB, stato) e workspace/ (file dell'agente)
