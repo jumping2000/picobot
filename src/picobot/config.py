@@ -39,6 +39,22 @@ class Settings(BaseSettings):
     code_max_output: int = 4000
     confirm_timeout_s: int = 120
 
+    code_node_mem_mb: int = 1536   # pptxgenjs va in abort a 768 MB
+    code_max_runs: int = 6         # esecuzioni approvate per richiesta
+    node_path: str = ""            # NODE_PATH per gli script Node (pacchetti globali)
+
+    # --- File in uscita ---
+    max_output_mb: int = 20
+    max_output_files: int = 5
+    output_extensions: str = "docx,pptx,xlsx,csv,txt,md,pdf"
+    outbox_ttl_h: int = 24
+
+    # --- Skill ---
+    enable_skills: bool = True
+    skills_dir: Path = Path("/app/skills")
+    skills_list_max: int = 50
+    skills_router_hint_max: int = 15
+
     # --- Documenti ---
     max_upload_mb: int = 15
     doc_chunk_chars: int = 20000
@@ -69,6 +85,18 @@ class Settings(BaseSettings):
     @property
     def database_file(self) -> Path:
         return self.data_dir / "picobot.db"
+
+    @property
+    def output_ext_set(self) -> set[str]:
+        return {e.strip().lower().lstrip(".") for e in self.output_extensions.split(",") if e.strip()}
+
+    @property
+    def outputs_dir(self) -> Path:
+        return self.workspace_dir / "outputs"
+
+    @property
+    def outbox_dir(self) -> Path:
+        return self.data_dir / "outbox"
 
     @property
     def strong_model_id(self) -> str:
