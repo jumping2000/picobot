@@ -50,14 +50,14 @@ def _tool_results():
 
 def test_code_runs_only_after_confirm_yes(svc):
     seen = []
-    async def yes(preview): seen.append(preview); return True
+    async def yes(code, language): seen.append(code); return True
     _ask_code(svc, RunCtx("1", "telegram", confirm=yes), "h1")
     assert seen and "print(6*7)" in seen[0]
     assert any("exit=0" in r and "42" in r for r in _tool_results())
 
 
 def test_code_not_run_when_user_declines(svc):
-    async def no(preview): return False
+    async def no(code, language): return False
     _ask_code(svc, RunCtx("1", "telegram", confirm=no), "h2")
     assert any("RIFIUTATO" in r for r in _tool_results())
     assert not any("exit=0" in r for r in _tool_results())

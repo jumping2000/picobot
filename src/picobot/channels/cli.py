@@ -22,8 +22,8 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
     uid = s.cli_user_id
     session = f"cli-{uuid.uuid4().hex[:8]}"
 
-    async def confirm(preview: str) -> bool:
-        print(f"\n--- Codice da eseguire ---\n{preview}\n--------------------------")
+    async def confirm(code: str, language: str) -> bool:
+        print(f"\n--- Codice da eseguire ({language}) ---\n{code}\n--------------------------")
         try:
             ans = await asyncio.wait_for(_ainput("Eseguire? [y/N] "), timeout=s.confirm_timeout_s)
         except (asyncio.TimeoutError, EOFError):

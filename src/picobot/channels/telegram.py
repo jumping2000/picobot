@@ -156,8 +156,8 @@ class TelegramGateway:
         chat_id, uid = update.effective_chat.id, update.effective_user.id
         logger.info("Messaggio user=%s chat=%s len=%d", uid, chat_id, len(update.message.text))
         run_ctx = RunCtx(user_id=str(uid), channel="telegram",
-                         confirm=lambda preview: self.ask_yes_no(
-                             ctx.bot, chat_id, uid, f"Eseguire questo codice Python?\n\n{preview}"))
+                         confirm=lambda code, language: self.ask_yes_no(
+                             ctx.bot, chat_id, uid, f"Eseguire questo codice {language}?\n\n{code}"))
         async with self._locks[chat_id]:
             try:
                 answer = await self._with_typing(ctx, chat_id, self.service.ask(
