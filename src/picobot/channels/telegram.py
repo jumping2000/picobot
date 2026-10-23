@@ -150,6 +150,13 @@ class TelegramGateway:
         except (ValueError, ScheduleError) as e:
             await update.message.reply_text(str(e))
 
+    async def on_skills(self, update, ctx):
+        if not self.authorized(update):
+            return
+        info = self.service.skill_info()
+        text = "\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata."
+        await update.message.reply_text(text)
+
     async def on_schedules(self, update, ctx):
         if self.authorized(update):
             await update.message.reply_text(format_schedules(self.service.scheduler.list(str(update.effective_user.id))))
@@ -234,6 +241,7 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("forget", gw.on_forget))
     app.add_handler(CommandHandler("schedule", gw.on_schedule))
     app.add_handler(CommandHandler("schedules", gw.on_schedules))
+    app.add_handler(CommandHandler("skills", gw.on_skills))
     app.add_handler(CommandHandler("unschedule", gw.on_unschedule))
     app.add_handler(CallbackQueryHandler(gw.on_callback, pattern=r"^cf:"))
     app.add_handler(MessageHandler(filters.Document.ALL, gw.on_document))

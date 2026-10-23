@@ -184,3 +184,39 @@ def test_leader_prompt_mentions_list_skills():
     for p in (prompts.ANALYST, prompts.RESEARCHER, prompts.WRITER, prompts.CRITIC):
         assert "get_skill_instructions" in p
     assert "deliver_file" in prompts.ANALYST and "LibreOffice" in prompts.ANALYST
+
+
+# ---------------- reload a caldo nel servizio (Task 9) ----------------
+import asyncio                                       # noqa: E402
+
+import fake_llm                                      # noqa: E402
+from picobot.context import RunCtx                   # noqa: E402
+from picobot.service import PicoBotService           # noqa: E402
+
+
+def _system_prompt(body):
+    return next(m["content"] for m in body["messages"] if m["role"] in ("system", "developer"))
+
+
+def test_router_hint_hot_reload(d, tmp_path):
+    mk(d, "docx", "Word")
+    s = Settings(skills_dir=d, data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws")
+
+    async def go():
+        svc = PicoBotService(s)
+        await svc.start()
+        ask = lambda t: svc.ask(t, user_id="u", session_id="h", ctx=RunCtx("u", "t"))  # noqa: E731
+        await ask("ciao")
+        assert "Skill nel ComplexTeam: docx" in _system_prompt(fake_llm.LOG[0])
+        mk(d, "pptx", "P")
+        fake_llm.LOG.clear(); await ask("ciao 2")
+        assert "docx, pptx" in _system_prompt(fake_llm.LOG[0])
+        shutil.rmtree(d / "docx")
+        fake_llm.LOG.clear(); await ask("ciao 3")
+        sp = _system_prompt(fake_llm.LOG[0])
+        assert "Skill nel ComplexTeam: pptx." in sp and "docx" not in sp
+        mk(d, "xlsx", "Excel")
+        svc.registry.refresh()
+        assert "xlsx" in tool(svc.registry, "list_skills").entrypoint("")
+        assert [i.name for i in svc.skill_info()] == ["pptx", "xlsx"]
+    asyncio.run(go())

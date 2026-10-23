@@ -327,3 +327,37 @@ def test_startup_purges_old_outbox(tmp_path):
     os.utime(old, (past, past))
     asyncio.run(PicoBotService(s).start())
     assert not old.exists()
+
+
+# ---------------- /skills (Task 9) ----------------
+def test_telegram_skills_command(tmp_path):
+    from picobot.channels.common import HELP
+    root = tmp_path / "skills"
+    (root / "docx").mkdir(parents=True)
+    (root / "docx" / "SKILL.md").write_text("---\nname: docx\ndescription: Crea documenti Word\n---\n")
+    def run_cmd(gw, uid):
+        out = []
+        async def reply_text(text, **kw): out.append(text)
+        upd = NS(effective_user=NS(id=uid), message=NS(reply_text=reply_text))
+        asyncio.run(gw.on_skills(upd, None))
+        return out
+    gw = make_gw(skills_dir=root)
+    assert run_cmd(gw, 1) == ["docx: Crea documenti Word"]
+    assert run_cmd(gw, 3) == []                                # non autorizzato: nessuna risposta
+    assert run_cmd(make_gw(skills_dir=tmp_path / "vuota"), 1) == ["Nessuna skill installata."]
+    assert "/skills" in HELP
+
+
+def test_cli_skills_command(monkeypatch, capsys, tmp_path):
+    root = tmp_path / "skills"
+    (root / "docx").mkdir(parents=True)
+    (root / "docx" / "SKILL.md").write_text("---\nname: docx\ndescription: Crea documenti Word\n---\n")
+    inputs = iter(["/skills", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(skills_dir=root); svc = PicoBotService(s); await svc.start()
+        fake_llm.LOG.clear()
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    assert "docx: Crea documenti Word" in capsys.readouterr().out and fake_llm.LOG == []

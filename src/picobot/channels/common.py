@@ -8,6 +8,7 @@ HELP = (
     "/schedule <cron> | <richiesta> - task ricorrente, es: /schedule 0 8 * * 1-5 | quotazioni AAPL e MSFT\n"
     "/schedules - elenco task schedulati\n"
     "/unschedule <id> - elimina un task\n"
+    "/skills - skill installate (le gestisce l'amministratore)\n"
     "/help - questo messaggio\n\n"
     "Il codice Python viene eseguito solo dopo la tua conferma."
 )

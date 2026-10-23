@@ -16,7 +16,8 @@ from .context import Reply, RunCtx, reset_ctx, set_ctx
 from .documents import extract_text
 from .mcp_loader import close_mcp_tools, load_mcp_tools
 from .scheduler import Scheduler
-from .skills import SkillRegistry
+from .prompts import router_instructions
+from .skills import SkillInfo, SkillRegistry
 from .team import build_router
 from .tools.files import purge_outbox
 from .workflows.doc_summary import build_doc_workflow
@@ -31,6 +32,7 @@ class PicoBotService:
         self.doc_flow: Workflow | None = None
         self.scheduler: Scheduler | None = None
         self._mcp: list = []
+        self.registry = SkillRegistry(settings)   # skill globali, ricaricate a caldo
 
     async def start(self) -> None:
         self.s.workspace_dir.mkdir(parents=True, exist_ok=True)
@@ -39,7 +41,6 @@ class PicoBotService:
         except OSError:
             logger.exception("Pulizia outbox fallita")
         self._mcp = await load_mcp_tools(self.s.mcp_config_path)
-        self.registry = SkillRegistry(self.s)
         self.team = build_router(self.s, self.registry, mcp_tools=self._mcp)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
         self.doc_flow = build_doc_workflow(self.s)
@@ -55,6 +56,8 @@ class PicoBotService:
     async def ask(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> Reply:
         """Risposta testuale + file consegnati dagli agenti (deliver_file) durante la richiesta."""
         assert self.team is not None, "start() non chiamato"
+        if self.registry.refresh():   # skill aggiunte/rimosse sull'host: le vedono subito router e ComplexTeam
+            self.team.instructions = router_instructions(self.registry.names(), self.s.skills_router_hint_max)
         ctx = ctx or RunCtx(user_id=user_id, channel="unknown")
         token = set_ctx(ctx)
         try:
@@ -63,6 +66,10 @@ class PicoBotService:
             reset_ctx(token)
         content = out.content if isinstance(out.content, str) else str(out.content)
         return Reply(content, list(ctx.outputs))
+
+    def skill_info(self) -> list[SkillInfo]:
+        self.registry.refresh()
+        return self.registry.info()
 
     async def _ask_text(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> str:
         """Solo testo: usata dallo scheduler (gli schedule non producono file)."""

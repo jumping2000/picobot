@@ -49,6 +49,9 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/new":
                 session = f"cli-{uuid.uuid4().hex[:8]}"
                 print("Nuova conversazione.")
+            elif cmd == "/skills":
+                info = service.skill_info()
+                print("\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata.")
             elif cmd == "/memory":
                 mems = await service.memories(uid)
                 print("\n".join(f"- {m}" for m in mems) if mems else "Nessuna memoria.")
