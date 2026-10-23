@@ -1,11 +1,17 @@
 """Consegna dei file prodotti dagli agenti: solo da workspace/outputs/, con controlli."""
+import hashlib
 import os
+import re
+import shutil
+import time
+import uuid
 from pathlib import Path
 
 from ..config import Settings
 from ..context import OutputFile, get_ctx
 
 _MIB = 1024 * 1024
+_ID = re.compile(r"^[0-9a-f]{32}$")
 
 
 class _Refused(Exception):
@@ -59,3 +65,47 @@ def make_file_tools(s: Settings) -> list:
         return f"Consegnato: {target.name} ({target.stat().st_size} byte)."
 
     return [deliver_file]
+
+
+# ---------------- outbox per l'API ----------------
+def _user_dir(s: Settings, user_id: str) -> Path:
+    # hash: nessun carattere dell'id utente finisce nel percorso, e due id diversi non collidono
+    return s.outbox_dir / hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:24]
+
+
+def store_outputs(s: Settings, user_id: str, files: list[OutputFile]) -> list[dict]:
+    """Copia i file in data/outbox/<utente>/<id>/<nome> e ritorna i metadati per l'API."""
+    out = []
+    for f in files:
+        fid = uuid.uuid4().hex
+        dest = _user_dir(s, user_id) / fid
+        dest.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(f.path, dest / f.name)
+        out.append({"id": fid, "name": f.name, "size": f.size})
+    return out
+
+
+def find_output(s: Settings, user_id: str, file_id: str) -> Path | None:
+    """Percorso del file dell'utente, o None (altrui, inesistente e id non valido sono indistinguibili)."""
+    if not _ID.fullmatch(file_id or ""):
+        return None
+    folder = _user_dir(s, user_id) / file_id
+    if not folder.is_dir():
+        return None
+    for p in folder.iterdir():
+        if p.is_file() and not p.is_symlink() and p.resolve().is_relative_to(s.outbox_dir.resolve()):
+            return p
+    return None
+
+
+def purge_outbox(s: Settings) -> int:
+    """Rimuove le consegne piu' vecchie di OUTBOX_TTL_H. Ritorna il numero di consegne rimosse."""
+    if not s.outbox_dir.is_dir():
+        return 0
+    limit, removed = time.time() - s.outbox_ttl_h * 3600, 0
+    for user in s.outbox_dir.iterdir():
+        for entry in user.iterdir() if user.is_dir() else []:
+            if entry.is_dir() and entry.stat().st_mtime < limit:
+                shutil.rmtree(entry, ignore_errors=True)
+                removed += 1
+    return removed
