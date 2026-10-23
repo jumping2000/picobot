@@ -68,12 +68,12 @@ def make_file_tools(s: Settings) -> list:
 
 
 # ---------------- file di testo scritti direttamente (senza eseguire codice) ----------------
-TEXT_EXTENSIONS = {"md", "txt", "csv", "html", "json"}
+TEXT_EXTENSIONS = {"md", "txt", "csv", "html", "json", "py"}
 
 
 def make_text_tools(s: Settings) -> list:
     async def save_text_file(filename: str, content: str) -> str:
-        """Salva un file di testo (Markdown, testo, CSV, HTML, JSON) in outputs/ senza eseguire codice.
+        """Salva un file di testo (Markdown, testo, CSV, HTML, JSON, script Python) in outputs/ senza eseguire codice.
         Per consegnarlo all'utente chiama poi deliver_file con il percorso restituito.
 
         Args:

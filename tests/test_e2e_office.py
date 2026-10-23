@@ -51,3 +51,16 @@ def test_e2e_text_without_confirmation(tmp_path):
         return await svc.ask("scrivi una relazione", user_id="u", session_id="rel", ctx=RunCtx("u", "telegram", confirm=never))
     reply = asyncio.run(go())
     assert [f.name for f in reply.files] == ["relazione.md"] and reply.files[0].path.read_text() == "# Relazione"
+
+
+def test_coder_delivers_script_as_file(tmp_path):          # revisione finale: caso d'uso del Coder
+    async def never(code, language):
+        raise AssertionError("salvare e consegnare uno script non richiede di eseguirlo")
+
+    async def go():
+        svc = _svc(tmp_path)
+        await svc.start()
+        return await svc.ask("scrivi un programma per la rata e mandamelo", user_id="u", session_id="py",
+                             ctx=RunCtx("u", "telegram", confirm=never))
+    reply = asyncio.run(go())
+    assert [f.name for f in reply.files] == ["rata.py"] and reply.files[0].path.read_text() == "print('rata')"

@@ -24,7 +24,14 @@ class H(BaseHTTPRequestHandler):
         msg = {"role": "assistant", "content": "RISPOSTA-FINTA"}
         tool_out = [str(m.get("content")) for m in msgs if m["role"] == "tool"]
         doc_task = "documento word" in user or "relazione" in user   # NON "documento": c'e' in "[Documento caricato"
-        if doc_task and "list_skills" in names and "delegate_task_to_member" in names:   # leader ComplexTeam
+        if "mandamelo" in user and "deliver_file" in names and "run_node" not in names:     # Coder: script come file
+            if any("Consegnato" in o or "Rifiutato" in o for o in tool_out):   # mai in loop
+                msg = {"role": "assistant", "content": "Script consegnato."}
+            elif any("Salvato" in o for o in tool_out):
+                msg = _tool_call("deliver_file", {"path": "outputs/rata.py"}, "k2")
+            else:
+                msg = _tool_call("save_text_file", {"filename": "rata.py", "content": "print('rata')"}, "k1")
+        elif doc_task and "list_skills" in names and "delegate_task_to_member" in names:   # leader ComplexTeam
             if any("consegnato" in o.lower() for o in tool_out) or len(tool_out) >= 4:  # limite: mai in loop
                 msg = {"role": "assistant", "content": "Fatto: file consegnato."}
             elif any("CONTENUTO-ANALYST" in o for o in tool_out):

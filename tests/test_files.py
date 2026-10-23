@@ -119,7 +119,7 @@ def test_save_text_file_ok_and_deliverable(env):          # Review Focus 5
     assert "Consegnato" in run("outputs/relazione città.md")
 
 
-@pytest.mark.parametrize("name", ["../x.md", "a/b.md", "a\\b.md", "x.exe", "x.py", "x" * 121 + ".md", "", ".md"])
+@pytest.mark.parametrize("name", ["../x.md", "a/b.md", "a\\b.md", "x.exe", "x.sh", "x" * 121 + ".md", "", ".md"])
 def test_save_text_file_refused(env, name):
     s, ctx, run = env
     assert run_save(s, name, "x").startswith("Rifiutato")
@@ -135,3 +135,9 @@ def test_save_text_file_size(env):                        # max_output_mb=1
 def test_save_text_file_respects_output_extensions(tmp_path):
     s = Settings(workspace_dir=tmp_path / "ws", output_extensions="docx,md")
     assert run_save(s, "a.md", "x").startswith("Salvato") and run_save(s, "a.txt", "x").startswith("Rifiutato")
+
+
+@pytest.mark.parametrize("name", ["pagina.html", "dati.json", "script.py"])
+def test_save_text_file_default_extensions(tmp_path, name):  # revisione finale: promessi dallo spec al Writer/Coder
+    s = Settings(workspace_dir=tmp_path / "ws")
+    assert run_save(s, name, "x") == f"Salvato: outputs/{name}"

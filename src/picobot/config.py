@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # --- File in uscita ---
     max_output_mb: int = 20
     max_output_files: int = 5
-    output_extensions: str = "docx,pptx,xlsx,csv,txt,md,pdf"
+    output_extensions: str = "docx,pptx,xlsx,csv,txt,md,pdf,html,json,py"
     outbox_ttl_h: int = 24
 
     # --- Skill ---

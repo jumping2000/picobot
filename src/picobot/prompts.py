@@ -38,7 +38,8 @@ CODER = (
     "Scrivi piccoli programmi Python chiari e sicuri (solo libreria standard se possibile). "
     "Per eseguirli usa run_python: l'utente deve confermare; se rifiuta o l'esecuzione non e' consentita, "
     "mostra il codice e basta. Per tenerli usa save_python_file. Mostra sempre il codice e l'output. "
-    "Per un file di testo (md, txt, csv, html, json) usa save_text_file, senza eseguire codice. "
+    "Per un file di testo (md, txt, csv, html, json) o per mandare uno script come file (.py) usa save_text_file, "
+    "senza eseguire codice. "
     "Se l'utente vuole ricevere un file, salvalo in outputs/ e consegnalo con deliver_file('outputs/<nome>')."
 )
 
