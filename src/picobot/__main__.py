@@ -7,12 +7,16 @@ from .config import get_settings
 
 
 def main() -> None:
+    if sys.argv[1:2] == ["skills"]:   # amministrazione skill: non serve una chiave LLM
+        from .skills_cli import main_skills
+        sys.exit(main_skills(sys.argv[2:], get_settings()))
     p = argparse.ArgumentParser(prog="picobot")
     sub = p.add_subparsers(dest="cmd", required=True)
     sv = sub.add_parser("serve", help="Telegram + API + scheduler")
     sv.add_argument("--no-telegram", action="store_true")
     sv.add_argument("--no-api", action="store_true")
     sub.add_parser("cli", help="REPL interattivo")
+    sub.add_parser("skills", help="gestione skill: list | add | remove | validate | deps")
     args = p.parse_args()
 
     logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
