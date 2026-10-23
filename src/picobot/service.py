@@ -1,5 +1,7 @@
 """Facciata async verso router, workflow documenti e scheduler: i canali non toccano Agno."""
+import dataclasses
 import logging
+from dataclasses import dataclass
 import time
 from pathlib import Path
 
@@ -24,6 +26,14 @@ logger = logging.getLogger(__name__)
 
 
 TARGETS = {"auto": None, "simple": "SimpleTeam", "complex": "ComplexTeam"}
+_PROFILE_META = {"user_id", "agent_id", "team_id", "created_at", "updated_at"}
+
+
+@dataclass
+class MemoryReport:
+    memories: list[str]
+    profile: dict[str, str]                    # solo i campi valorizzati
+    entities: list[tuple[str, str, str]]       # (nome, tipo, descrizione)
 
 
 class PicoBotService:
@@ -123,6 +133,25 @@ class PicoBotService:
         assert self.team is not None
         return [m.memory for m in (await self.team.aget_user_memories(user_id=user_id) or [])]
 
+    async def memory_report(self, user_id: str) -> MemoryReport:
+        """Memorie, profilo ed entita' dell'utente (per /memory e GET /v1/memory)."""
+        assert self.team is not None
+        memories = await self.memories(user_id) if self.team.memory_manager is not None else []
+        profile, entities = {}, []
+        lm = self.team.learning if self.s.enable_learning else None
+        if lm is not None:
+            p = await lm.user_profile_store.aget(user_id=user_id)
+            if p is not None:
+                profile = {f.name: str(v) for f in dataclasses.fields(p)
+                           if f.name not in _PROFILE_META and (v := getattr(p, f.name, None))}
+            ents = await lm.entity_memory_store.alist_entities(user_id=user_id, namespace="user", limit=50)
+            entities = [(e.name, e.entity_type or "", e.description or "") for e in ents or []]
+        return MemoryReport(memories, profile, entities)
+
     async def forget(self, user_id: str) -> None:
-        assert self.team is not None and self.team.memory_manager is not None
-        await self.team.memory_manager.aclear_user_memories(user_id=user_id)
+        """Cancella memorie, profilo ed entita' dell'utente. Solleva se una parte non viene cancellata."""
+        assert self.team is not None
+        if self.s.enable_learning and self.team.db is not None:
+            self.team.db.delete_user_learnings(user_id)          # profilo + entita' (namespace privato)
+        if self.team.memory_manager is not None:
+            await self.team.memory_manager.aclear_user_memories(user_id=user_id)

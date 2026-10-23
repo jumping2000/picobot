@@ -8,7 +8,7 @@ from ..context import RunCtx
 from ..documents import DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
-from .common import HELP, format_schedules, parse_schedule_args
+from .common import HELP, format_memory_report, format_schedules, parse_schedule_args
 
 CLI_HELP = (HELP
             .replace("Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.",
@@ -63,12 +63,11 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
                 info = service.skill_info()
                 print("\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata.")
             elif cmd == "/memory":
-                mems = await service.memories(uid)
-                print("\n".join(f"- {m}" for m in mems) if mems else "Nessuna memoria.")
+                print(format_memory_report(await service.memory_report(uid)))
             elif cmd == "/forget":
                 if (await _ainput("Cancellare TUTTA la memoria? [y/N] ")).strip().lower() in {"y", "s", "si", "yes"}:
                     await service.forget(uid)
-                    print("Memoria cancellata.")
+                    print("Memoria, profilo ed entita' cancellati.")
                 else:
                     print("Annullato.")
             elif cmd in {"/simple", "/complex"}:

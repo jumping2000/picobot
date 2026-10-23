@@ -45,3 +45,15 @@ def split_text(text: str, limit: int = 4000) -> list[str]:
     if text:
         parts.append(text)
     return parts or ["(risposta vuota)"]
+
+
+def format_memory_report(r) -> str:
+    """Testo di /memory: memorie, profilo ed entita'."""
+    parts = []
+    if r.memories:
+        parts.append("Memorie:\n" + "\n".join(f"- {m}" for m in r.memories))
+    if r.profile:
+        parts.append("Profilo:\n" + "\n".join(f"- {k.replace('_', ' ')}: {v}" for k, v in r.profile.items()))
+    if r.entities:
+        parts.append("Entita':\n" + "\n".join(f"- {n} ({t}): {d}" if d else f"- {n} ({t})" for n, t, d in r.entities))
+    return "\n\n".join(parts) if parts else "Non ho memorie su di te."

@@ -482,3 +482,39 @@ def test_help_lists_new_commands():
     from picobot.channels.common import HELP
     assert all(c in HELP for c in ("/simple", "/complex", "/riassumi"))
     assert all(c in CLI_HELP for c in ("/simple", "/complex", "/riassumi <percorso>", "/file <percorso>"))
+
+
+# ---------------- /memory e /forget completi (v0.5) ----------------
+def test_api_memory_sections():
+    async def t(c, svc):
+        await c.post("/v1/chat", json={"message": "seguo AAPL e ENI"}, headers=A)
+        await c.post("/v1/chat", json={"message": "lavoro al progetto Harbor"}, headers=A)
+        r = (await c.get("/v1/memory", headers=A)).json()
+        assert set(r) == {"memories", "profile", "entities"} and r["profile"]["titoli_seguiti"] == "AAPL, ENI"
+        assert r["entities"][0]["name"] == "Harbor" and r["entities"][0]["type"] == "project"
+        assert (await c.get("/v1/memory", headers=B)).json() == {"memories": [], "profile": {}, "entities": []}
+        assert (await c.delete("/v1/memory?confirm=true", headers=A)).status_code == 204
+        assert (await c.get("/v1/memory", headers=A)).json() == {"memories": [], "profile": {}, "entities": []}
+    with_api(t)
+
+
+def test_telegram_forget_failure_is_not_confirmed(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        async def boom(user_id): raise RuntimeError("x")
+        svc.forget = boom
+        gw.ask_yes_no = AsyncMock(return_value=True)
+        await gw.on_forget(_doc_update(replies, name=None, text="/forget"), _ctx())
+        return replies
+    replies = asyncio.run(t())
+    assert replies == ["Errore: la memoria non e' stata cancellata del tutto. Riprova."]
+
+
+def test_telegram_memory_shows_sections(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        await svc.ask("seguo AAPL e ENI", user_id="1", session_id="mm")
+        await gw.on_memory(_doc_update(replies, name=None, text="/memory"), _ctx())
+        return replies
+    replies = asyncio.run(t())
+    assert "Profilo" in replies[-1] and "AAPL, ENI" in replies[-1]

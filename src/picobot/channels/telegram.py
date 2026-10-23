@@ -19,7 +19,7 @@ from ..context import Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
-from .common import HELP, format_schedules, parse_schedule_args, split_text
+from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text
 
 logger = logging.getLogger(__name__)
 
@@ -124,8 +124,7 @@ class TelegramGateway:
     async def on_memory(self, update, ctx):
         if not self.authorized(update):
             return
-        mems = await self.service.memories(str(update.effective_user.id))
-        await send_safe(update, "Ricordo:\n" + "\n".join(f"- {m}" for m in mems) if mems else "Non ho memorie su di te.")
+        await send_safe(update, format_memory_report(await self.service.memory_report(str(update.effective_user.id))))
 
     async def on_forget(self, update, ctx):
         if not self.authorized(update):
@@ -133,8 +132,12 @@ class TelegramGateway:
         ok = await self.ask_yes_no(ctx.bot, update.effective_chat.id, update.effective_user.id,
                                    "Cancellare TUTTA la memoria su di te? L'operazione non e' reversibile.")
         if ok:
-            await self.service.forget(str(update.effective_user.id))
-            await update.message.reply_text("Memoria cancellata.")
+            try:
+                await self.service.forget(str(update.effective_user.id))
+            except Exception:
+                logger.exception("Cancellazione memoria fallita")
+                return await update.message.reply_text("Errore: la memoria non e' stata cancellata del tutto. Riprova.")
+            await update.message.reply_text("Memoria, profilo ed entita' cancellati.")
         else:
             await update.message.reply_text("Annullato, memoria intatta.")
 

@@ -122,7 +122,9 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
 
     @app.get("/v1/memory")
     async def get_memory(user: User):
-        return {"memories": await service.memories(user)}
+        r = await service.memory_report(user)
+        return {"memories": r.memories, "profile": r.profile,
+                "entities": [{"name": n, "type": t, "description": d} for n, t, d in r.entities]}
 
     @app.delete("/v1/memory", status_code=204)
     async def delete_memory(user: User, confirm: bool = False):
