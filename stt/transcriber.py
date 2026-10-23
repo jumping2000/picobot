@@ -22,6 +22,7 @@ class AudioError(ValueError):
 
 class Transcriber(Protocol):
     def load(self) -> None: ...
+    def probe_duration(self, path: str) -> float | None: ...
     def decode(self, path: str) -> AudioClip: ...
     def language_probs(self, clip: AudioClip) -> list[tuple[str, float]]: ...
     def transcribe(self, clip: AudioClip, language: str) -> str: ...
@@ -43,6 +44,21 @@ class FasterWhisperTranscriber:
 
         self.model = WhisperModel(self.s.model, device="cpu", compute_type=self.s.compute_type,
                                   cpu_threads=self.s.threads)
+
+    def probe_duration(self, path: str) -> float | None:
+        """Durata dall'intestazione del file, senza decodificarlo (None se non disponibile)."""
+        import av
+
+        try:
+            with av.open(path, mode="r") as container:
+                if container.duration:
+                    return container.duration / av.time_base
+                stream = next((s for s in container.streams if s.type == "audio"), None)
+                if stream is not None and stream.duration and stream.time_base:
+                    return float(stream.duration * stream.time_base)
+        except Exception:  # noqa: BLE001  file illeggibile: lo dira' decode()
+            return None
+        return None
 
     def decode(self, path: str) -> AudioClip:
         from faster_whisper import decode_audio

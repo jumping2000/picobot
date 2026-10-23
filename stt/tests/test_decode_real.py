@@ -37,3 +37,15 @@ def test_decode_garbage_raises_audio_error(tmp_path):
     path.write_bytes(b"non e' audio")
     with pytest.raises(AudioError):
         FasterWhisperTranscriber(SttSettings()).decode(str(path))
+
+
+def test_probe_duration_reads_header(tmp_path):
+    path = tmp_path / "voce.ogg"
+    _ogg_opus(path, seconds=3.0)
+    assert FasterWhisperTranscriber(SttSettings()).probe_duration(str(path)) == pytest.approx(3.0, abs=0.2)
+
+
+def test_probe_duration_garbage_is_unknown(tmp_path):
+    path = tmp_path / "rotto.ogg"
+    path.write_bytes(b"non e' audio")
+    assert FasterWhisperTranscriber(SttSettings()).probe_duration(str(path)) is None

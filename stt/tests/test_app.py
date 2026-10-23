@@ -20,6 +20,8 @@ class FakeTranscriber:
     def __init__(self, text="ciao", duration=3.0, probs=(("es", 0.6), ("it", 0.4))):
         self.text, self.duration, self.probs = text, duration, list(probs)
         self.loaded = False
+        self.probe = None          # durata letta dall'intestazione (None = sconosciuta)
+        self.decoded = 0
         self.languages_used: list[str] = []
         self.max_concurrency = 0
         self._active = 0
@@ -28,7 +30,11 @@ class FakeTranscriber:
     def load(self):
         self.loaded = True
 
+    def probe_duration(self, path):
+        return self.probe
+
     def decode(self, path):
+        self.decoded += 1
         with open(path, "rb") as f:
             if f.read() == b"bad":
                 raise AudioError("audio non decodificabile")
@@ -107,3 +113,15 @@ def test_errors(client, fake):
     fake.duration = 301.0
     assert client.post(URL, files=AUDIO).status_code == 413                                # oltre max_seconds
     assert fake.languages_used == []                                                       # mai trascritto
+
+
+def test_long_audio_rejected_before_decode(client, fake):
+    """Un'ora di registrazione: rifiutata leggendo l'intestazione, senza decodificarla (memoria, coda)."""
+    fake.probe = 3600.0
+    assert client.post(URL, files=AUDIO).status_code == 413
+    assert fake.decoded == 0 and fake.languages_used == []
+
+
+def test_unknown_header_duration_falls_back_to_decode(client, fake):
+    fake.probe = None
+    assert client.post(URL, files=AUDIO).status_code == 200 and fake.decoded == 1

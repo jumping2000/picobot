@@ -82,3 +82,13 @@ def test_stt_dockerfile_non_root():
     d = read("stt/Dockerfile")
     assert "USER stt" in d and "HF_HOME=/models" in d and "main:app" in d
     assert "models/" in read(".gitignore") and "models" in read(".dockerignore").split()
+
+
+def test_stt_dependencies_locked():
+    """L'immagine stt si costruisce dal lock (versioni esatte): una nuova release di una dipendenza
+    (come PyAV 19 per faster-whisper) non deve rompere silenziosamente la trascrizione."""
+    d = read("stt/Dockerfile")
+    assert (ROOT / "stt/uv.lock").is_file()
+    assert "COPY pyproject.toml uv.lock ./" in d and "uv sync --no-dev --frozen" in d
+    assert "uv.lock" not in read("stt/.dockerignore").split()
+    assert "!stt/uv.lock" in read(".gitignore")

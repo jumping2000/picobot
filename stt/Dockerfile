@@ -6,8 +6,9 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1
 COPY --from=ghcr.io/astral-sh/uv:0.5 /uv /usr/local/bin/
 
 # dipendenze (layer in cache): faster-whisper decodifica OGG/Opus, mp3, m4a e wav con PyAV, senza ffmpeg di sistema
-COPY pyproject.toml ./
-RUN uv sync --no-dev
+# versioni esatte dal lock: una nuova release di una dipendenza non rompe la build (PyAV 19 l'ha gia' fatto)
+COPY pyproject.toml uv.lock ./
+RUN uv sync --no-dev --frozen
 
 COPY *.py ./
 

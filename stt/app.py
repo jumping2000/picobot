@@ -51,6 +51,10 @@ def create_app(settings: SttSettings, transcriber: Transcriber) -> FastAPI:
                     if size > limit:
                         raise HTTPException(413, f"File troppo grande (max {settings.max_mb} MB)")
                     out.write(chunk)
+            # durata dall'intestazione PRIMA di decodificare: un'ora di audio non va in memoria ne' blocca la coda
+            probed = await asyncio.to_thread(transcriber.probe_duration, path)
+            if probed is not None and probed > settings.max_seconds:
+                raise HTTPException(413, f"Audio troppo lungo (max {settings.max_seconds} s)")
             async with lock:
                 try:
                     clip = await asyncio.to_thread(transcriber.decode, path)
