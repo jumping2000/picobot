@@ -191,7 +191,7 @@ def test_summary_without_session_leaves_no_trace(svc, tmp_path):
     run(svc.summarize(f, "", user_id="1", name="x.txt"))
     fake_llm.LOG.clear()
     run(svc.ask("ciao", user_id="1", session_id="nuova-vuota", ctx=RunCtx("1", "t")))
-    assert "Documento caricato" not in str(fake_llm.LOG[0]["messages"])
+    assert "[Documento caricato: x.txt]" not in str(fake_llm.LOG[0]["messages"])
 
 
 def test_ask_returns_reply_with_files(svc, tmp_path):

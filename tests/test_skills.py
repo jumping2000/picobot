@@ -154,7 +154,9 @@ def test_skills_only_in_complexteam(d, tmp_path):
     assert {"run_python", "run_node", "deliver_file"} <= _names(member["Analyst"])
     for other in ("Researcher", "Writer", "Critic"):
         assert not ({"run_python", "run_node", "deliver_file"} & _names(member[other]))
-    assert "run_node" not in _names(next(m for m in team.members if m.name == "Coder"))
+    simple = next(m for m in team.members if m.name == "SimpleTeam")
+    assert "run_node" not in _names(next(m for m in simple.members if m.name == "Coder"))
+    assert simple.skills is None and all(m.skills is None for m in simple.members)
 
 
 def test_empty_registry_still_wired(d, tmp_path):     # skill aggiunte dopo l'avvio devono essere viste

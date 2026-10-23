@@ -39,8 +39,17 @@ class H(BaseHTTPRequestHandler):
             msg = _tool_call("remember_about", {"entity": "Harbor", "entity_type": "project",
                                                 "description": "migrazione rete"}, "e1")
         elif last["role"] != "tool":
-            if "delegate_task_to_member" in names and any(k in user for k in ROUTES):
-                member = next(v for k, v in ROUTES.items() if k in user)
+            if "summarize_document" in names and "[documento caricato" in user and (
+                    "riassum" in user or user.rstrip().endswith("]")):
+                msg = _tool_call("summarize_document", {"istruzioni": user.split("]", 1)[1].strip()}, "sd")
+            elif "delegate_task_to_member" in names and any(k in user for k in ROUTES):
+                key = next(k for k in ROUTES if k in user)
+                if "summarize_document" in names:                     # router: sceglie il team
+                    member = "complexteam" if key == "complesso" else "simpleteam"
+                elif "list_skills" in names:                          # leader del ComplexTeam
+                    member = "researcher"
+                else:                                                 # leader del SimpleTeam
+                    member = ROUTES[key]
                 msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
             elif "add" in names and "somma" in user:          # tool MCP del server di prova
                 msg = _tool_call("add", {"a": 2, "b": 3})

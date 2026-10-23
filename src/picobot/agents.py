@@ -9,7 +9,8 @@ from . import prompts
 from .config import Settings
 from .models import make_model
 from .skills import SkillRegistry
-from .tools.files import make_file_tools
+from .storage import make_learning_view
+from .tools.files import make_file_tools, make_text_tools
 from .tools.sandbox import make_code_tools, make_node_tools
 
 
@@ -23,11 +24,16 @@ def _yf() -> YFinanceTools:
     )
 
 
-def build_finance(s: Settings) -> Agent:
+def _view(s: Settings, db) -> dict:
+    """Profilo ed entita' in sola lettura: Agno inizializza il learning solo se l'agente ha anche `db`."""
+    return {"db": db, "learning": make_learning_view(s, db), "add_learnings_to_context": True} if db is not None else {}
+
+
+def build_finance(s: Settings, db=None) -> Agent:
     return Agent(
         name="Finance",
         role="Quotazioni, storico prezzi, fondamentali e news di titoli/ETF/crypto via yfinance.",
-        model=make_model(s), tools=[_yf()], instructions=[prompts.FINANCE],
+        model=make_model(s), tools=[_yf()], instructions=[prompts.FINANCE], **_view(s, db),
     )
 
 
@@ -42,8 +48,20 @@ def build_web(s: Settings) -> Agent:
 def build_coder(s: Settings) -> Agent:
     return Agent(
         name="Coder",
-        role="Scrive piccoli programmi Python e, solo con conferma umana, li esegue nel workspace.",
-        model=make_model(s), tools=make_code_tools(s), instructions=[prompts.CODER],
+        role="Scrive piccoli programmi Python (eseguiti solo con conferma umana) e file di testo; consegna i file.",
+        model=make_model(s), tools=[*make_code_tools(s), *make_text_tools(s), *make_file_tools(s)],
+        instructions=[prompts.CODER],
+    )
+
+
+def build_simple_team(s: Settings, db=None) -> Team:
+    """Compiti rapidi sul modello economico: ricerche, quotazioni, piccoli programmi e file di testo."""
+    return Team(
+        name="SimpleTeam",
+        role="Compiti rapidi ed economici: quotazioni e dati di mercato, ricerche web, piccoli programmi Python, file di testo.",
+        mode=TeamMode.coordinate, model=make_model(s),
+        members=[build_web(s), build_finance(s, db), build_coder(s)],
+        instructions=[prompts.SIMPLE_LEADER], **_view(s, db),
     )
 
 
