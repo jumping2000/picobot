@@ -10,3 +10,4 @@ __pycache__/
 .superpowers/
 # skill installate (licenze proprie, non ridistribuire)
 skills/
+*.egg-info/
