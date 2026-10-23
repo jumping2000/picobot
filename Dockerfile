@@ -25,8 +25,8 @@ RUN pkgs="$(grep -v '^[[:space:]]*#' /tmp/deps/apt.txt | grep -v '^[[:space:]]*$
 RUN if grep -qv '^[[:space:]]*\(#\|$\)' /tmp/deps/pip.txt; then \
     uv pip install --python /app/.venv/bin/python -r /tmp/deps/pip.txt; fi
 # 3) pacchetti Node globali (gli script li trovano tramite NODE_PATH)
-RUN test "$(npm root -g)" = "$NODE_PATH" \
-    && pkgs="$(grep -v '^[[:space:]]*#' /tmp/deps/npm.txt | grep -v '^[[:space:]]*$' || true)"; \
+RUN [ "$(npm root -g)" = "$NODE_PATH" ] || { echo "NODE_PATH ($NODE_PATH) diverso da 'npm root -g'"; exit 1; }; \
+    pkgs="$(grep -v '^[[:space:]]*#' /tmp/deps/npm.txt | grep -v '^[[:space:]]*$' || true)"; \
     if [ -n "$pkgs" ]; then npm install -g $pkgs && npm cache clean --force; fi
 # 4) hook libero
 RUN bash /tmp/deps/setup.sh && rm -rf /tmp/deps

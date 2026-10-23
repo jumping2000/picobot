@@ -41,3 +41,28 @@ def test_compose_env_ignores():
     for k in ("ENABLE_SKILLS", "SKILLS_DIR", "CODE_NODE_MEM_MB", "CODE_MAX_RUNS", "MAX_OUTPUT_MB",
               "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H"):
         assert k in env, k
+
+
+def _run_step(marker):
+    """Testo del RUN del Dockerfile che contiene marker, con le continuazioni di riga unite."""
+    text = read("Dockerfile").replace("\\\n", " ")
+    line = next(l for l in text.splitlines() if l.startswith("RUN ") and marker in l)
+    return line[4:]
+
+
+def test_npm_step_fails_if_node_path_differs(tmp_path):
+    import os
+    import subprocess
+    bin_ = tmp_path / "bin"
+    bin_.mkdir()
+    npm = bin_ / "npm"
+    deps = tmp_path / "deps"
+    deps.mkdir()
+    (deps / "npm.txt").write_text("docx@9.9.0\n")
+    script = _run_step("/tmp/deps/npm.txt").replace("/tmp/deps", str(deps))
+    env = {"PATH": f"{bin_}:{os.environ['PATH']}", "NODE_PATH": "/usr/local/lib/node_modules"}
+    for root, expected_ok in (("/somewhere/else", False), ("/usr/local/lib/node_modules", True)):
+        npm.write_text(f'#!/bin/sh\nif [ "$1" = root ]; then echo {root}; fi\nexit 0\n')
+        npm.chmod(0o755)
+        r = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True)
+        assert (r.returncode == 0) is expected_ok, (root, r.returncode, r.stderr)
