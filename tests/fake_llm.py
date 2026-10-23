@@ -33,6 +33,11 @@ class H(BaseHTTPRequestHandler):
         elif last["role"] != "tool" and "documento" in user and "delegate_task_to_member" in names:
             member = "analyst" if "list_skills" in names else "complexteam"   # leader del ComplexTeam vs router
             msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
+        elif last["role"] != "tool" and "update_profile" in names and "seguo" in user:     # profilo (router)
+            msg = _tool_call("update_profile", {"titoli_seguiti": "AAPL, ENI", "lingua": "italiano"}, "p1")
+        elif last["role"] != "tool" and "remember_about" in names and "progetto" in user:  # entita' (router)
+            msg = _tool_call("remember_about", {"entity": "Harbor", "entity_type": "project",
+                                                "description": "migrazione rete"}, "e1")
         elif last["role"] != "tool":
             if "delegate_task_to_member" in names and any(k in user for k in ROUTES):
                 member = next(v for k, v in ROUTES.items() if k in user)
