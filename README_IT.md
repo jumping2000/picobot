@@ -7,6 +7,7 @@
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
 [![Versione](https://img.shields.io/badge/versione-0.5.0-blue)](pyproject.toml)
+[![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
 [![FastAPI](https://img.shields.io/badge/FastAPI-API%20REST-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -155,3 +156,11 @@ Collaudo manuale: [docs/manual-qa.md](docs/manual-qa.md).
 [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn · [APScheduler 3](https://apscheduler.readthedocs.io/) ·
 SQLite · [yfinance](https://github.com/ranaroussi/yfinance) · [DDGS](https://pypi.org/project/ddgs/) ·
 [MCP](https://modelcontextprotocol.io/) · pypdf · python-docx · [uv](https://docs.astral.sh/uv/)
+
+## 📜 Licenza
+
+Distribuito con [licenza MIT](LICENSE).
+
+> [!NOTE]
+> La licenza copre solo il codice di PicoBot. Le skill installate in `skills/` (es. quelle di esempio `docx`,
+> `pptx`, `xlsx`) mantengono le proprie licenze e non fanno parte di questo repository.

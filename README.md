@@ -7,6 +7,7 @@
 🇬🇧 English · 🇮🇹 [Italiano](README_IT.md)
 
 [![Version](https://img.shields.io/badge/version-0.5.0-blue)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST%20API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
@@ -159,3 +160,11 @@ Manual acceptance checklist (Italian): [docs/manual-qa.md](docs/manual-qa.md).
 [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn · [APScheduler 3](https://apscheduler.readthedocs.io/) ·
 SQLite · [yfinance](https://github.com/ranaroussi/yfinance) · [DDGS](https://pypi.org/project/ddgs/) ·
 [MCP](https://modelcontextprotocol.io/) · pypdf · python-docx · [uv](https://docs.astral.sh/uv/)
+
+## 📜 License
+
+Released under the [MIT License](LICENSE).
+
+> [!NOTE]
+> The license covers PicoBot's code only. Skills you install in `skills/` (e.g. the sample `docx`, `pptx`, `xlsx`)
+> keep their own licenses and are not part of this repository.
