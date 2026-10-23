@@ -111,6 +111,10 @@ jobs:
           uv run picobot skills list
           uv run picobot skills validate
 
+      - name: Run stt tests
+        # servizio di trascrizione: trascrittore finto + decodifica reale OGG/Opus (nessun modello scaricato)
+        run: uv run --directory stt --group dev --python ${{ matrix.python-version }} pytest tests -v
+
       - name: Create test summary
         if: always()
         run: |
@@ -146,8 +150,8 @@ jobs:
           load: true
           push: false
           tags: picobot:ci
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=picobot
+          cache-to: type=gha,mode=max,scope=picobot
 
       - name: Smoke test image
         run: |
@@ -155,6 +159,22 @@ jobs:
           docker run --rm picobot:ci python -m picobot skills list
           docker run --rm picobot:ci node -e "require('docx'); require('pptxgenjs'); console.log('node deps ok')"
           docker run --rm picobot:ci python -c "import openpyxl; print('openpyxl', openpyxl.__version__)"
+
+      - name: Build stt (linux/amd64, no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./stt
+          file: ./stt/Dockerfile
+          platforms: linux/amd64
+          load: true
+          push: false
+          tags: picobot-stt:ci
+          cache-from: type=gha,scope=stt
+          cache-to: type=gha,mode=max,scope=stt
+
+      - name: Smoke test stt image
+        # import senza caricare il modello (si carica all'avvio del server)
+        run: docker run --rm picobot-stt:ci python -c "import faster_whisper, main; print('stt ok')"
 
   # ========================================================================
   # JOB 4: BUILD DOCKER (release e avvio manuale: build multi-arch e push su GHCR)
@@ -225,8 +245,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=picobot
+          cache-to: type=gha,mode=max,scope=picobot
 
       - name: Smoke test pushed image
         run: |
@@ -253,6 +273,55 @@ jobs:
           format: spdx-json
           output-file: sbom.spdx.json
 
+      # 4b. IMMAGINE STT (trascrizione dei vocali)
+      - name: Extract metadata (stt)
+        id: meta_stt
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stt
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.prepare.outputs.version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.prepare.outputs.version }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
+            type=sha,prefix=sha-
+          labels: |
+            org.opencontainers.image.title=PicoBot STT
+            org.opencontainers.image.description=Trascrizione vocale per PicoBot (faster-whisper su CPU, API compatibile OpenAI)
+            org.opencontainers.image.licenses=MIT
+
+      - name: Build and push (stt)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./stt
+          file: ./stt/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta_stt.outputs.tags }}
+          labels: ${{ steps.meta_stt.outputs.labels }}
+          cache-from: type=gha,scope=stt
+          cache-to: type=gha,mode=max,scope=stt
+
+      - name: Smoke test pushed image (stt)
+        run: docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stt:${{ steps.meta_stt.outputs.version }} python -c "import faster_whisper, main; print('stt ok')"
+
+      - name: Scan image for vulnerabilities (stt)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'image'
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stt:${{ steps.meta_stt.outputs.version }}
+          format: 'table'
+          exit-code: '0'  # report, non blocca la build
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+          output: 'trivy-stt-image-report.txt'
+
+      - name: Generate SBOM (stt)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stt:${{ steps.meta_stt.outputs.version }}
+          format: spdx-json
+          output-file: sbom-stt.spdx.json
+
       # 5. ASSETS E ARTIFACTS
       - name: Update Release with Security Assets
         uses: softprops/action-gh-release@v2
@@ -262,6 +331,8 @@ jobs:
             trivy-fs-report.txt
             trivy-image-report.txt
             sbom.spdx.json
+            trivy-stt-image-report.txt
+            sbom-stt.spdx.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -273,6 +344,8 @@ jobs:
             trivy-fs-report.txt
             trivy-image-report.txt
             sbom.spdx.json
+            trivy-stt-image-report.txt
+            sbom-stt.spdx.json
 
       # 6. BUILD SUMMARY
       - name: Create build summary
@@ -285,6 +358,7 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| 🏷️ Version | ${{ needs.prepare.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 📦 Image | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🎤 Image (stt) | \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-stt:${{ steps.meta_stt.outputs.version }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| 🏗️ Platforms | linux/amd64, linux/arm64 |" >> $GITHUB_STEP_SUMMARY
           echo "| 📅 Built | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -292,6 +366,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.meta_stt.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
 
   # ========================================================================
