@@ -22,7 +22,18 @@ class H(BaseHTTPRequestHandler):
         last = msgs[-1]
         user = next((m["content"] for m in reversed(msgs) if m["role"] == "user" and isinstance(m["content"], str)), "").lower()
         msg = {"role": "assistant", "content": "RISPOSTA-FINTA"}
-        if last["role"] != "tool":
+        tool_out = [str(m.get("content")) for m in msgs if m["role"] == "tool"]
+        if "documento" in user and "deliver_file" in names:           # Analyst: crea il file, poi lo consegna
+            if any("Consegnato" in o for o in tool_out):
+                msg = {"role": "assistant", "content": "File creato e consegnato."}
+            elif any("exit=0" in o for o in tool_out):
+                msg = _tool_call("deliver_file", {"path": "outputs/e2e città.docx"}, "c3")
+            else:
+                msg = _tool_call("run_node", {"code": "require('fs').writeFileSync('outputs/e2e città.docx','PK')"}, "c2")
+        elif last["role"] != "tool" and "documento" in user and "delegate_task_to_member" in names:
+            member = "analyst" if "list_skills" in names else "complexteam"   # leader del ComplexTeam vs router
+            msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
+        elif last["role"] != "tool":
             if "delegate_task_to_member" in names and any(k in user for k in ROUTES):
                 member = next(v for k, v in ROUTES.items() if k in user)
                 msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
