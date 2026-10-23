@@ -39,7 +39,7 @@ def test_compose_env_ignores():
     assert "skills/" in read(".gitignore") and "skills" in read(".dockerignore").split()
     env = read(".env.example")
     for k in ("ENABLE_SKILLS", "SKILLS_DIR", "CODE_NODE_MEM_MB", "CODE_MAX_RUNS", "MAX_OUTPUT_MB",
-              "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H"):
+              "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H", "STT_URL", "STT_TIMEOUT_S", "MAX_VOICE_S"):
         assert k in env, k
 
 

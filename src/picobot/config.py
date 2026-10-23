@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     doc_chunk_chars: int = 100000   # sotto questa soglia il riassunto e' 1 sola chiamata
     doc_max_chars: int = 400000
 
+    # --- Messaggi vocali (STT) ---
+    stt_url: str = ""          # es. http://stt:8000 (servizio del profilo compose "stt"); vuoto = vocali spenti
+    stt_timeout_s: int = 180
+    max_voice_s: int = 300     # durata massima, controllata prima del download
+
     # --- Scheduler ---
     timezone: str = "Europe/Rome"
     schedule_min_interval_min: int = 30
