@@ -203,3 +203,17 @@ def test_add_summary_lists_declared_deps(capsys, tmp_path, d):
     src = skill_with_deps(tmp_path / "src")
     assert main_skills(["add", str(src)], Settings(skills_dir=d)) == 0
     assert "pip: openpyxl==3.1.5" in capsys.readouterr().out
+
+
+def test_zip_size_checked_before_extraction(monkeypatch, tmp_path, d):     # zip-bomba: nulla va su disco
+    monkeypatch.setattr(skills_cli, "MAX_SKILL_BYTES", 1000)
+    z = tmp_path / "bomb.zip"
+    with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("docx/SKILL.md", GOOD)
+        zf.writestr("docx/big.bin", b"\0" * 200_000)        # comprime a poche centinaia di byte
+    extracted = []
+    real = zipfile.ZipFile.extractall
+    monkeypatch.setattr(zipfile.ZipFile, "extractall", lambda self, *a, **k: (extracted.append(1), real(self, *a, **k)))
+    with pytest.raises(SkillInstallError, match="troppo grande"):
+        install(str(z), d)
+    assert extracted == [] and list(d.iterdir()) == []

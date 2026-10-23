@@ -42,6 +42,9 @@ def _safe_extract(zip_path: Path, dest: Path) -> None:
                 raise SkillInstallError(f"zip non sicuro: percorso '{m.filename}'")
             if stat.S_ISLNK(m.external_attr >> 16):
                 raise SkillInstallError(f"zip non sicuro: symlink '{m.filename}'")
+        # dimensioni dichiarate prima di estrarre (zipfile non estrae oltre la dimensione dichiarata)
+        if sum(m.file_size for m in zf.infolist()) > MAX_SKILL_BYTES:
+            raise SkillInstallError(f"skill troppo grande (max {MAX_SKILL_BYTES // (1024 * 1024)} MB)")
         zf.extractall(dest)
 
 
