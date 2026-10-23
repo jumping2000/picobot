@@ -26,6 +26,8 @@ class H(BaseHTTPRequestHandler):
             if "delegate_task_to_member" in names and any(k in user for k in ROUTES):
                 member = next(v for k, v in ROUTES.items() if k in user)
                 msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
+            elif "add" in names and "somma" in user:          # tool MCP del server di prova
+                msg = _tool_call("add", {"a": 2, "b": 3})
             elif "run_node" in names and "esegui node" in user:
                 msg = _tool_call("run_node", {"code": "console.log(42)"})
             elif "run_python" in names and "programma" in user:

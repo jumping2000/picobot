@@ -1,4 +1,7 @@
-"""Carica i server MCP da config/mcp_config.json (formato Claude Desktop)."""
+"""Carica i server MCP da config/mcp_config.json (formato Claude Desktop, piu' il flag opzionale "enabled").
+
+Un MCPTools per server, condiviso da tutti i membri del ComplexTeam. Le modifiche richiedono il riavvio.
+"""
 import json
 import logging
 import shlex
@@ -22,6 +25,9 @@ async def load_mcp_tools(path: Path) -> list[MCPTools]:
 
     connected: list[MCPTools] = []
     for name, cfg in servers.items():
+        if not cfg.get("enabled", True):
+            logger.info("MCP: server '%s' disabilitato (enabled=false), salto.", name)
+            continue
         try:
             if "url" in cfg:
                 tool = MCPTools(url=cfg["url"], name=name, transport=cfg.get("transport", "streamable-http"))
