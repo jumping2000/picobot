@@ -10,12 +10,22 @@ from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from .common import HELP, format_schedules, parse_schedule_args
 
-CLI_HELP = HELP.replace("Invia un PDF/DOCX/TXT per ottenere un riassunto (nella didascalia puoi scrivere istruzioni).",
-                        "/file <percorso> [istruzioni] - riassume un PDF/DOCX/TXT") + "\n/quit - esci"
+CLI_HELP = (HELP
+            .replace("Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.",
+                     "/file <percorso> [richiesta] - usa un documento (decide il router: riassunto o altro)")
+            .replace("/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento",
+                     "/riassumi <percorso> [istruzioni] - riassunto diretto di un documento")
+            + "\n/quit - esci")
 
 
 async def _ainput(prompt: str) -> str:
     return await asyncio.to_thread(input, prompt)
+
+
+def _print_reply(reply) -> None:
+    print("\n" + reply.text + "\n")
+    for f in reply.files:
+        print(f"File: {f.path}")
 
 
 async def run_cli(s: Settings, service: PicoBotService) -> None:
@@ -61,13 +71,25 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
                     print("Memoria cancellata.")
                 else:
                     print("Annullato.")
-            elif cmd == "/file":
+            elif cmd in {"/simple", "/complex"}:
+                if not arg.strip():
+                    print(f"Uso: {cmd} <richiesta>")
+                    continue
+                reply = await service.ask(arg.strip(), user_id=uid, session_id=session, ctx=ctx, target=cmd[1:])
+                _print_reply(reply)
+            elif cmd in {"/file", "/riassumi"}:
                 path_s, _, instr = arg.strip().partition(" ")
                 p = Path(path_s).expanduser()
                 if not p.is_file():
                     print("File non trovato.")
                     continue
-                print(await service.summarize(p, instr, user_id=uid, session_id=session))
+                if cmd == "/riassumi":   # workflow diretto
+                    print(await service.summarize(p, instr, user_id=uid, session_id=session))
+                else:                    # decide il router (il file dell'utente non viene mai cancellato)
+                    doc_ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm, document=p, document_name=p.name)
+                    reply = await service.ask(f"[Documento caricato: {p.name}] {instr}".strip(), user_id=uid,
+                                              session_id=session, ctx=doc_ctx)
+                    _print_reply(reply)
             elif cmd == "/schedule":
                 cron, prompt = parse_schedule_args(arg)
                 sid = service.scheduler.add(uid, "cli", uid, cron, prompt)
@@ -81,10 +103,7 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/unschedule":
                 print("Eliminato." if service.scheduler.remove(uid, int(arg)) else "Task non trovato.")
             else:
-                reply = await service.ask(line, user_id=uid, session_id=session, ctx=ctx)
-                print("\n" + reply.text + "\n")
-                for f in reply.files:
-                    print(f"File: {f.path}")
+                _print_reply(await service.ask(line, user_id=uid, session_id=session, ctx=ctx))
         except (ValueError, ScheduleError, DocumentError) as e:
             print(e)
         except Exception as e:  # noqa: BLE001

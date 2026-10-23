@@ -23,7 +23,7 @@ class H(BaseHTTPRequestHandler):
         user = next((m["content"] for m in reversed(msgs) if m["role"] == "user" and isinstance(m["content"], str)), "").lower()
         msg = {"role": "assistant", "content": "RISPOSTA-FINTA"}
         tool_out = [str(m.get("content")) for m in msgs if m["role"] == "tool"]
-        doc_task = "documento" in user or "relazione" in user
+        doc_task = "documento word" in user or "relazione" in user   # NON "documento": c'e' in "[Documento caricato"
         if doc_task and "list_skills" in names and "delegate_task_to_member" in names:   # leader ComplexTeam
             if any("consegnato" in o.lower() for o in tool_out) or len(tool_out) >= 4:  # limite: mai in loop
                 msg = {"role": "assistant", "content": "Fatto: file consegnato."}
@@ -43,14 +43,14 @@ class H(BaseHTTPRequestHandler):
                 msg = _tool_call("save_text_file", {"filename": "relazione.md", "content": "# Relazione"}, "t1")
         elif last["role"] != "tool" and "relazione" in user and "summarize_document" in names:   # router
             msg = _tool_call("delegate_task_to_member", {"member_id": "complexteam", "task": user}, "rc")
-        elif "documento" in user and "deliver_file" in names:           # Writer: crea il file, poi lo consegna
+        elif "documento word" in user and "deliver_file" in names:      # Writer: crea il file, poi lo consegna
             if any("Consegnato" in o for o in tool_out):
                 msg = {"role": "assistant", "content": "File creato e consegnato."}
             elif any("exit=0" in o for o in tool_out):
                 msg = _tool_call("deliver_file", {"path": "outputs/e2e città.docx"}, "c3")
             else:
                 msg = _tool_call("run_node", {"code": "require('fs').writeFileSync('outputs/e2e città.docx','PK')"}, "c2")
-        elif last["role"] != "tool" and "documento" in user and "delegate_task_to_member" in names:
+        elif last["role"] != "tool" and "documento word" in user and "delegate_task_to_member" in names:
             member = "analyst" if "list_skills" in names else "complexteam"   # leader del ComplexTeam vs router
             msg = _tool_call("delegate_task_to_member", {"member_id": member, "task": user})
         elif last["role"] != "tool" and "update_profile" in names and "seguo" in user:     # profilo (router)

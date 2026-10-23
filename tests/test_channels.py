@@ -178,10 +178,11 @@ def test_telegram_document_flow(tmp_path):
         assert "non supportato" in replies[-1]
         await gw.on_document(update("a.txt", size=s.max_upload_mb * 1024 * 1024 + 1), ctx)
         assert "troppo grande" in replies[-1]
-        await gw.on_document(update("a.txt"), ctx)
+        fake_llm.LOG.clear()
+        await gw.on_document(update("a.txt"), ctx)                  # v0.5: passa dal router
         assert replies[-1] == "RISPOSTA-FINTA"
         assert not list((s.data_dir / "inbox").glob("*"))      # file cancellato dopo l'uso
-        assert "in 3 punti" in str(fake_llm.LOG[-1]["messages"])  # didascalia = istruzioni
+        assert "[Documento caricato: a.txt] in 3 punti" in str(fake_llm.LOG[0]["messages"])
         sid = ctx.chat_data["session_id"]                          # il riassunto e' nella sessione della chat
         fake_llm.LOG.clear()
         await svc.ask("e il punto 2?", user_id="1", session_id=sid)
@@ -361,3 +362,123 @@ def test_cli_skills_command(monkeypatch, capsys, tmp_path):
         await cli_mod.run_cli(s, svc)
     asyncio.run(t())
     assert "docx: Crea documenti Word" in capsys.readouterr().out and fake_llm.LOG == []
+
+
+# ---------------- comandi /simple /complex /riassumi e upload via router (v0.5) ----------------
+def _tg(tmp_path, svc_started=True):
+    s = Settings(telegram_allowed_user_ids="1")
+    svc = PicoBotService(s)
+    return s, svc, TelegramGateway(s, svc)
+
+
+def _doc_update(replies, name="a.txt", caption=None, content="testo del documento", reply_doc=None, text=None):
+    async def reply(text, **kw): replies.append(text)
+    async def reply_document(document, **kw): replies.append(f"FILE:{kw['filename']}")
+    async def dl(custom_path): custom_path.write_text(content)
+    doc = NS(file_name=name, file_size=10, get_file=AsyncMock(return_value=NS(download_to_drive=dl))) if name else None
+    rdoc = NS(file_name=reply_doc, file_size=10, get_file=AsyncMock(return_value=NS(download_to_drive=dl))) if reply_doc else None
+    msg = NS(document=doc, caption=caption, text=text, reply_text=reply, reply_document=reply_document,
+             reply_to_message=NS(document=rdoc) if rdoc else None)
+    return NS(effective_user=NS(id=1), effective_chat=NS(id=9), message=msg)
+
+
+def _ctx():
+    return NS(bot=MagicMock(send_chat_action=AsyncMock()), chat_data={}, args=[])
+
+
+def _calls_router():
+    return any("summarize_document" in {t["function"]["name"] for t in b.get("tools") or []} for b in fake_llm.LOG)
+
+
+def test_telegram_document_goes_to_router_and_can_summarize(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        fake_llm.LOG.clear()
+        await gw.on_document(_doc_update(replies, caption="riassumi in 3 punti"), _ctx())
+        bodies = str([b["messages"] for b in fake_llm.LOG])
+        assert _calls_router() and "<documento" in bodies and "in 3 punti" in bodies   # router -> summarize_document
+        fake_llm.LOG.clear()
+        await gw.on_document(_doc_update(replies, caption=None), _ctx())             # didascalia vuota -> riassunto
+        assert "<documento" in str([b["messages"] for b in fake_llm.LOG])
+        assert not list((s.data_dir / "inbox").glob("*"))
+    asyncio.run(t())
+
+
+def test_telegram_unreadable_document_via_router(tmp_path):     # Review Focus 2
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        await gw.on_document(_doc_update(replies, caption=None, content="   "), _ctx())
+        return replies
+    replies = asyncio.run(t())
+    assert replies and "errore" not in replies[-1].lower()
+
+
+def test_telegram_caption_riassumi_is_direct(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        fake_llm.LOG.clear()
+        await gw.on_document(_doc_update(replies, caption="/riassumi in 3 punti"), _ctx())
+        assert not _calls_router() and "in 3 punti" in str(fake_llm.LOG[-1]["messages"]) and replies[-1] == "RISPOSTA-FINTA"
+        replies.clear()
+        await gw.on_document(_doc_update(replies, caption="/riassumi", content="  "), _ctx())
+        assert "Nessun testo" in replies[-1]
+    asyncio.run(t())
+
+
+def test_telegram_riassumi_reply_to_document(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        fake_llm.LOG.clear()
+        ctx = _ctx(); ctx.args = ["breve"]
+        await gw.on_riassumi(_doc_update(replies, name=None, reply_doc="b.txt", text="/riassumi breve"), ctx)
+        assert not _calls_router() and "breve" in str(fake_llm.LOG[-1]["messages"]) and replies[-1] == "RISPOSTA-FINTA"
+        replies.clear()
+        await gw.on_riassumi(_doc_update(replies, name=None, text="/riassumi"), _ctx())
+        assert replies == ["Rispondi a un documento con /riassumi oppure usalo come didascalia."]
+        assert not list((s.data_dir / "inbox").glob("*"))
+    asyncio.run(t())
+
+
+def test_telegram_simple_complex_commands(tmp_path):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        seen = []
+        orig = svc.ask
+        async def spy(text, **kw):
+            seen.append((text, kw.get("target")))
+            return await orig(text, **kw)
+        svc.ask = spy
+        await gw.on_simple(_doc_update(replies, name=None, text="/simple quotazione AAPL"), _ctx())
+        await gw.on_complex(_doc_update(replies, name=None, text="/complex"), _ctx())
+        return seen, replies
+    seen, replies = asyncio.run(t())
+    assert seen == [("quotazione AAPL", "simple")] and replies[-1] == "Uso: /complex <richiesta>"
+
+
+def test_cli_v05_commands(monkeypatch, capsys, tmp_path):
+    f = tmp_path / "doc.txt"; f.write_text("contenuto")
+    inputs = iter([f"/simple quotazione AAPL", f"/complex scrivi una relazione", f"/riassumi {f} breve",
+                   f"/file {f} riassumi", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    seen = []
+    async def t():
+        s = Settings(); svc = PicoBotService(s); await svc.start()
+        orig_ask, orig_sum = svc.ask, svc.summarize
+        async def ask(text, **kw):
+            seen.append(("ask", text, kw.get("target", "auto"), kw["ctx"].document is not None)); return await orig_ask(text, **kw)
+        async def summ(path, instr="", **kw):
+            seen.append(("summarize", instr)); return await orig_sum(path, instr, **kw)
+        svc.ask, svc.summarize = ask, summ
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    assert seen == [("ask", "quotazione AAPL", "simple", False), ("ask", "scrivi una relazione", "complex", False),
+                    ("summarize", "breve"), ("ask", f"[Documento caricato: doc.txt] riassumi", "auto", True)]
+    assert f.exists()                                   # la CLI non cancella mai i file dell'utente
+
+
+def test_help_lists_new_commands():
+    from picobot.channels.cli import CLI_HELP
+    from picobot.channels.common import HELP
+    assert all(c in HELP for c in ("/simple", "/complex", "/riassumi"))
+    assert all(c in CLI_HELP for c in ("/simple", "/complex", "/riassumi <percorso>", "/file <percorso>"))
