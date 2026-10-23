@@ -1,7 +1,8 @@
 """Logica condivisa dai canali (testo help, parsing /schedule, split messaggi)."""
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
-    "Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.\n\n"
+    "Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.\n"
+    "Invia un messaggio vocale o un file audio: lo trascrivo e lo eseguo come un messaggio scritto.\n\n"
     "/simple <richiesta> - usa direttamente il SimpleTeam (quotazioni, ricerche, script)\n"
     "/complex <richiesta> - usa direttamente il ComplexTeam (documenti, compiti complessi)\n"
     "/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento\n"
