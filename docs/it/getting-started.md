@@ -100,6 +100,29 @@ curl -X POST localhost:8000/v1/chat -H "Authorization: Bearer $TOKEN" \
 
 Documentazione OpenAPI interattiva: `http://localhost:8000/docs`.
 
+## Immagine pronta
+
+Ogni release su GitHub pubblica un'immagine multi-architettura (linux/amd64, linux/arm64) su GitHub Container
+Registry:
+
+| Tag | Significato |
+|---|---|
+| `latest` | Ultima release stabile |
+| `0.5.0`, `0.5` | Una versione precisa / l'ultima patch di una versione minore |
+| `sha-<commit>` | Commit esatto |
+
+In `docker-compose.yaml` sostituisci `build: .` con:
+
+```yaml
+    image: ghcr.io/jumping2000/picobot:latest
+```
+
+poi `docker compose pull && docker compose up -d`. Cartelle, `.env` e volumi restano gli stessi.
+
+> [!NOTE]
+> L'immagine contiene già le librerie elencate in `deps/` (quelle delle skill di esempio `docx`, `pptx`, `xlsx`).
+> Se una skill richiede altre librerie, devi costruire la tua immagine (`build: .`).
+
 ## Esecuzione senza Docker
 
 ```bash

@@ -48,6 +48,7 @@ picobot/
 ├── config/mcp_config.json
 ├── deps/                 # punti di estensione apt/pip/npm + setup.sh
 ├── docs/                 # questa documentazione (en/, it/), collaudo manuale, spec di design
+├── .github/workflows/    # CI/CD (test, Docker build, GHCR)
 ├── Dockerfile, docker-compose.yaml, .env.example
 └── pyproject.toml
 ```
@@ -76,7 +77,38 @@ Passi della build ([`Dockerfile`](../../Dockerfile)):
 4. Codice sorgente, utente non root `picobot` (UID 1000); scrivibili solo `data/` e `workspace/`.
 5. `HEALTHCHECK` su `/health`; comando `python -m picobot serve`.
 
-## Versioni
+## CI/CD
+
+Workflow: [`.github/workflows/release_ci-cd.yml`](../../.github/workflows/release_ci-cd.yml).
+
+| Job | Quando | Cosa fa |
+|---|---|---|
+| `prepare` | Sempre | Legge la versione; fallisce se `pyproject.toml`, `__init__.py` e il tag della release non coincidono |
+| `test` | Sempre | pytest su Python 3.11, 3.12, 3.13 (con i pacchetti Node di `deps/npm.txt`) + smoke test della CLI |
+| `docker-check` | Push su `main`, pull request | Build amd64 senza push + smoke test dell'immagine (Python, dipendenze Node e pip) |
+| `build-docker` | Release pubblicata, avvio manuale | Scansione Trivy (repo), build multi-arch e push su GHCR, smoke test, scansione Trivy (immagine), SBOM, report allegati alla release |
+| `notify` | Release, avvio manuale | Email con l'esito, **solo se** i secret SMTP sono configurati |
+
+Immagine: `ghcr.io/jumping2000/picobot`. Tag: versione (`0.5.0`), minore (`0.5`), `sha-<commit>` e `latest` per
+le release non prerelease.
+
+Secret opzionali per l'email: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `NOTIFICATION_EMAIL`.
+Il push su GHCR usa il `GITHUB_TOKEN` integrato: non serve nessun altro secret.
+
+> [!NOTE]
+> Al primo push GitHub crea il pacchetto come **privato**. Per renderlo scaricabile da chiunque, apri la pagina del
+> pacchetto (*Packages → picobot → Package settings*) e cambia la visibilità in pubblica.
+
+## Versioni e release
 
 La versione è definita in `pyproject.toml` e in `src/picobot/__init__.py` (`__version__`, esposta da `/health`).
-Tienile allineate.
+Tienile allineate: la CI rifiuta di pubblicare se non coincidono.
+
+Per fare una release:
+
+1. Aggiorna la versione nei due file e fai commit su `main`.
+2. Crea una release su GitHub con tag `v<versione>` (es. `v0.5.0`).
+3. La CI pubblica l'immagine e allega `trivy-fs-report.txt`, `trivy-image-report.txt` e `sbom.spdx.json`.
+
+Un avvio manuale (*Actions → PicoBot CI/CD Pipeline → Run workflow*) ricostruisce e pubblica la versione corrente
+senza spostare `latest`.

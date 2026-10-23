@@ -16,7 +16,8 @@
 [![MCP](https://img.shields.io/badge/MCP-supportato-8A2BE2)](https://modelcontextprotocol.io/)
 [![LLM](https://img.shields.io/badge/LLM-OpenRouter%20%7C%20OpenAI-412991?logo=openai&logoColor=white)](https://openrouter.ai/)
 [![SQLite](https://img.shields.io/badge/storage-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Test](https://img.shields.io/badge/test-pytest-0A9EDC?logo=pytest&logoColor=white)](tests/)
+[![CI/CD](https://github.com/jumping2000/picobot/actions/workflows/release_ci-cd.yml/badge.svg)](https://github.com/jumping2000/picobot/actions/workflows/release_ci-cd.yml)
+[![Immagine Docker](https://img.shields.io/badge/immagine-ghcr.io-2496ED?logo=docker&logoColor=white)](https://github.com/jumping2000/picobot/pkgs/container/picobot)
 [![Ultimo commit](https://img.shields.io/github/last-commit/jumping2000/picobot)](https://github.com/jumping2000/picobot/commits/main)
 [![Dimensione codice](https://img.shields.io/github/languages/code-size/jumping2000/picobot)](https://github.com/jumping2000/picobot)
 
@@ -72,6 +73,11 @@ cp .env.example .env            # imposta OPENROUTER_API_KEY, TELEGRAM_* e/o API
 mkdir -p data workspace skills && sudo chown -R 1000 data workspace
 docker compose up -d --build
 ```
+
+> [!TIP]
+> Preferisci un'immagine già pronta? In `docker-compose.yaml` sostituisci `build: .` con
+> `image: ghcr.io/jumping2000/picobot:latest` (linux/amd64 e linux/arm64). Vedi
+> [per iniziare](docs/it/getting-started.md#immagine-pronta).
 
 - **Telegram**: scrivi al tuo bot, poi `/help`.
 - **CLI**: `docker compose exec -it picobot python -m picobot cli`
@@ -149,6 +155,8 @@ uv run --group dev pytest tests     # LLM finto, nessuna chiave necessaria
 ```
 
 Collaudo manuale: [docs/manual-qa.md](docs/manual-qa.md).
+La CI esegue la suite su Python 3.11-3.13 e pubblica l'immagine Docker a ogni release:
+vedi [sviluppo → CI/CD](docs/it/development.md#cicd).
 
 ## 🧰 Stack tecnologico
 

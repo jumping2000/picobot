@@ -48,6 +48,7 @@ picobot/
 ├── config/mcp_config.json
 ├── deps/                 # apt/pip/npm extension points + setup.sh
 ├── docs/                 # this documentation (en/, it/), manual QA, design specs
+├── .github/workflows/    # CI/CD (test, Docker build, GHCR)
 ├── Dockerfile, docker-compose.yaml, .env.example
 └── pyproject.toml
 ```
@@ -76,7 +77,38 @@ Build steps ([`Dockerfile`](../../Dockerfile)):
 4. Source code, non-root user `picobot` (UID 1000); only `data/` and `workspace/` are writable.
 5. `HEALTHCHECK` on `/health`; command `python -m picobot serve`.
 
-## Versioning
+## CI/CD
+
+Workflow: [`.github/workflows/release_ci-cd.yml`](../../.github/workflows/release_ci-cd.yml).
+
+| Job | When | What |
+|---|---|---|
+| `prepare` | Always | Reads the version; fails if `pyproject.toml`, `__init__.py` and the release tag disagree |
+| `test` | Always | pytest on Python 3.11, 3.12, 3.13 (with the Node packages of `deps/npm.txt`) + CLI smoke test |
+| `docker-check` | Push to `main`, pull request | amd64 build without push + smoke test of the image (Python, Node and pip deps) |
+| `build-docker` | Release published, manual run | Trivy scan (repo), multi-arch build and push to GHCR, smoke test, Trivy scan (image), SBOM, reports attached to the release |
+| `notify` | Release, manual run | E-mail with the result, **only if** the SMTP secrets are set |
+
+Image: `ghcr.io/jumping2000/picobot`. Tags: version (`0.5.0`), minor (`0.5`), `sha-<commit>`, and `latest` for
+non-prerelease releases.
+
+Optional secrets for the e-mail: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `NOTIFICATION_EMAIL`.
+Pushing to GHCR uses the built-in `GITHUB_TOKEN`; no extra secret is needed.
+
+> [!NOTE]
+> On the first push, GitHub creates the package as **private**. To let anyone pull it, open the package page
+> (*Packages → picobot → Package settings*) and change the visibility to public.
+
+## Versioning and releases
 
 The version is defined in `pyproject.toml` and `src/picobot/__init__.py` (`__version__`, exposed by `/health`).
-Keep them aligned.
+Keep them aligned: CI refuses to publish if they disagree.
+
+To release:
+
+1. Update the version in both files and commit to `main`.
+2. Create a GitHub release with tag `v<version>` (e.g. `v0.5.0`).
+3. CI publishes the image and attaches `trivy-fs-report.txt`, `trivy-image-report.txt` and `sbom.spdx.json`.
+
+A manual run (*Actions → PicoBot CI/CD Pipeline → Run workflow*) rebuilds and pushes the current version without
+moving `latest`.
