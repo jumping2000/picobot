@@ -16,6 +16,7 @@ from .context import Reply, RunCtx, reset_ctx, set_ctx
 from .documents import extract_text
 from .mcp_loader import close_mcp_tools, load_mcp_tools
 from .scheduler import Scheduler
+from .skills import SkillRegistry
 from .team import build_router
 from .tools.files import purge_outbox
 from .workflows.doc_summary import build_doc_workflow
@@ -38,7 +39,8 @@ class PicoBotService:
         except OSError:
             logger.exception("Pulizia outbox fallita")
         self._mcp = await load_mcp_tools(self.s.mcp_config_path)
-        self.team = build_router(self.s, extra_tools=self._mcp)
+        self.registry = SkillRegistry(self.s)
+        self.team = build_router(self.s, self.registry, mcp_tools=self._mcp)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
         self.doc_flow = build_doc_workflow(self.s)
         self.scheduler = Scheduler(self.s, self._ask_text)

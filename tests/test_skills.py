@@ -122,3 +122,65 @@ def test_info(d):
     info = reg_of(d).info()[0]
     assert (info.name, info.description, info.files, info.has_scripts) == ("docx", "Word", 2, True)
     assert isinstance(reg_of(d).skills, CatalogSkills)
+
+
+# ---------------- cablaggio nel ComplexTeam (Task 8) ----------------
+from picobot import prompts                         # noqa: E402
+from picobot.agents import build_complex_team       # noqa: E402
+from picobot.prompts import router_instructions     # noqa: E402
+from picobot.team import build_router               # noqa: E402
+
+
+def probe(a: int, b: int) -> int:
+    """Tool MCP finto."""
+    return a + b
+
+
+def _names(m):
+    return {getattr(t, "__name__", getattr(t, "name", "")) for t in m.tools}
+
+
+def test_skills_only_in_complexteam(d, tmp_path):
+    mk(d, "docx", "Word")
+    s = Settings(skills_dir=d, data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws")
+    reg = SkillRegistry(s)
+    team = build_router(s, reg, mcp_tools=[probe])
+    ct = next(m for m in team.members if m.name == "ComplexTeam")
+    member = {m.name: m for m in ct.members}
+    assert team.skills is None and all(m.skills is None for m in team.members if m.name != "ComplexTeam")
+    assert ct.skills is reg.skills and all(m.skills is reg.skills for m in ct.members)
+    assert set(member) == {"Researcher", "Analyst", "Writer", "Critic"}
+    assert all(probe in m.tools for m in ct.members)
+    assert {"run_python", "run_node", "deliver_file"} <= _names(member["Analyst"])
+    for other in ("Researcher", "Writer", "Critic"):
+        assert not ({"run_python", "run_node", "deliver_file"} & _names(member[other]))
+    assert "run_node" not in _names(next(m for m in team.members if m.name == "Coder"))
+
+
+def test_empty_registry_still_wired(d, tmp_path):     # skill aggiunte dopo l'avvio devono essere viste
+    s = Settings(skills_dir=d, data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws")
+    reg = SkillRegistry(s)
+    ct = build_complex_team(s, reg)
+    assert ct.skills is reg.skills and all(m.skills is reg.skills for m in ct.members)
+
+
+def test_disabled_skills(tmp_path):
+    s = Settings(enable_skills=False, data_dir=tmp_path / "data", workspace_dir=tmp_path / "ws")
+    team = build_router(s, SkillRegistry(s))
+    ct = next(m for m in team.members if m.name == "ComplexTeam")
+    assert ct.skills is None and all(m.skills is None for m in ct.members)
+
+
+def test_router_instructions():
+    j = lambda names: " ".join(router_instructions(names, 15))   # noqa: E731
+    assert "Skill nel ComplexTeam: docx, pptx" in j(["docx", "pptx"])
+    assert "Skill nel ComplexTeam" not in j([f"s{i}" for i in range(16)])
+    assert "Skill nel ComplexTeam" not in j([])
+    assert all("ComplexTeam" in j(n) and "Word" in j(n) for n in ([], ["a"]))
+
+
+def test_leader_prompt_mentions_list_skills():
+    assert "list_skills" in prompts.COMPLEX_LEADER
+    for p in (prompts.ANALYST, prompts.RESEARCHER, prompts.WRITER, prompts.CRITIC):
+        assert "get_skill_instructions" in p
+    assert "deliver_file" in prompts.ANALYST and "LibreOffice" in prompts.ANALYST
