@@ -1,0 +1,20 @@
+[project]
+name = "picobot-stt"
+version = "0.6.0"
+description = "PicoBot STT - trascrizione vocale (faster-whisper su CPU) con endpoint compatibile OpenAI"
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper==1.2.1",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+]
+
+[dependency-groups]
+dev = ["pytest", "httpx"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
