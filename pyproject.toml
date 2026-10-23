@@ -1,0 +1,37 @@
+[project]
+name = "picobot-agent"
+version = "0.3.0"
+description = "PicoBot - multi-agent personal assistant (Agno 3): Telegram, CLI, REST API"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "agno>=3.1.0,<4",
+    "python-telegram-bot==21.10",
+    "pydantic-settings>=2.4",
+    "openai",
+    "ddgs",
+    "mcp",
+    "fastmcp>=4.0.0,<5",
+    "sqlalchemy",
+    "greenlet",
+    "yfinance",
+    "pypdf",
+    "python-docx",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "apscheduler>=3.10,<4",
+]
+
+[dependency-groups]
+dev = ["pytest", "httpx", "fpdf2"]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.scripts]
+picobot = "picobot.__main__:main"

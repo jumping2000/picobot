@@ -1,0 +1,2 @@
+[console_scripts]
+picobot = picobot.__main__:main

@@ -1,0 +1,10 @@
+.env
+workspace/
+data/
+certs/*
+!certs/.gitkeep
+.venv/
+__pycache__/
+*.db
+*.pkl
+.superpowers/

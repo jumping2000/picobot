@@ -1,0 +1,15 @@
+services:
+  picobot:
+    build: .
+    container_name: picobot-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${API_BIND:-127.0.0.1}:8000:8000"   # API_BIND=0.0.0.0 per esporla (abilita TLS: vedi .env)
+    volumes:
+      - ./data:/app/data            # DB SQLite, stato Telegram
+      - ./workspace:/app/workspace  # file e script dell'agente (unico posto dove gira il codice generato)
+      - ./config:/app/config:ro
+      # - ./certs:/app/certs:ro      # se usi HTTPS diretto (API_SSL_CERTFILE=/app/certs/cert.pem ...)
+    # prima volta: mkdir data workspace && sudo chown -R 1000 data workspace
+    # CLI:  docker compose exec -it picobot python -m picobot cli
