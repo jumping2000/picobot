@@ -131,7 +131,7 @@ def test_summary_short_doc_one_call_and_injection_wrapped(svc, tmp_path):
 
 
 def test_summary_long_doc_uses_map_reduce(svc, tmp_path):
-    f = tmp_path / "long.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char -> 4 chunk da 20k
+    f = tmp_path / "long.txt"; f.write_text("riga di testo\n" * 18000)  # ~250k char -> 3 chunk da 100k
     n = len(split_chunks(f.read_text(), svc.s.doc_chunk_chars))
     run(svc.summarize(f, "", user_id="1"))
     assert n > 1 and len(fake_llm.LOG) == n + 1
@@ -202,3 +202,9 @@ def test_ask_returns_reply_with_files(svc, tmp_path):
     ctx.outputs.append(of)
     r = run(svc.ask("ciao", user_id="1", session_id="r1", ctx=ctx))
     assert isinstance(r, Reply) and r.files == [of] and r.text
+
+
+def test_summary_70k_doc_single_call(svc, tmp_path):     # soglia 100.000 caratteri
+    f = tmp_path / "medio.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char
+    run(svc.summarize(f, "", user_id="1"))
+    assert len(fake_llm.LOG) == 1

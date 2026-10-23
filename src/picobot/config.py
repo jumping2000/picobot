@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # --- Documenti ---
     max_upload_mb: int = 15
-    doc_chunk_chars: int = 20000
+    doc_chunk_chars: int = 100000   # sotto questa soglia il riassunto e' 1 sola chiamata
     doc_max_chars: int = 400000
 
     # --- Scheduler ---

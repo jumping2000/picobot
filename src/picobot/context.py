@@ -32,6 +32,8 @@ class RunCtx:
     pre_approved: bool = False         # approvazione esplicita a monte (api: approve_code=true)
     outputs: list[OutputFile] = field(default_factory=list)   # file consegnati da deliver_file
     runs: int = 0                      # esecuzioni di codice approvate in questa richiesta
+    document: Path | None = None       # documento caricato in questa richiesta (Telegram, CLI)
+    document_name: str = ""
 
     @property
     def can_run_code(self) -> bool:

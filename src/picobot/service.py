@@ -1,5 +1,4 @@
 """Facciata async verso router, workflow documenti e scheduler: i canali non toccano Agno."""
-import asyncio
 import logging
 import time
 from pathlib import Path
@@ -13,14 +12,13 @@ from agno.workflow import Workflow
 
 from .config import Settings
 from .context import Reply, RunCtx, reset_ctx, set_ctx
-from .documents import extract_text
 from .mcp_loader import close_mcp_tools, load_mcp_tools
 from .scheduler import Scheduler
 from .prompts import router_instructions
 from .skills import SkillInfo, SkillRegistry
 from .team import build_router
 from .tools.files import purge_outbox
-from .workflows.doc_summary import build_doc_workflow
+from .workflows.doc_summary import build_doc_workflow, run_summary
 
 logger = logging.getLogger(__name__)
 
@@ -79,15 +77,7 @@ class PicoBotService:
                         session_id: str | None = None) -> str:
         assert self.doc_flow is not None
         # estrazione PRIMA del workflow: gli errori (DocumentError) arrivano al canale invece di essere inghiottiti
-        text, truncated = await asyncio.to_thread(extract_text, path, self.s.doc_max_chars)
-        out = await self.doc_flow.arun(
-            input="riassunto",
-            additional_data={"text": text, "truncated": truncated, "name": name or path.name,
-                             "instruction": instruction.strip()[:1000]},
-            user_id=user_id,
-        )
-        content = out.content
-        summary = content if isinstance(content, str) else str(content)
+        summary = await run_summary(self.doc_flow, self.s, path, instruction, user_id=user_id, name=name)
         if session_id:   # il riassunto entra nella storia della sessione: follow-up possibili
             await self._record_in_session(session_id, user_id,
                                           f"[Documento caricato: {name or path.name}] {instruction.strip()}".strip(), summary)
