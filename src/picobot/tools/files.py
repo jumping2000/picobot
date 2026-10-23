@@ -67,6 +67,38 @@ def make_file_tools(s: Settings) -> list:
     return [deliver_file]
 
 
+# ---------------- file di testo scritti direttamente (senza eseguire codice) ----------------
+TEXT_EXTENSIONS = {"md", "txt", "csv", "html", "json"}
+
+
+def make_text_tools(s: Settings) -> list:
+    async def save_text_file(filename: str, content: str) -> str:
+        """Salva un file di testo (Markdown, testo, CSV, HTML, JSON) in outputs/ senza eseguire codice.
+        Per consegnarlo all'utente chiama poi deliver_file con il percorso restituito.
+
+        Args:
+            filename: solo il nome del file, senza cartelle, es. "relazione.md"
+            content: contenuto completo del file
+        """
+        allowed = TEXT_EXTENSIONS & s.output_ext_set
+        name = (filename or "").strip()
+        if not name or len(name) > 120 or any(c in name for c in "/\\\0") or ".." in name or name.startswith("."):
+            return "Rifiutato: nome file non valido (solo il nome, senza cartelle, max 120 caratteri)."
+        if Path(name).suffix.lower().lstrip(".") not in allowed:
+            return f"Rifiutato: estensione non ammessa (ammesse: {', '.join(sorted(allowed))})."
+        data = content.encode("utf-8")
+        if len(data) > s.max_output_mb * _MIB:
+            return f"Rifiutato: file troppo grande (max {s.max_output_mb} MB)."
+        s.outputs_dir.mkdir(parents=True, exist_ok=True)
+        target = s.outputs_dir / name
+        if target.is_symlink():
+            return "Rifiutato: i symlink non sono ammessi."
+        target.write_bytes(data)
+        return f"Salvato: outputs/{name}"
+
+    return [save_text_file]
+
+
 # ---------------- outbox per l'API ----------------
 def _user_dir(s: Settings, user_id: str) -> Path:
     # hash: nessun carattere dell'id utente finisce nel percorso, e due id diversi non collidono

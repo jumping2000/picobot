@@ -8,7 +8,7 @@ import pytest
 
 from picobot.config import Settings
 from picobot.context import OutputFile, RunCtx, reset_ctx, set_ctx
-from picobot.tools.files import find_output, make_file_tools, purge_outbox, store_outputs
+from picobot.tools.files import find_output, make_file_tools, make_text_tools, purge_outbox, store_outputs
 
 
 @pytest.fixture
@@ -105,3 +105,33 @@ def test_purge_ttl(tmp_path):
     os.utime(old_dir, (past, past))
     assert purge_outbox(s) == 1
     assert find_output(s, "alice", old["id"]) is None and find_output(s, "alice", new["id"]) is not None
+
+
+# ---------------- save_text_file (v0.5) ----------------
+def run_save(s, name, content):
+    return asyncio.run(make_text_tools(s)[0](name, content))
+
+
+def test_save_text_file_ok_and_deliverable(env):          # Review Focus 5
+    s, ctx, run = env
+    assert run_save(s, "relazione città.md", "# Titolo") == "Salvato: outputs/relazione città.md"
+    assert (s.outputs_dir / "relazione città.md").read_text(encoding="utf-8") == "# Titolo"
+    assert "Consegnato" in run("outputs/relazione città.md")
+
+
+@pytest.mark.parametrize("name", ["../x.md", "a/b.md", "a\\b.md", "x.exe", "x.py", "x" * 121 + ".md", "", ".md"])
+def test_save_text_file_refused(env, name):
+    s, ctx, run = env
+    assert run_save(s, name, "x").startswith("Rifiutato")
+    assert not [p for p in s.workspace_dir.parent.rglob("*") if p.is_file()]      # nulla scritto da nessuna parte
+
+
+def test_save_text_file_size(env):                        # max_output_mb=1
+    s, ctx, run = env
+    assert run_save(s, "big.txt", "x" * (2 * 1024 * 1024)).startswith("Rifiutato")
+    assert not (s.outputs_dir / "big.txt").exists()
+
+
+def test_save_text_file_respects_output_extensions(tmp_path):
+    s = Settings(workspace_dir=tmp_path / "ws", output_extensions="docx,md")
+    assert run_save(s, "a.md", "x").startswith("Salvato") and run_save(s, "a.txt", "x").startswith("Rifiutato")
