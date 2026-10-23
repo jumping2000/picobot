@@ -8,3 +8,5 @@ __pycache__/
 *.db
 *.pkl
 .superpowers/
+# skill installate (licenze proprie, non ridistribuire)
+skills/

@@ -1,0 +1,5 @@
+# Librerie Python richieste dalle skill (installate nel venv del bot): una per riga, versione esatta.
+# `picobot skills deps --write` aggiunge qui quelle dichiarate dalle skill (requirements.txt).
+# Dopo una modifica: docker compose build && docker compose up -d
+# skill: xlsx
+openpyxl==3.1.5
