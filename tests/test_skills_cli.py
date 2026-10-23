@@ -143,3 +143,63 @@ def test_main_skills_needs_no_api_key(tmp_path, d):
     r = subprocess.run([sys.executable, "-m", "picobot", "skills", "list"], env=env, cwd=tmp_path,
                        capture_output=True, text=True)
     assert r.returncode == 0, r.stderr
+
+
+# ---------------- skills deps (Task 11) ----------------
+import json                                                        # noqa: E402
+
+from picobot.skills_cli import declared_deps, missing_deps, write_missing   # noqa: E402
+
+
+def skill_with_deps(root, name="s1"):
+    p = root / name
+    p.mkdir(parents=True)
+    (p / "SKILL.md").write_text(f"---\nname: {name}\ndescription: con dipendenze\n---\n")
+    (p / "requirements.txt").write_text("# commento\n\nopenpyxl==3.1.5\n")
+    (p / "package.json").write_text(json.dumps({"dependencies": {"docx": "^9.0.0", "pptxgenjs": "~4.0.1"}}))
+    (p / "apt.txt").write_text("fonts-liberation\n")
+    return p
+
+
+def test_declared(d):
+    skill_with_deps(d)
+    (d / "senza").mkdir()
+    (d / "senza" / "SKILL.md").write_text("---\nname: senza\ndescription: x\n---\n")
+    decl = declared_deps(d)
+    assert decl == {"s1": {"pip": ["openpyxl==3.1.5"], "npm": ["docx@9.0.0", "pptxgenjs@4.0.1"], "apt": ["fonts-liberation"]}}
+
+
+def test_missing_compares_by_name(d, tmp_path):
+    skill_with_deps(d)
+    deps = tmp_path / "deps"
+    deps.mkdir()
+    (deps / "npm.txt").write_text("# skill: altro\ndocx@9.5.0\n")
+    (deps / "pip.txt").write_text("OpenPyXL==3.0.0\n")
+    miss = missing_deps(declared_deps(d), deps)
+    assert miss == {"pip": [], "npm": ["pptxgenjs@4.0.1"], "apt": ["fonts-liberation"]}
+
+
+def test_write_missing_idempotent(d, tmp_path):
+    skill_with_deps(d)
+    deps = tmp_path / "deps"
+    decl = declared_deps(d)
+    assert write_missing(decl, deps) == 4 and write_missing(decl, deps) == 0
+    npm = (deps / "npm.txt").read_text()
+    assert "# skill: s1" in npm and "docx@9.0.0" in npm and missing_deps(decl, deps) == {"pip": [], "npm": [], "apt": []}
+
+
+def test_cli_deps_exit_codes(d, tmp_path, capsys):
+    s = Settings(skills_dir=d)
+    deps = tmp_path / "deps"
+    assert main_skills(["deps", "--deps-dir", str(deps)], s) == 0              # nessuna dipendenza dichiarata
+    skill_with_deps(d)
+    assert main_skills(["deps", "--deps-dir", str(deps)], s) == 1              # mancanti, senza --write
+    assert "pptxgenjs@4.0.1" in capsys.readouterr().out and not deps.exists()  # non scrive e non installa
+    assert main_skills(["deps", "--write", "--deps-dir", str(deps)], s) == 0
+    assert main_skills(["deps", "--deps-dir", str(deps)], s) == 0
+
+
+def test_add_summary_lists_declared_deps(capsys, tmp_path, d):
+    src = skill_with_deps(tmp_path / "src")
+    assert main_skills(["add", str(src)], Settings(skills_dir=d)) == 0
+    assert "pip: openpyxl==3.1.5" in capsys.readouterr().out

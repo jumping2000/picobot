@@ -4,7 +4,9 @@ Installare una skill = copiare la sua cartella nella cartella skill; il bot la v
 L'installazione e' atomica (copia in .tmp-<id> e rename) e rifiuta zip ostili, symlink e nomi non validi.
 """
 import argparse
+import json
 import os
+import re
 import shutil
 import stat
 import subprocess
@@ -155,13 +157,105 @@ def validate_dir(dir: Path) -> list[tuple[str, str]]:
     return out
 
 
+# ---------------- dipendenze dichiarate dalle skill ----------------
+KINDS = ("pip", "npm", "apt")
+
+
+def _lines(path: Path) -> list[str]:
+    if not path.is_file():
+        return []
+    out = []
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.split("#", 1)[0].strip()
+        if line:
+            out.append(line)
+    return out
+
+
+def _skill_deps(folder: Path) -> dict[str, list[str]]:
+    deps = {"pip": _lines(folder / "requirements.txt"), "npm": [], "apt": _lines(folder / "apt.txt")}
+    pkg = folder / "package.json"
+    if pkg.is_file():
+        try:
+            data = json.loads(pkg.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            data = {}
+        for name, ver in (data.get("dependencies") or {}).items():
+            v = re.sub(r"^[\^~>=<v ]+", "", str(ver)).strip()
+            deps["npm"].append(f"{name}@{v}" if re.match(r"^\d", v) else name)
+    return deps
+
+
+def declared_deps(dir: Path) -> dict[str, dict[str, list[str]]]:
+    """Dipendenze dichiarate dalle skill installate (requirements.txt, package.json, apt.txt)."""
+    dir = Path(dir)
+    out = {}
+    for p in sorted(dir.iterdir()) if dir.is_dir() else []:
+        if p.is_dir() and skill_problem(p) is None:
+            deps = _skill_deps(p)
+            if any(deps.values()):
+                out[p.name] = deps
+    return out
+
+
+def _pkg_name(kind: str, spec: str) -> str:
+    spec = spec.strip()
+    if kind == "npm":
+        at = spec.rfind("@")
+        name = spec[:at] if at > 0 else spec
+    elif kind == "pip":
+        name = re.split(r"[\s=<>!~;\[]", spec, maxsplit=1)[0].replace("_", "-")
+    else:
+        name = spec.split("=", 1)[0]
+    return name.lower()
+
+
+def missing_deps(declared: dict, deps_dir: Path) -> dict[str, list[str]]:
+    """Dipendenze dichiarate assenti da deps/<tipo>.txt (confronto per nome del pacchetto, non per versione)."""
+    out = {}
+    for kind in KINDS:
+        present = {_pkg_name(kind, line) for line in _lines(Path(deps_dir) / f"{kind}.txt")}
+        missing = []
+        for deps in declared.values():
+            for spec in deps.get(kind, []):
+                if _pkg_name(kind, spec) not in present and spec not in missing:
+                    missing.append(spec)
+        out[kind] = missing
+    return out
+
+
+def write_missing(declared: dict, deps_dir: Path) -> int:
+    """Aggiunge a deps/<tipo>.txt le dipendenze mancanti (non installa nulla). Ritorna quante righe ha aggiunto."""
+    deps_dir = Path(deps_dir)
+    deps_dir.mkdir(parents=True, exist_ok=True)
+    added = 0
+    for skill, deps in declared.items():
+        for kind in KINDS:
+            f = deps_dir / f"{kind}.txt"
+            present = {_pkg_name(kind, line) for line in _lines(f)}
+            new = [spec for spec in deps.get(kind, []) if _pkg_name(kind, spec) not in present]
+            if new:
+                text = f.read_text(encoding="utf-8") if f.is_file() else ""
+                if text and not text.endswith("\n"):
+                    text += "\n"
+                f.write_text(text + f"# skill: {skill}\n" + "\n".join(new) + "\n", encoding="utf-8")
+                added += len(new)
+    return added
+
+
 def _default_dir(s: Settings) -> Path:
     # sull'host la cartella del container (/app/skills) non esiste: si usa ./skills
     return Path(s.skills_dir) if Path(s.skills_dir).is_dir() else Path("skills")
 
 
-def _print_info(info: SkillInfo) -> None:
+def _print_info(info: SkillInfo, folder: Path) -> None:
     print(f"Installata: {info.name}\n  {info.description}\n  file: {info.files}")
+    deps = _skill_deps(folder)
+    if any(deps.values()):
+        print("  Dipendenze dichiarate (verifica con `picobot skills deps`, poi ricostruisci l'immagine):")
+        for kind in KINDS:
+            if deps[kind]:
+                print(f"    {kind}: {', '.join(deps[kind])}")
     if info.has_scripts:
         print("  Attenzione: contiene scripts/. Il bot non li esegue direttamente: l'Analyst puo' usarli come "
               "riferimento e ogni esecuzione di codice richiede la tua conferma.")
@@ -178,6 +272,9 @@ def main_skills(argv: list[str], s: Settings) -> int:
     r = sub.add_parser("remove", help="cancella una skill")
     r.add_argument("name")
     sub.add_parser("validate", help="segnala le cartelle che il bot ignorerebbe")
+    dp = sub.add_parser("deps", help="dipendenze dichiarate dalle skill e assenti da deps/ (non installa nulla)")
+    dp.add_argument("--write", action="store_true", help="aggiunge le mancanti a deps/<tipo>.txt")
+    dp.add_argument("--deps-dir", type=Path, default=Path("deps"))
     args = p.parse_args(argv)
     dir = args.dir or _default_dir(s)
     try:
@@ -188,7 +285,8 @@ def main_skills(argv: list[str], s: Settings) -> int:
             if not infos:
                 print(f"Nessuna skill installata in {dir}.")
         elif args.cmd == "add":
-            _print_info(install(args.source, dir, force=args.force))
+            info = install(args.source, dir, force=args.force)
+            _print_info(info, Path(dir) / info.name)
         elif args.cmd == "remove":
             remove(args.name, dir)
             print(f"Rimossa: {args.name}")
@@ -199,6 +297,20 @@ def main_skills(argv: list[str], s: Settings) -> int:
             if problems:
                 return 1
             print("Tutte le skill sono valide.")
+        elif args.cmd == "deps":
+            decl = declared_deps(dir)
+            miss = missing_deps(decl, args.deps_dir)
+            if not any(miss.values()):
+                print("Nessuna dipendenza mancante.")
+                return 0
+            for kind in KINDS:
+                if miss[kind]:
+                    print(f"{kind}: {', '.join(miss[kind])}")
+            if not args.write:
+                print("Aggiungile con --write, poi: docker compose build && docker compose up -d")
+                return 1
+            print(f"Aggiunte {write_missing(decl, args.deps_dir)} righe in {args.deps_dir}/. "
+                  "Ora: docker compose build && docker compose up -d")
         return 0
     except SkillInstallError as e:
         print(f"Errore: {e}", file=sys.stderr)
