@@ -1,4 +1,4 @@
-# PicoBot v0.4 — collaudo manuale
+# PicoBot v0.5 — collaudo manuale
 
 Prerequisiti: `.env` con chiave LLM reale, `TELEGRAM_BOT_TOKEN`, il tuo id in `TELEGRAM_ALLOWED_USER_IDS`, `API_TOKENS`;
 skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --build` completato senza errori.
@@ -14,3 +14,9 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --b
 | 7 | Host: `uv run picobot skills add skill.zip` con uno zip valido; poi con uno zip contenente `../x` | il primo installa; il secondo e' rifiutato senza residui in `skills/` | |
 | 8 | API: `POST /v1/chat` con `approve_code: true` chiedendo un docx; poi `GET /v1/files/<id>` con il token giusto e con un altro token | download ok; con l'altro token 404 | |
 | 9 | Nuova libreria per una skill: aggiungi una riga a `deps/pip.txt` (o `uv run picobot skills deps --write`), `docker compose build && docker compose up -d` | la build completa; il pacchetto e' importabile dal codice dell'Analyst | |
+| 10 | Telegram: "seguo AAPL e ENI", poi "quotazione dei miei titoli" | quotazioni di AAPL ed ENI senza ripeterli; `/memory` mostra il profilo | |
+| 11 | `/simple quotazione MSFT` e `/complex scrivi una relazione su X` | rispondono senza passare dal router; una domanda successiva ne ha il contesto | |
+| 12 | Invio di un PDF senza didascalia; poi lo stesso con didascalia "/riassumi in 3 punti" | entrambi riassunti; il secondo senza passare dal router | |
+| 13 | Rispondi con `/riassumi breve` a un PDF inviato prima | riassunto breve | |
+| 14 | Invio di un PDF con didascalia "fammi una presentazione PowerPoint da questo PDF" | il ComplexTeam legge il documento, il Writer produce il `.pptx` dopo la conferma | |
+| 15 | "lavoro al progetto Harbor con Sara", poi `/forget` e conferma, poi `/memory` | dopo /forget nessuna memoria, profilo o entita' | |
