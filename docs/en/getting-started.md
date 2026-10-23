@@ -71,6 +71,10 @@ uv run picobot skills add /path/to/skills/xlsx
 
 See [Skills](skills.md).
 
+> [!TIP]
+> **Voice messages (optional):** `mkdir -p models && sudo chown -R 1000 models`, set `STT_URL=http://stt:8000`
+> in `.env` and start with `docker compose --profile stt up -d --build`. See [Voice messages](voice.md).
+
 ## 4. Start
 
 ```bash
@@ -108,7 +112,7 @@ Every GitHub release publishes a multi-arch image (linux/amd64, linux/arm64) to 
 | Tag | Meaning |
 |---|---|
 | `latest` | Latest stable release |
-| `0.5.0`, `0.5` | A specific version / the latest patch of a minor version |
+| `0.6.0`, `0.6` | A specific version / the latest patch of a minor version |
 | `sha-<commit>` | Exact commit |
 
 In `docker-compose.yaml` replace `build: .` with:

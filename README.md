@@ -6,7 +6,7 @@
 
 🇬🇧 English · 🇮🇹 [Italiano](README_IT.md)
 
-[![Version](https://img.shields.io/badge/version-0.5.0-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.6.0-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
@@ -43,6 +43,7 @@ tasks with cron.
 | 👥 **Two agent teams** | SimpleTeam (Web, Finance, Coder) and ComplexTeam (Researcher, Analyst, Writer, Critic) |
 | 📄 **Office documents** | Creates `.docx`, `.pptx`, `.xlsx` files through installable [Agent Skills](docs/en/skills.md) |
 | 🔌 **MCP servers** | Any MCP server (stdio or HTTP) in Claude Desktop format, shared by the ComplexTeam |
+| 🎤 **Voice messages** | Telegram voice notes and audio files transcribed locally (faster-whisper on CPU, Italian and English), then executed like typed text — see [voice](docs/en/voice.md) |
 | 📚 **Document summaries** | PDF, DOCX, TXT, MD, CSV, JSON, LOG; parallel map-reduce above 100,000 characters |
 | 🧠 **Memory & profile** | Memories, structured profile (language, time zone, format, tickers) and entities, private per user |
 | ⏰ **Scheduler** | Recurring cron tasks; the result goes back to the channel that created them |
@@ -146,6 +147,7 @@ Details: [docs/en/security.md](docs/en/security.md).
 | Skills & dependencies | [skills](docs/en/skills.md) | [skill](docs/it/skills.md) |
 | MCP servers | [mcp](docs/en/mcp.md) | [mcp](docs/it/mcp.md) |
 | Memory, profile, entities | [memory](docs/en/memory.md) | [memoria](docs/it/memory.md) |
+| Voice messages (STT) | [voice](docs/en/voice.md) | [vocali](docs/it/voice.md) |
 | Scheduled tasks | [scheduler](docs/en/scheduler.md) | [scheduler](docs/it/scheduler.md) |
 | Security | [security](docs/en/security.md) | [sicurezza](docs/it/security.md) |
 | Development & tests | [development](docs/en/development.md) | [sviluppo](docs/it/development.md) |

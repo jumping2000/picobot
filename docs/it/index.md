@@ -16,6 +16,7 @@ Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un
 | [API REST](api.md) | Endpoint, payload, esempi, codici di errore |
 | [Skill](skills.md) | Formato Agent Skills, CLI di amministrazione, dipendenze Docker |
 | [MCP](mcp.md) | Collegare server Model Context Protocol |
+| [Messaggi vocali](voice.md) | Note vocali e audio Telegram, il container di trascrizione `stt` |
 | [Memoria](memory.md) | Memorie, profilo strutturato, entità, `/memory` e `/forget` |
 | [Scheduler](scheduler.md) | Task ricorrenti con cron e relativi limiti |
 | [Sicurezza](security.md) | Modello di minaccia, sandbox, autenticazione, limiti noti |

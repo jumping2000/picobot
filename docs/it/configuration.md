@@ -90,6 +90,16 @@ accettano `true`/`false`.
 | `DOC_CHUNK_CHARS` | `100000` | Sotto questa soglia il riassunto è una sola chiamata; sopra, map in parallelo + riduzione |
 | `DOC_MAX_CHARS` | `400000` | Il testo estratto viene troncato qui |
 
+## Messaggi vocali (STT)
+
+| Variabile | Default | Descrizione |
+|---|---|---|
+| `STT_URL` | *(vuoto = spento)* | Servizio di trascrizione, es. `http://stt:8000` |
+| `STT_TIMEOUT_S` | `180` | Attesa massima della trascrizione |
+| `MAX_VOICE_S` | `300` | Durata massima di un vocale, controllata prima del download |
+
+Le variabili del container `stt` (`STT_MODEL`, `STT_BEAM_SIZE`, …) sono descritte in [voice.md](voice.md).
+
 ## Scheduler
 
 | Variabile | Default | Descrizione |

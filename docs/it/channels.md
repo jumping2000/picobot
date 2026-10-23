@@ -58,6 +58,12 @@ Formati supportati: **PDF, DOCX, TXT, MD, CSV, JSON, LOG**, fino a `MAX_UPLOAD_M
 Il file viene scaricato in `data/inbox/` e **sempre cancellato** dopo l'elaborazione. Il riassunto entra nella
 sessione, quindi puoi fare domande successive.
 
+### Messaggi vocali
+
+Le note vocali e i file audio (anche inviati come documento) vengono trascritti dal servizio `stt`: il bot scrive
+prima `🎤 <trascrizione>`, poi risponde come se lo avessi scritto. Spento finché non imposti `STT_URL`: vedi
+[voice.md](voice.md).
+
 ### Conferma del codice
 
 Prima di ogni esecuzione PicoBot mostra il **codice completo** e due bottoni, **Conferma** e **Annulla**:

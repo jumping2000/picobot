@@ -16,6 +16,7 @@ It is reachable through Telegram, an interactive CLI and a REST API, all served 
 | [REST API](api.md) | Endpoints, payloads, examples, error codes |
 | [Skills](skills.md) | Agent Skills format, admin CLI, Docker dependencies |
 | [MCP](mcp.md) | Connecting Model Context Protocol servers |
+| [Voice messages](voice.md) | Telegram voice notes and audio, the `stt` transcription container |
 | [Memory](memory.md) | Memories, structured profile, entities, `/memory` and `/forget` |
 | [Scheduler](scheduler.md) | Recurring cron tasks and their limits |
 | [Security](security.md) | Threat model, sandbox, authentication, known limits |

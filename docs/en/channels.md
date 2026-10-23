@@ -57,6 +57,11 @@ Supported formats: **PDF, DOCX, TXT, MD, CSV, JSON, LOG**, up to `MAX_UPLOAD_MB`
 The file is downloaded to `data/inbox/` and **always deleted** after processing. The summary is recorded in the
 session, so you can ask follow-up questions.
 
+### Voice messages
+
+Voice notes and audio files (also sent as a document) are transcribed by the `stt` service: the bot first echoes
+`🎤 <transcript>`, then answers as if you had typed it. Off unless `STT_URL` is set — see [voice.md](voice.md).
+
 ### Code confirmation
 
 Before every execution PicoBot shows the **full code** and two buttons, **Conferma** (confirm) and **Annulla**

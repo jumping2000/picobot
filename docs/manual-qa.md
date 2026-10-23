@@ -1,4 +1,4 @@
-# PicoBot v0.5 — collaudo manuale
+# PicoBot v0.6 — collaudo manuale
 
 Prerequisiti: `.env` con chiave LLM reale, `TELEGRAM_BOT_TOKEN`, il tuo id in `TELEGRAM_ALLOWED_USER_IDS`, `API_TOKENS`;
 skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --build` completato senza errori.
@@ -20,3 +20,14 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --b
 | 13 | Rispondi con `/riassumi breve` a un PDF inviato prima | riassunto breve | |
 | 14 | Invio di un PDF con didascalia "fammi una presentazione PowerPoint da questo PDF" | il ComplexTeam legge il documento, il Writer produce il `.pptx` dopo la conferma | |
 | 15 | "lavoro al progetto Harbor con Sara", poi `/forget` e conferma, poi `/memory` | dopo /forget nessuna memoria, profilo o entita' | |
+
+**Messaggi vocali (v0.6)** — prerequisiti: `STT_URL=http://stt:8000`, `docker compose --profile stt up -d --build`, `stt` healthy (modello scaricato).
+
+| # | Prova | Atteso | Esito |
+|---|---|---|---|
+| 16 | Vocale in italiano "quotazione di AAPL" | eco "🎤 quotazione di AAPL", poi la stessa risposta della frase scritta | |
+| 17 | Vocale in inglese "what is the weather in London" | eco corretta, lingua `en` (log di `stt`), risposta in inglese | |
+| 18 | Vocale muto (qualche secondo di silenzio) | "Non ho capito il vocale, puoi ripeterlo o scriverlo?"; nessuna risposta del router | |
+| 19 | `docker compose stop stt`, poi un vocale, poi un messaggio scritto | "Trascrizione non disponibile al momento…"; il messaggio scritto riceve risposta | |
+| 20 | File mp3 con didascalia "riassumi" | eco della trascrizione, poi un riassunto del contenuto | |
+| 21 | `docker compose --profile stt run --rm stt python bench.py /models/<it>.ogg /models/<en>.ogg` | tabella con tempi e RTF per `base`/`small` × beam 1/5; annota qui la scelta di `STT_MODEL` e `STT_BEAM_SIZE` | |
