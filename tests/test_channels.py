@@ -269,3 +269,61 @@ def test_confirm_code_short_inline():
         await _press(gw, next(iter(gw._pending)), "n", 1)[0]
         assert await task is False
     asyncio.run(t())
+
+
+# ---------------- consegna file CLI e API ----------------
+def _fake_reply_with_file(svc, name="Relazione città.docx", data=b"hello"):
+    svc.s.outputs_dir.mkdir(parents=True, exist_ok=True)
+    f = svc.s.outputs_dir / name
+    f.write_bytes(data)
+    async def fake_ask(text, **kw):
+        return Reply("ok", [OutputFile(f, f.name, len(data))])
+    svc.ask = fake_ask
+    return f
+
+
+def test_api_chat_returns_files_and_download():
+    async def t(c, svc):
+        _fake_reply_with_file(svc)
+        r = (await c.post("/v1/chat", json={"message": "x"}, headers=A)).json()
+        f = r["files"][0]
+        assert r["answer"] == "ok" and f["name"] == "Relazione città.docx" and f["size"] == 5
+        d = await c.get(f"/v1/files/{f['id']}", headers=A)
+        assert d.status_code == 200 and d.content == b"hello" and "filename*" in d.headers["content-disposition"]
+        assert (await c.get(f"/v1/files/{f['id']}", headers=B)).status_code == 404
+        assert (await c.get("/v1/files/" + "0" * 32, headers=A)).status_code == 404
+        assert (await c.get("/v1/files/not-an-id", headers=A)).status_code == 404
+        assert (await c.get(f"/v1/files/{f['id']}")).status_code == 401
+    with_api(t)
+
+
+def test_api_chat_without_files_has_empty_list():
+    async def t(c, svc):
+        r = (await c.post("/v1/chat", json={"message": "ciao"}, headers=A)).json()
+        assert r["files"] == []
+    with_api(t)
+
+
+def test_cli_prints_file_path(monkeypatch, capsys):
+    inputs = iter(["fammi un file", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(); svc = PicoBotService(s); await svc.start()
+        f = _fake_reply_with_file(svc)
+        await cli_mod.run_cli(s, svc)
+        return f
+    f = asyncio.run(t())
+    assert f"File: {f}" in capsys.readouterr().out
+
+
+def test_startup_purges_old_outbox(tmp_path):
+    import os, time
+    s = Settings(data_dir=tmp_path / "data")
+    old = s.outbox_dir / "u" / ("a" * 32)
+    old.mkdir(parents=True)
+    (old / "x.docx").write_bytes(b"x")
+    past = time.time() - 25 * 3600
+    os.utime(old, (past, past))
+    asyncio.run(PicoBotService(s).start())
+    assert not old.exists()

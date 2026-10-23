@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from .. import __version__
@@ -17,6 +18,7 @@ from ..context import RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
+from ..tools.files import find_output, purge_outbox, store_outputs
 
 logger = logging.getLogger(__name__)
 
@@ -27,9 +29,16 @@ class ChatIn(BaseModel):
     approve_code: bool = Field(default=False, description="Pre-approva l'esecuzione di codice Python in questa richiesta")
 
 
+class FileOut(BaseModel):
+    id: str
+    name: str
+    size: int
+
+
 class ChatOut(BaseModel):
     answer: str
     session_id: str
+    files: list[FileOut] = []   # scaricabili con GET /v1/files/{id}
 
 
 class ScheduleIn(BaseModel):
@@ -65,11 +74,22 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
         ctx = RunCtx(user_id=user, channel="api", pre_approved=body.approve_code)
         async with locks[sid]:
             try:
-                answer = (await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx)).text
+                reply = await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx)
             except Exception:
                 logger.exception("Errore /v1/chat")
                 raise HTTPException(500, "Errore interno")
-        return ChatOut(answer=answer, session_id=sid.removeprefix(f"api-{user}-"))
+        files = []
+        if reply.files:
+            purge_outbox(s)
+            files = [FileOut(**m) for m in store_outputs(s, user, reply.files)]
+        return ChatOut(answer=reply.text, session_id=sid.removeprefix(f"api-{user}-"), files=files)
+
+    @app.get("/v1/files/{file_id}")
+    async def download(file_id: str, user: User):
+        path = find_output(s, user, file_id)   # altrui, inesistente e id non valido: stesso 404
+        if path is None:
+            raise HTTPException(404, "File non trovato")
+        return FileResponse(path, filename=path.name)
 
     @app.post("/v1/summarize")
     async def summarize(user: User, file: UploadFile = File(...), instruction: str = Form(""),

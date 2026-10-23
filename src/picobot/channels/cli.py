@@ -80,6 +80,8 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             else:
                 reply = await service.ask(line, user_id=uid, session_id=session, ctx=ctx)
                 print("\n" + reply.text + "\n")
+                for f in reply.files:
+                    print(f"File: {f.path}")
         except (ValueError, ScheduleError, DocumentError) as e:
             print(e)
         except Exception as e:  # noqa: BLE001
