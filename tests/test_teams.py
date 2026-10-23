@@ -75,3 +75,32 @@ def test_simple_leader_sees_entities(svc):
     lead = [b for b in fake_llm.LOG if "delegate_task_to_member" in tool_names(b) and "summarize_document" not in tool_names(b)]
     assert lead and "Harbor" in system_prompt(lead[0])
     assert not ({"update_profile", "remember_about"} & tool_names(lead[0]))
+
+
+# ---------------- ComplexTeam (Task 5) ----------------
+from picobot.agents import build_complex_team    # noqa: E402
+from picobot.storage import make_db              # noqa: E402
+
+
+def probe(a: int, b: int) -> int:
+    """Tool MCP finto."""
+    return a + b
+
+
+def test_complex_roles(s):
+    ct = build_complex_team(s, SkillRegistry(s), mcp_tools=[probe], db=make_db(s))
+    m = {x.name: x for x in ct.members}
+    assert ct.model.id == s.strong_model_id and all(x.model.id == s.strong_model_id for x in ct.members)
+    assert {"run_python", "run_node", "save_text_file", "deliver_file", "read_document"} <= names(m["Writer"])
+    assert {"run_python", "run_node", "read_document"} <= names(m["Analyst"]) and "deliver_file" not in names(m["Analyst"])
+    assert not ({"run_python", "run_node", "deliver_file", "save_text_file"} & names(m["Critic"]))
+    assert not ({"run_python", "run_node", "deliver_file"} & names(m["Researcher"]))
+    assert all(probe in x.tools for x in ct.members) and ct.skills is not None
+    assert ct.db is not None and ct.learning is not None          # leader: profilo ed entita' in sola lettura
+
+
+def test_complex_prompts_split_roles():
+    from picobot import prompts
+    assert "Writer" in prompts.COMPLEX_LEADER and "Analyst" in prompts.COMPLEX_LEADER
+    assert "deliver_file" in prompts.WRITER and "save_text_file" in prompts.WRITER and "run_node" in prompts.WRITER
+    assert "deliver_file" not in prompts.ANALYST and "Writer" in prompts.ANALYST

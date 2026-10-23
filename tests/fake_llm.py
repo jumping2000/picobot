@@ -23,7 +23,27 @@ class H(BaseHTTPRequestHandler):
         user = next((m["content"] for m in reversed(msgs) if m["role"] == "user" and isinstance(m["content"], str)), "").lower()
         msg = {"role": "assistant", "content": "RISPOSTA-FINTA"}
         tool_out = [str(m.get("content")) for m in msgs if m["role"] == "tool"]
-        if "documento" in user and "deliver_file" in names:           # Analyst: crea il file, poi lo consegna
+        doc_task = "documento" in user or "relazione" in user
+        if doc_task and "list_skills" in names and "delegate_task_to_member" in names:   # leader ComplexTeam
+            if any("consegnato" in o.lower() for o in tool_out) or len(tool_out) >= 4:  # limite: mai in loop
+                msg = {"role": "assistant", "content": "Fatto: file consegnato."}
+            elif any("CONTENUTO-ANALYST" in o for o in tool_out):
+                msg = _tool_call("delegate_task_to_member",
+                                 {"member_id": "writer", "task": f"{user} -- materiale: CONTENUTO-ANALYST"}, "dw")
+            else:
+                msg = _tool_call("delegate_task_to_member", {"member_id": "analyst", "task": user}, "da")
+        elif doc_task and "run_node" in names and "deliver_file" not in names:          # Analyst: solo contenuto
+            msg = {"role": "assistant", "content": "CONTENUTO-ANALYST"}
+        elif "relazione" in user and "save_text_file" in names and "run_node" in names:  # Writer: testo
+            if any("Consegnato" in o for o in tool_out):
+                msg = {"role": "assistant", "content": "Relazione consegnata."}
+            elif any("Salvato" in o for o in tool_out):
+                msg = _tool_call("deliver_file", {"path": "outputs/relazione.md"}, "t2")
+            else:
+                msg = _tool_call("save_text_file", {"filename": "relazione.md", "content": "# Relazione"}, "t1")
+        elif last["role"] != "tool" and "relazione" in user and "summarize_document" in names:   # router
+            msg = _tool_call("delegate_task_to_member", {"member_id": "complexteam", "task": user}, "rc")
+        elif "documento" in user and "deliver_file" in names:           # Writer: crea il file, poi lo consegna
             if any("Consegnato" in o for o in tool_out):
                 msg = {"role": "assistant", "content": "File creato e consegnato."}
             elif any("exit=0" in o for o in tool_out):

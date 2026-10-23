@@ -10,6 +10,7 @@ from .config import Settings
 from .models import make_model
 from .skills import SkillRegistry
 from .storage import make_learning_view
+from .tools.documents import make_read_tools
 from .tools.files import make_file_tools, make_text_tools
 from .tools.sandbox import make_code_tools, make_node_tools
 
@@ -65,21 +66,25 @@ def build_simple_team(s: Settings, db=None) -> Team:
     )
 
 
-def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_tools: list | None = None) -> Team:
-    """Leader + Researcher, Analyst, Writer, (Critic). Skill e MCP condivisi da tutti; solo l'Analyst esegue e consegna."""
+def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_tools: list | None = None,
+                       db=None) -> Team:
+    """Leader + Researcher, Analyst, Writer, (Critic), tutti sul modello forte, con skill e MCP.
+    L'Analyst ragiona e calcola (anche con codice) ma non consegna; il Writer produce e consegna il risultato."""
     strong = lambda: make_model(s, strong=True)  # noqa: E731
     # `is not None`, mai un test di verita': un catalogo vuoto va collegato comunque (skill aggiunte dopo l'avvio)
     skills = registry.skills if registry is not None and registry.skills is not None else None
     mcp = list(mcp_tools or [])
+    read = make_read_tools(s)
     members = [
         Agent(name="Researcher", role="Ricerca web approfondita con fonti.", model=strong(),
               tools=[DuckDuckGoTools(), *mcp], skills=skills, instructions=[prompts.RESEARCHER]),
-        Agent(name="Analyst", role="Calcoli, analisi dati, dati di mercato, codice; crea e consegna file (Word, PowerPoint, Excel).",
-              model=strong(),
-              tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s), *mcp],
+        Agent(name="Analyst", role="Ragiona, analizza e calcola (dati di mercato, codice, grafici); passa il materiale al Writer.",
+              model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *read, *mcp],
               skills=skills, instructions=[prompts.ANALYST]),
-        Agent(name="Writer", role="Redige e formatta i testi finali per Telegram.", model=make_model(s),
-              tools=[*mcp], skills=skills, instructions=[prompts.WRITER]),
+        Agent(name="Writer", role="Scrive, formatta e produce il risultato finale (testo, Word, PowerPoint, Excel) e lo consegna.",
+              model=strong(),
+              tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s), *read, *mcp],
+              skills=skills, instructions=[prompts.WRITER]),
     ]
     if s.enable_critic:
         members.append(Agent(name="Critic", role="Revisiona la bozza: allucinazioni e dati senza fonte.",
@@ -89,5 +94,5 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
         role=("Task complessi multi-step (ricerca approfondita + analisi + report) e creazione di documenti "
               "Word/PowerPoint/Excel con le skill installate. Costoso: usalo solo se necessario."),
         mode=TeamMode.coordinate, model=strong(), members=members, skills=skills,
-        instructions=[prompts.COMPLEX_LEADER],
+        instructions=[prompts.COMPLEX_LEADER], **_view(s, db),
     )

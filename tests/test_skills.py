@@ -151,8 +151,9 @@ def test_skills_only_in_complexteam(d, tmp_path):
     assert ct.skills is reg.skills and all(m.skills is reg.skills for m in ct.members)
     assert set(member) == {"Researcher", "Analyst", "Writer", "Critic"}
     assert all(probe in m.tools for m in ct.members)
-    assert {"run_python", "run_node", "deliver_file"} <= _names(member["Analyst"])
-    for other in ("Researcher", "Writer", "Critic"):
+    assert {"run_python", "run_node", "deliver_file", "save_text_file"} <= _names(member["Writer"])   # v0.5
+    assert {"run_python", "run_node"} <= _names(member["Analyst"]) and "deliver_file" not in _names(member["Analyst"])
+    for other in ("Researcher", "Critic"):
         assert not ({"run_python", "run_node", "deliver_file"} & _names(member[other]))
     simple = next(m for m in team.members if m.name == "SimpleTeam")
     assert "run_node" not in _names(next(m for m in simple.members if m.name == "Coder"))
@@ -185,7 +186,7 @@ def test_leader_prompt_mentions_list_skills():
     assert "list_skills" in prompts.COMPLEX_LEADER
     for p in (prompts.ANALYST, prompts.RESEARCHER, prompts.WRITER, prompts.CRITIC):
         assert "get_skill_instructions" in p
-    assert "deliver_file" in prompts.ANALYST and "LibreOffice" in prompts.ANALYST
+    assert "deliver_file" in prompts.WRITER and "LibreOffice" in prompts.WRITER     # v0.5: produce il Writer
 
 
 # ---------------- reload a caldo nel servizio (Task 9) ----------------
