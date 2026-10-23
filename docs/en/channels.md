@@ -1,0 +1,89 @@
+# Channels: Telegram and CLI
+
+🇬🇧 English · 🇮🇹 [Italiano](../it/channels.md) · ⬅️ [Index](index.md)
+
+For the REST API see [api.md](api.md).
+
+## Commands
+
+Available on Telegram and in the CLI.
+
+| Command | Description |
+|---|---|
+| `/help` (`/start`) | Command list |
+| `/new` | New conversation (long-term memory is kept) |
+| `/simple <request>` | Send directly to the SimpleTeam (quotes, searches, scripts) |
+| `/complex <request>` | Send directly to the ComplexTeam (documents, complex tasks) |
+| `/riassumi [instructions]` | Direct summary (Telegram: as a document caption or as a reply to a document) |
+| `/memory` | Show memories, profile and entities |
+| `/forget` | Delete memories, profile and entities (asks for confirmation) |
+| `/schedule <cron> \| <request>` | Create a recurring task, e.g. `/schedule 0 8 * * 1-5 \| AAPL and MSFT quotes` |
+| `/schedules` | List your scheduled tasks |
+| `/unschedule <id>` | Delete a task |
+| `/skills` | Installed skills (read-only) |
+
+CLI only:
+
+| Command | Description |
+|---|---|
+| `/file <path> [request]` | Use a local document; the router decides (summary or other) |
+| `/riassumi <path> [instructions]` | Direct summary of a local document |
+| `/quit` (`/exit`) | Exit |
+
+## Telegram
+
+### Access
+
+Only the IDs in `TELEGRAM_ALLOWED_USER_IDS` are served; other users are ignored and logged
+(`Accesso negato: user_id=...`). To find your ID, write to a bot such as `@userinfobot`.
+
+### Messages and sessions
+
+- Each chat has its own session ID, persisted in `data/telegram_state.pkl`; `/new` starts a new one.
+- Requests in the same chat are processed one at a time; a "typing…" indicator is shown meanwhile.
+- Long answers are split into 4,000-character messages. Markdown falls back to plain text if Telegram rejects it.
+
+### Documents
+
+Supported formats: **PDF, DOCX, TXT, MD, CSV, JSON, LOG**, up to `MAX_UPLOAD_MB` (15 MB).
+
+| What you send | What happens |
+|---|---|
+| Document without caption, or caption "summarize" | The router calls the summary workflow |
+| Document with a caption request (e.g. "make a PowerPoint from this PDF") | The router delegates to the ComplexTeam, which reads it with `read_document` |
+| Document with caption `/riassumi [instructions]` | Direct summary, no router |
+| `/riassumi [instructions]` as a reply to a previous document | Direct summary of that document |
+
+The file is downloaded to `data/inbox/` and **always deleted** after processing. The summary is recorded in the
+session, so you can ask follow-up questions.
+
+### Code confirmation
+
+Before every execution PicoBot shows the **full code** and two buttons, **Conferma** (confirm) and **Annulla**
+(cancel):
+
+- code up to 1,500 characters is shown inline; longer code arrives first as an attachment (`codice.py` / `codice.js`);
+- only the user who made the request can press the buttons;
+- no answer within `CONFIRM_TIMEOUT_S` (120 s) means **refused**.
+
+Files created by the agents arrive as Telegram documents after the answer.
+
+## CLI
+
+```bash
+# Docker
+docker compose exec -it picobot python -m picobot cli
+# local
+uv run picobot cli
+```
+
+- The user ID is `CLI_USER_ID` (default `cli`); use your Telegram ID to share memory.
+- Code confirmations are a `Eseguire? [y/N]` prompt (`y`, `yes`, `s`, `si` = yes); timeout = refused.
+- Delivered files are shown as paths (`File: /app/workspace/outputs/...`).
+- `/schedule` only writes the task: it is executed by the `picobot serve` process.
+
+```text
+> /file ~/report.pdf make a 5-slide presentation
+> /riassumi ~/contract.docx in 3 bullet points
+> /simple EUR/USD rate
+```

@@ -1,0 +1,82 @@
+# Development
+
+🇬🇧 English · 🇮🇹 [Italiano](../it/development.md) · ⬅️ [Index](index.md)
+
+## Setup
+
+```bash
+uv sync --group dev
+```
+
+Python ≥ 3.11. Main dependencies: `agno>=3.1,<4`, `python-telegram-bot==21.10`, `fastapi`, `uvicorn`,
+`apscheduler>=3.10,<4`, `fastmcp>=4,<5`, `yfinance`, `ddgs`, `pypdf`, `python-docx`
+(see [`pyproject.toml`](../../pyproject.toml)).
+
+## Tests
+
+```bash
+uv run --group dev pytest tests            # all
+uv run --group dev pytest tests/test_teams.py -q
+```
+
+The suite uses a **fake LLM** ([`tests/fake_llm.py`](../../tests/fake_llm.py)): no API key and no network calls to
+model providers.
+
+| File | Area |
+|---|---|
+| `test_core.py` | Call cost, cheap vs strong model, code confirmation gate |
+| `test_teams.py`, `test_explicit.py` | Team structure and prompts, explicit routing (`target`) |
+| `test_learning.py` | Profile, entities, read-only views, `/memory` and `/forget` |
+| `test_privacy.py` | Agno telemetry off by default |
+| `test_channels.py` | API auth, validation, uploads, per-user isolation; Telegram fail-closed |
+| `test_files.py`, `test_documents_tools.py` | File delivery and its refusals, document tools |
+| `test_sandbox_node.py` | Node execution, clean env, run cap |
+| `test_skills.py`, `test_skills_cli.py` | Skill registry and admin CLI |
+| `test_mcp.py` (+ `mcp_probe_server.py`) | MCP loading |
+| `test_e2e_office.py` | End to end: document → router → ComplexTeam → file |
+| `test_docker_static.py` | Static checks on Dockerfile and compose |
+| `test_context_config.py` | Settings |
+
+Manual acceptance checklist with a real model: [manual-qa.md](../manual-qa.md) (Italian).
+
+## Project layout
+
+```
+picobot/
+├── src/picobot/          # application package (see architecture.md → Source map)
+├── tests/                # pytest suite with fake LLM
+├── config/mcp_config.json
+├── deps/                 # apt/pip/npm extension points + setup.sh
+├── docs/                 # this documentation (en/, it/), manual QA, design specs
+├── Dockerfile, docker-compose.yaml, .env.example
+└── pyproject.toml
+```
+
+## Extending
+
+| Goal | Where |
+|---|---|
+| Change an agent's behavior | [`prompts.py`](../../src/picobot/prompts.py) (text only) |
+| Add a member or tool to a team | [`agents.py`](../../src/picobot/agents.py) |
+| New channel | Build a `RunCtx` and call `PicoBotService.ask()` — see `channels/cli.py` for the smallest example |
+| New capability without code | A [skill](skills.md) or an [MCP server](mcp.md) |
+| New system/Python/Node library | `deps/*.txt`, then rebuild |
+| New setting | Field in `Settings` ([`config.py`](../../src/picobot/config.py)) + `.env.example` + [configuration.md](configuration.md) |
+
+Conventions in the codebase: code comments and user-facing strings are in Italian; tools that run code must go
+through `_execute()` in `tools/sandbox.py`, which enforces confirmation and limits.
+
+## Docker image
+
+Build steps ([`Dockerfile`](../../Dockerfile)):
+
+1. `python:3.11-slim` + Node.js, npm, curl; `uv`/`uvx` copied from `ghcr.io/astral-sh/uv`.
+2. Bot dependencies (cached layer, metadata only).
+3. Extension points: `deps/apt.txt` → `deps/pip.txt` → `deps/npm.txt` (fails if `NODE_PATH` ≠ `npm root -g`) → `deps/setup.sh`.
+4. Source code, non-root user `picobot` (UID 1000); only `data/` and `workspace/` are writable.
+5. `HEALTHCHECK` on `/health`; command `python -m picobot serve`.
+
+## Versioning
+
+The version is defined in `pyproject.toml` and `src/picobot/__init__.py` (`__version__`, exposed by `/health`).
+Keep them aligned.
