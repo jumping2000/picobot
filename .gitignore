@@ -11,3 +11,7 @@ __pycache__/
 # skill installate (licenze proprie, non ridistribuire)
 skills/
 *.egg-info/
+# modelli di trascrizione (stt)
+models/
+# lockfile di uv (non versionati)
+uv.lock

@@ -5,6 +5,8 @@ description = "PicoBot STT - trascrizione vocale (faster-whisper su CPU) con end
 requires-python = ">=3.11"
 dependencies = [
     "faster-whisper==1.2.1",
+    # PyAV 19 ha rimosso av.open(metadata_errors=...), usato da faster-whisper 1.2.1: ogni decodifica fallirebbe
+    "av>=15,<19",
     "fastapi",
     "uvicorn",
     "python-multipart",

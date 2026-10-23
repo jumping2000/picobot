@@ -66,3 +66,19 @@ def test_npm_step_fails_if_node_path_differs(tmp_path):
         npm.chmod(0o755)
         r = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True)
         assert (r.returncode == 0) is expected_ok, (root, r.returncode, r.stderr)
+
+
+def test_stt_compose_service():
+    import yaml
+    services = yaml.safe_load(read("docker-compose.yaml"))["services"]
+    svc = services["stt"]
+    assert svc["profiles"] == ["stt"] and "ports" not in svc
+    assert "./models:/models" in svc["volumes"] and svc["build"] == "./stt"
+    assert "env_file" not in svc                      # le chiavi di PicoBot non arrivano a stt
+    assert "depends_on" not in services["picobot"]    # stt giu' non blocca PicoBot
+
+
+def test_stt_dockerfile_non_root():
+    d = read("stt/Dockerfile")
+    assert "USER stt" in d and "HF_HOME=/models" in d and "main:app" in d
+    assert "models/" in read(".gitignore") and "models" in read(".dockerignore").split()
