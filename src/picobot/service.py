@@ -23,6 +23,9 @@ from .workflows.doc_summary import build_doc_workflow, run_summary
 logger = logging.getLogger(__name__)
 
 
+TARGETS = {"auto": None, "simple": "SimpleTeam", "complex": "ComplexTeam"}
+
+
 class PicoBotService:
     def __init__(self, settings: Settings):
         self.s = settings
@@ -51,19 +54,33 @@ class PicoBotService:
             await self.scheduler.stop()
         await close_mcp_tools(self._mcp)
 
-    async def ask(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> Reply:
-        """Risposta testuale + file consegnati dagli agenti (deliver_file) durante la richiesta."""
+    async def ask(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None,
+                  target: str = "auto") -> Reply:
+        """Risposta testuale + file consegnati dagli agenti (deliver_file) durante la richiesta.
+
+        target: "auto" (decide il router), "simple" o "complex" (team richiamato direttamente, senza router).
+        """
         assert self.team is not None, "start() non chiamato"
+        if target not in TARGETS:
+            raise ValueError(f"target non valido: {target!r} (ammessi: {', '.join(sorted(TARGETS))})")
         if self.registry.refresh():   # skill aggiunte/rimosse sull'host: le vedono subito router e ComplexTeam
             self.team.instructions = router_instructions(self.registry.names(), self.s.skills_router_hint_max)
         ctx = ctx or RunCtx(user_id=user_id, channel="unknown")
+        runner = self.team if target == "auto" else self._member(TARGETS[target])
+        # un team richiamato direttamente non usa MAI l'id di sessione del router (non deve sovrascriverla)
+        run_sid = session_id if target == "auto" else f"{session_id}:{target}"
         token = set_ctx(ctx)
         try:
-            out = await self.team.arun(text, user_id=user_id, session_id=session_id)
+            out = await runner.arun(text, user_id=user_id, session_id=run_sid)
         finally:
             reset_ctx(token)
         content = out.content if isinstance(out.content, str) else str(out.content)
+        if target != "auto":   # lo scambio entra nella sessione del router: i follow-up hanno il contesto
+            await self._record_in_session(session_id, user_id, f"[/{target}] {text}", content)
         return Reply(content, list(ctx.outputs))
+
+    def _member(self, name: str):
+        return next(m for m in self.team.members if m.name == name)
 
     def skill_info(self) -> list[SkillInfo]:
         self.registry.refresh()

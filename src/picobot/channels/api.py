@@ -6,7 +6,7 @@ import re
 import uuid
 from collections import defaultdict
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -27,6 +27,8 @@ class ChatIn(BaseModel):
     message: str = Field(min_length=1, max_length=8000)
     session_id: str | None = Field(default=None, max_length=80, pattern=r"^[A-Za-z0-9_\-]+$")
     approve_code: bool = Field(default=False, description="Pre-approva l'esecuzione di codice Python in questa richiesta")
+    target: Literal["auto", "simple", "complex"] = Field(
+        default="auto", description="auto = decide il router; simple/complex = richiama direttamente quel team")
 
 
 class FileOut(BaseModel):
@@ -74,7 +76,7 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
         ctx = RunCtx(user_id=user, channel="api", pre_approved=body.approve_code)
         async with locks[sid]:
             try:
-                reply = await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx)
+                reply = await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx, target=body.target)
             except Exception:
                 logger.exception("Errore /v1/chat")
                 raise HTTPException(500, "Errore interno")
