@@ -3,7 +3,7 @@ import asyncio, sys
 import pytest
 import fake_llm
 from picobot.config import Settings
-from picobot.context import RunCtx, set_ctx, reset_ctx
+from picobot.context import OutputFile, Reply, RunCtx, set_ctx, reset_ctx
 from picobot.documents import DocumentError, extract_text, split_chunks
 from picobot.scheduler import ScheduleError
 from picobot.service import PicoBotService
@@ -192,3 +192,13 @@ def test_summary_without_session_leaves_no_trace(svc, tmp_path):
     fake_llm.LOG.clear()
     run(svc.ask("ciao", user_id="1", session_id="nuova-vuota", ctx=RunCtx("1", "t")))
     assert "Documento caricato" not in str(fake_llm.LOG[0]["messages"])
+
+
+def test_ask_returns_reply_with_files(svc, tmp_path):
+    f = tmp_path / "a.docx"
+    f.write_bytes(b"x")
+    of = OutputFile(f, "a.docx", 1)
+    ctx = RunCtx("1", "api")
+    ctx.outputs.append(of)
+    r = run(svc.ask("ciao", user_id="1", session_id="r1", ctx=ctx))
+    assert isinstance(r, Reply) and r.files == [of] and r.text

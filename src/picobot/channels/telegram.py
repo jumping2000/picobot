@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import uuid
+from io import BytesIO
 from collections import defaultdict
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from telegram.ext import (
 )
 
 from ..config import Settings
-from ..context import RunCtx
+from ..context import Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
@@ -71,6 +72,31 @@ class TelegramGateway:
                 await msg.edit_reply_markup(None)
             except Exception:  # noqa: BLE001
                 pass
+
+    async def confirm_code(self, bot, chat_id: int, user_id: int, code: str, language: str) -> bool:
+        """Mostra il codice COMPLETO prima dei bottoni: inline se corto, come allegato se lungo."""
+        if len(code) > 1500:
+            try:
+                await bot.send_document(chat_id, document=BytesIO(code.encode("utf-8")),
+                                        filename=f"codice.{'js' if language == 'node' else 'py'}")
+            except Exception:  # noqa: BLE001  senza codice visibile non si chiede conferma
+                logger.exception("Invio del codice da confermare fallito")
+                await bot.send_message(chat_id, "Impossibile mostrare il codice: esecuzione annullata.")
+                return False
+            prompt = f"Eseguire il codice {language} allegato ({len(code)} caratteri)?"
+        else:
+            prompt = f"Eseguire questo codice {language}?\n\n{code}"
+        return await self.ask_yes_no(bot, chat_id, user_id, prompt)
+
+    async def send_reply(self, update: Update, reply: Reply) -> None:
+        await send_safe(update, reply.text)
+        for f in reply.files:
+            try:
+                with f.path.open("rb") as fh:
+                    await update.message.reply_document(document=fh, filename=f.name)
+            except Exception:  # noqa: BLE001
+                logger.exception("Invio file %s fallito", f.name)
+                await update.message.reply_text(f"Impossibile inviare il file {f.name}.")
 
     async def on_callback(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         q = update.callback_query
@@ -156,13 +182,12 @@ class TelegramGateway:
         chat_id, uid = update.effective_chat.id, update.effective_user.id
         logger.info("Messaggio user=%s chat=%s len=%d", uid, chat_id, len(update.message.text))
         run_ctx = RunCtx(user_id=str(uid), channel="telegram",
-                         confirm=lambda code, language: self.ask_yes_no(
-                             ctx.bot, chat_id, uid, f"Eseguire questo codice {language}?\n\n{code}"))
+                         confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language))
         async with self._locks[chat_id]:
             try:
-                answer = await self._with_typing(ctx, chat_id, self.service.ask(
+                reply = await self._with_typing(ctx, chat_id, self.service.ask(
                     update.message.text, user_id=str(uid), session_id=self.session_id(ctx, chat_id), ctx=run_ctx))
-                await send_safe(update, answer)
+                await self.send_reply(update, reply)
             except Exception:
                 logger.exception("Errore nel run")
                 await update.message.reply_text("Errore interno durante l'elaborazione. Riprova tra poco.")

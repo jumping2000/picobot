@@ -13,6 +13,7 @@ from picobot.channels.api import create_app
 from picobot.channels.common import parse_schedule_args, split_text
 from picobot.channels.telegram import TelegramGateway, send_safe
 from picobot.config import Settings
+from picobot.context import OutputFile, Reply
 from picobot.service import PicoBotService
 
 A, B = {"Authorization": "Bearer tok-a"}, {"Authorization": "Bearer tok-b"}
@@ -208,3 +209,63 @@ def test_cli_session(monkeypatch, capsys):
     assert "/forget" in out and "RISPOSTA-FINTA" in out and "Codice da eseguire" in out and "print(6*7)" in out
     res = [m["content"] for b in fake_llm.LOG for m in b["messages"] if m["role"] == "tool"]
     assert any("42" in r for r in res)
+
+
+# ---------------- consegna file Telegram ----------------
+def _files(tmp_path, *names):
+    out = []
+    for n in names:
+        f = tmp_path / n
+        f.write_bytes(b"data")
+        out.append(OutputFile(f, n, 4))
+    return out
+
+
+def test_send_reply_documents(tmp_path):
+    order = []
+    async def reply_text(text, **kw): order.append("text")
+    async def reply_document(document, **kw): order.append(f"doc:{kw['filename']}")
+    upd = NS(message=NS(reply_text=reply_text, reply_document=reply_document))
+    asyncio.run(make_gw().send_reply(upd, Reply("ecco", _files(tmp_path, "a.docx", "Relazione città.pptx"))))
+    assert order == ["text", "doc:a.docx", "doc:Relazione città.pptx"]
+
+
+def test_send_failure_is_reported(tmp_path):
+    texts, names = [], []
+    async def reply_text(text, **kw): texts.append(text)
+    async def reply_document(document, **kw):
+        names.append(kw["filename"])
+        raise RuntimeError("boom")
+    upd = NS(message=NS(reply_text=reply_text, reply_document=reply_document))
+    asyncio.run(make_gw().send_reply(upd, Reply("ecco", _files(tmp_path, "Relazione città.docx"))))
+    assert names == ["Relazione città.docx"] and any("Impossibile inviare il file" in t for t in texts)
+
+
+def _confirm_bot(events):
+    msg = MagicMock(); msg.edit_reply_markup = AsyncMock()
+    async def send_message(chat_id, text, **kw): events.append(("msg", text)); return msg
+    async def send_document(chat_id, document, **kw): events.append(("doc", kw["filename"], document.getvalue()))
+    return NS(send_message=send_message, send_document=send_document)
+
+
+def test_confirm_code_long_is_attached():
+    async def t():
+        gw, events, code = make_gw(confirm_timeout_s=1), [], "x" * 2000
+        task = asyncio.create_task(gw.confirm_code(_confirm_bot(events), 10, 1, code, "node"))
+        await asyncio.sleep(0.05)
+        assert [e[0] for e in events] == ["doc", "msg"]                 # allegato PRIMA dei bottoni
+        assert events[0][1:] == ("codice.js", code.encode()) and code not in events[1][1]
+        await _press(gw, next(iter(gw._pending)), "y", 1)[0]
+        assert await task is True
+    asyncio.run(t())
+
+
+def test_confirm_code_short_inline():
+    async def t():
+        gw, events, code = make_gw(confirm_timeout_s=1), [], "print('ciao')"
+        task = asyncio.create_task(gw.confirm_code(_confirm_bot(events), 10, 1, code, "python"))
+        await asyncio.sleep(0.05)
+        assert [e[0] for e in events] == ["msg"] and code in events[0][1]
+        await _press(gw, next(iter(gw._pending)), "n", 1)[0]
+        assert await task is False
+    asyncio.run(t())

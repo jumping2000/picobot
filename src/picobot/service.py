@@ -12,7 +12,7 @@ from agno.team import Team
 from agno.workflow import Workflow
 
 from .config import Settings
-from .context import RunCtx, reset_ctx, set_ctx
+from .context import Reply, RunCtx, reset_ctx, set_ctx
 from .documents import extract_text
 from .mcp_loader import close_mcp_tools, load_mcp_tools
 from .scheduler import Scheduler
@@ -36,7 +36,7 @@ class PicoBotService:
         self.team = build_router(self.s, extra_tools=self._mcp)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
         self.doc_flow = build_doc_workflow(self.s)
-        self.scheduler = Scheduler(self.s, self.ask)
+        self.scheduler = Scheduler(self.s, self._ask_text)
         logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d).",
                     self.s.llm_model_id, self.s.strong_model_id, len(self._mcp))
 
@@ -45,14 +45,21 @@ class PicoBotService:
             await self.scheduler.stop()
         await close_mcp_tools(self._mcp)
 
-    async def ask(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> str:
+    async def ask(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> Reply:
+        """Risposta testuale + file consegnati dagli agenti (deliver_file) durante la richiesta."""
         assert self.team is not None, "start() non chiamato"
-        token = set_ctx(ctx or RunCtx(user_id=user_id, channel="unknown"))
+        ctx = ctx or RunCtx(user_id=user_id, channel="unknown")
+        token = set_ctx(ctx)
         try:
             out = await self.team.arun(text, user_id=user_id, session_id=session_id)
         finally:
             reset_ctx(token)
-        return out.content if isinstance(out.content, str) else str(out.content)
+        content = out.content if isinstance(out.content, str) else str(out.content)
+        return Reply(content, list(ctx.outputs))
+
+    async def _ask_text(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> str:
+        """Solo testo: usata dallo scheduler (gli schedule non producono file)."""
+        return (await self.ask(text, user_id=user_id, session_id=session_id, ctx=ctx)).text
 
     async def summarize(self, path: Path, instruction: str = "", *, user_id: str, name: str = "",
                         session_id: str | None = None) -> str:

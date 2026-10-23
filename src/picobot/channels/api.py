@@ -65,7 +65,7 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
         ctx = RunCtx(user_id=user, channel="api", pre_approved=body.approve_code)
         async with locks[sid]:
             try:
-                answer = await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx)
+                answer = (await service.ask(body.message, user_id=user, session_id=sid, ctx=ctx)).text
             except Exception:
                 logger.exception("Errore /v1/chat")
                 raise HTTPException(500, "Errore interno")

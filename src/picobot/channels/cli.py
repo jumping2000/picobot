@@ -78,7 +78,8 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/unschedule":
                 print("Eliminato." if service.scheduler.remove(uid, int(arg)) else "Task non trovato.")
             else:
-                print("\n" + await service.ask(line, user_id=uid, session_id=session, ctx=ctx) + "\n")
+                reply = await service.ask(line, user_id=uid, session_id=session, ctx=ctx)
+                print("\n" + reply.text + "\n")
         except (ValueError, ScheduleError, DocumentError) as e:
             print(e)
         except Exception as e:  # noqa: BLE001
