@@ -3,7 +3,6 @@
 Un solo processo (`picobot serve`) esegue i job; CLI/API/Telegram si limitano a scrivere nella tabella
 (il processo la riallinea ogni 30s). I run schedulati NON possono eseguire codice (nessun umano per confermare).
 """
-import asyncio
 import logging
 import sqlite3
 from collections.abc import Awaitable, Callable

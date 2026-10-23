@@ -1,0 +1,7 @@
+# Pacchetti Node globali richiesti dalle skill (trovati dagli script tramite NODE_PATH): uno per riga, nome@versione esatta.
+# `picobot skills deps --write` aggiunge qui quelli dichiarati dalle skill (package.json).
+# Dopo una modifica: docker compose build && docker compose up -d
+# skill: docx
+docx@9.9.0
+# skill: pptx
+pptxgenjs@4.0.1

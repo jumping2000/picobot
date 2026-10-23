@@ -1,0 +1,5 @@
+# Pacchetti di sistema (Debian) richiesti dalle skill: uno per riga, versione esatta se serve (pacchetto=versione).
+# Commenta con "# skill: <nome>" la skill che li richiede. Dopo una modifica: docker compose build && docker compose up -d
+# Esempio:
+# # skill: pdf
+# poppler-utils

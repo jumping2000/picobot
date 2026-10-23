@@ -3,7 +3,7 @@ import asyncio, sys
 import pytest
 import fake_llm
 from picobot.config import Settings
-from picobot.context import RunCtx, set_ctx, reset_ctx
+from picobot.context import OutputFile, Reply, RunCtx, set_ctx, reset_ctx
 from picobot.documents import DocumentError, extract_text, split_chunks
 from picobot.scheduler import ScheduleError
 from picobot.service import PicoBotService
@@ -50,14 +50,14 @@ def _tool_results():
 
 def test_code_runs_only_after_confirm_yes(svc):
     seen = []
-    async def yes(preview): seen.append(preview); return True
+    async def yes(code, language): seen.append(code); return True
     _ask_code(svc, RunCtx("1", "telegram", confirm=yes), "h1")
     assert seen and "print(6*7)" in seen[0]
     assert any("exit=0" in r and "42" in r for r in _tool_results())
 
 
 def test_code_not_run_when_user_declines(svc):
-    async def no(preview): return False
+    async def no(code, language): return False
     _ask_code(svc, RunCtx("1", "telegram", confirm=no), "h2")
     assert any("RIFIUTATO" in r for r in _tool_results())
     assert not any("exit=0" in r for r in _tool_results())
@@ -131,7 +131,7 @@ def test_summary_short_doc_one_call_and_injection_wrapped(svc, tmp_path):
 
 
 def test_summary_long_doc_uses_map_reduce(svc, tmp_path):
-    f = tmp_path / "long.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char -> 4 chunk da 20k
+    f = tmp_path / "long.txt"; f.write_text("riga di testo\n" * 18000)  # ~250k char -> 3 chunk da 100k
     n = len(split_chunks(f.read_text(), svc.s.doc_chunk_chars))
     run(svc.summarize(f, "", user_id="1"))
     assert n > 1 and len(fake_llm.LOG) == n + 1
@@ -191,4 +191,20 @@ def test_summary_without_session_leaves_no_trace(svc, tmp_path):
     run(svc.summarize(f, "", user_id="1", name="x.txt"))
     fake_llm.LOG.clear()
     run(svc.ask("ciao", user_id="1", session_id="nuova-vuota", ctx=RunCtx("1", "t")))
-    assert "Documento caricato" not in str(fake_llm.LOG[0]["messages"])
+    assert "[Documento caricato: x.txt]" not in str(fake_llm.LOG[0]["messages"])
+
+
+def test_ask_returns_reply_with_files(svc, tmp_path):
+    f = tmp_path / "a.docx"
+    f.write_bytes(b"x")
+    of = OutputFile(f, "a.docx", 1)
+    ctx = RunCtx("1", "api")
+    ctx.outputs.append(of)
+    r = run(svc.ask("ciao", user_id="1", session_id="r1", ctx=ctx))
+    assert isinstance(r, Reply) and r.files == [of] and r.text
+
+
+def test_summary_70k_doc_single_call(svc, tmp_path):     # soglia 100.000 caratteri
+    f = tmp_path / "medio.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char
+    run(svc.summarize(f, "", user_id="1"))
+    assert len(fake_llm.LOG) == 1

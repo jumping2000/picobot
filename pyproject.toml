@@ -1,6 +1,6 @@
 [project]
 name = "picobot-agent"
-version = "0.3.0"
+version = "0.5.0"
 description = "PicoBot - multi-agent personal assistant (Agno 3): Telegram, CLI, REST API"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -24,7 +24,7 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest", "httpx", "fpdf2"]
+dev = ["pytest", "httpx", "fpdf2", "openpyxl"]
 
 [build-system]
 requires = ["setuptools>=61.0"]

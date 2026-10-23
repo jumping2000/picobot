@@ -1,13 +1,17 @@
 """Logica condivisa dai canali (testo help, parsing /schedule, split messaggi)."""
 HELP = (
-    "Scrivimi una richiesta (domande, quotazioni, ricerche web, piccoli programmi Python).\n"
-    "Invia un PDF/DOCX/TXT per ottenere un riassunto (nella didascalia puoi scrivere istruzioni).\n\n"
+    "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
+    "Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.\n\n"
+    "/simple <richiesta> - usa direttamente il SimpleTeam (quotazioni, ricerche, script)\n"
+    "/complex <richiesta> - usa direttamente il ComplexTeam (documenti, compiti complessi)\n"
+    "/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento\n"
     "/new - nuova conversazione (la memoria a lungo termine resta)\n"
     "/memory - cosa so di te\n"
     "/forget - cancella la mia memoria su di te (con conferma)\n"
     "/schedule <cron> | <richiesta> - task ricorrente, es: /schedule 0 8 * * 1-5 | quotazioni AAPL e MSFT\n"
     "/schedules - elenco task schedulati\n"
     "/unschedule <id> - elimina un task\n"
+    "/skills - skill installate (le gestisce l'amministratore)\n"
     "/help - questo messaggio\n\n"
     "Il codice Python viene eseguito solo dopo la tua conferma."
 )
@@ -41,3 +45,15 @@ def split_text(text: str, limit: int = 4000) -> list[str]:
     if text:
         parts.append(text)
     return parts or ["(risposta vuota)"]
+
+
+def format_memory_report(r) -> str:
+    """Testo di /memory: memorie, profilo ed entita'."""
+    parts = []
+    if r.memories:
+        parts.append("Memorie:\n" + "\n".join(f"- {m}" for m in r.memories))
+    if r.profile:
+        parts.append("Profilo:\n" + "\n".join(f"- {k.replace('_', ' ')}: {v}" for k, v in r.profile.items()))
+    if r.entities:
+        parts.append("Entita':\n" + "\n".join(f"- {n} ({t}): {d}" if d else f"- {n} ({t})" for n, t, d in r.entities))
+    return "\n\n".join(parts) if parts else "Non ho memorie su di te."

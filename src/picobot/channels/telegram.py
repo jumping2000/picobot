@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import uuid
+from io import BytesIO
 from collections import defaultdict
 from pathlib import Path
 
@@ -14,11 +15,11 @@ from telegram.ext import (
 )
 
 from ..config import Settings
-from ..context import RunCtx
+from ..context import Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
-from .common import HELP, format_schedules, parse_schedule_args, split_text
+from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,31 @@ class TelegramGateway:
             except Exception:  # noqa: BLE001
                 pass
 
+    async def confirm_code(self, bot, chat_id: int, user_id: int, code: str, language: str) -> bool:
+        """Mostra il codice COMPLETO prima dei bottoni: inline se corto, come allegato se lungo."""
+        if len(code) > 1500:
+            try:
+                await bot.send_document(chat_id, document=BytesIO(code.encode("utf-8")),
+                                        filename=f"codice.{'js' if language == 'node' else 'py'}")
+            except Exception:  # noqa: BLE001  senza codice visibile non si chiede conferma
+                logger.exception("Invio del codice da confermare fallito")
+                await bot.send_message(chat_id, "Impossibile mostrare il codice: esecuzione annullata.")
+                return False
+            prompt = f"Eseguire il codice {language} allegato ({len(code)} caratteri)?"
+        else:
+            prompt = f"Eseguire questo codice {language}?\n\n{code}"
+        return await self.ask_yes_no(bot, chat_id, user_id, prompt)
+
+    async def send_reply(self, update: Update, reply: Reply) -> None:
+        await send_safe(update, reply.text)
+        for f in reply.files:
+            try:
+                with f.path.open("rb") as fh:
+                    await update.message.reply_document(document=fh, filename=f.name)
+            except Exception:  # noqa: BLE001
+                logger.exception("Invio file %s fallito", f.name)
+                await update.message.reply_text(f"Impossibile inviare il file {f.name}.")
+
     async def on_callback(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         q = update.callback_query
         try:
@@ -98,8 +124,7 @@ class TelegramGateway:
     async def on_memory(self, update, ctx):
         if not self.authorized(update):
             return
-        mems = await self.service.memories(str(update.effective_user.id))
-        await send_safe(update, "Ricordo:\n" + "\n".join(f"- {m}" for m in mems) if mems else "Non ho memorie su di te.")
+        await send_safe(update, format_memory_report(await self.service.memory_report(str(update.effective_user.id))))
 
     async def on_forget(self, update, ctx):
         if not self.authorized(update):
@@ -107,8 +132,12 @@ class TelegramGateway:
         ok = await self.ask_yes_no(ctx.bot, update.effective_chat.id, update.effective_user.id,
                                    "Cancellare TUTTA la memoria su di te? L'operazione non e' reversibile.")
         if ok:
-            await self.service.forget(str(update.effective_user.id))
-            await update.message.reply_text("Memoria cancellata.")
+            try:
+                await self.service.forget(str(update.effective_user.id))
+            except Exception:
+                logger.exception("Cancellazione memoria fallita")
+                return await update.message.reply_text("Errore: la memoria non e' stata cancellata del tutto. Riprova.")
+            await update.message.reply_text("Memoria, profilo ed entita' cancellati.")
         else:
             await update.message.reply_text("Annullato, memoria intatta.")
 
@@ -123,6 +152,13 @@ class TelegramGateway:
             await update.message.reply_text(f"Task #{sid} creato. Fuso orario: {self.s.timezone}.")
         except (ValueError, ScheduleError) as e:
             await update.message.reply_text(str(e))
+
+    async def on_skills(self, update, ctx):
+        if not self.authorized(update):
+            return
+        info = self.service.skill_info()
+        text = "\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata."
+        await update.message.reply_text(text)
 
     async def on_schedules(self, update, ctx):
         if self.authorized(update):
@@ -150,27 +186,47 @@ class TelegramGateway:
         finally:
             task.cancel()
 
-    async def on_message(self, update, ctx):
-        if not self.authorized(update) or not update.message or not update.message.text:
-            return
+    def _run_ctx(self, ctx, chat_id: int, uid: int, **kw) -> RunCtx:
+        return RunCtx(user_id=str(uid), channel="telegram",
+                      confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language), **kw)
+
+    async def _ask(self, update, ctx, text: str, target: str = "auto", **ctx_kw):
         chat_id, uid = update.effective_chat.id, update.effective_user.id
-        logger.info("Messaggio user=%s chat=%s len=%d", uid, chat_id, len(update.message.text))
-        run_ctx = RunCtx(user_id=str(uid), channel="telegram",
-                         confirm=lambda preview: self.ask_yes_no(
-                             ctx.bot, chat_id, uid, f"Eseguire questo codice Python?\n\n{preview}"))
         async with self._locks[chat_id]:
             try:
-                answer = await self._with_typing(ctx, chat_id, self.service.ask(
-                    update.message.text, user_id=str(uid), session_id=self.session_id(ctx, chat_id), ctx=run_ctx))
-                await send_safe(update, answer)
+                reply = await self._with_typing(ctx, chat_id, self.service.ask(
+                    text, user_id=str(uid), session_id=self.session_id(ctx, chat_id),
+                    ctx=self._run_ctx(ctx, chat_id, uid, **ctx_kw), target=target))
+                await self.send_reply(update, reply)
+            except DocumentError as e:
+                await update.message.reply_text(str(e))
             except Exception:
                 logger.exception("Errore nel run")
                 await update.message.reply_text("Errore interno durante l'elaborazione. Riprova tra poco.")
 
-    async def on_document(self, update, ctx):
-        if not self.authorized(update) or not update.message or not update.message.document:
+    async def on_message(self, update, ctx):
+        if not self.authorized(update) or not update.message or not update.message.text:
             return
-        doc, chat_id, uid = update.message.document, update.effective_chat.id, str(update.effective_user.id)
+        logger.info("Messaggio user=%s chat=%s len=%d", update.effective_user.id, update.effective_chat.id,
+                    len(update.message.text))
+        await self._ask(update, ctx, update.message.text)
+
+    async def _explicit(self, update, ctx, target: str):
+        if not self.authorized(update):
+            return
+        text = ((update.message.text or "").split(maxsplit=1) + [""])[1].strip()
+        if not text:
+            return await update.message.reply_text(f"Uso: /{target} <richiesta>")
+        await self._ask(update, ctx, text, target=target)
+
+    async def on_simple(self, update, ctx):
+        await self._explicit(update, ctx, "simple")
+
+    async def on_complex(self, update, ctx):
+        await self._explicit(update, ctx, "complex")
+
+    async def _with_document(self, update, ctx, doc, handler) -> None:
+        """Scarica il documento in inbox, esegue handler(path) e lo cancella sempre."""
         ext = Path(doc.file_name or "").suffix.lower()
         if ext not in SUPPORTED:
             return await update.message.reply_text("Formato non supportato. Ammessi: PDF, DOCX, TXT, MD, CSV, JSON, LOG.")
@@ -179,21 +235,50 @@ class TelegramGateway:
         inbox = self.s.data_dir / "inbox"
         inbox.mkdir(parents=True, exist_ok=True)
         path = inbox / f"{uuid.uuid4().hex}{ext}"
-        async with self._locks[chat_id]:
-            try:
-                tg_file = await doc.get_file()
-                await tg_file.download_to_drive(custom_path=path)
-                text = await self._with_typing(ctx, chat_id, self.service.summarize(
-                    path, update.message.caption or "", user_id=uid, name=doc.file_name,
-                    session_id=self.session_id(ctx, chat_id)))
-                await send_safe(update, text)
-            except DocumentError as e:
-                await update.message.reply_text(str(e))
-            except Exception:
-                logger.exception("Errore riassunto documento")
-                await update.message.reply_text("Errore durante il riassunto del documento.")
-            finally:
-                path.unlink(missing_ok=True)   # il documento non resta sul server
+        try:
+            tg_file = await doc.get_file()
+            await tg_file.download_to_drive(custom_path=path)
+            await handler(path)
+        finally:
+            path.unlink(missing_ok=True)   # il documento non resta sul server
+
+    async def _summarize_direct(self, update, ctx, doc, instruction: str) -> None:
+        chat_id, uid = update.effective_chat.id, str(update.effective_user.id)
+
+        async def run(path):
+            async with self._locks[chat_id]:
+                try:
+                    text = await self._with_typing(ctx, chat_id, self.service.summarize(
+                        path, instruction, user_id=uid, name=doc.file_name, session_id=self.session_id(ctx, chat_id)))
+                    await send_safe(update, text)
+                except DocumentError as e:
+                    await update.message.reply_text(str(e))
+                except Exception:
+                    logger.exception("Errore riassunto documento")
+                    await update.message.reply_text("Errore durante il riassunto del documento.")
+        await self._with_document(update, ctx, doc, run)
+
+    async def on_document(self, update, ctx):
+        if not self.authorized(update) or not update.message or not update.message.document:
+            return
+        doc, caption = update.message.document, (update.message.caption or "").strip()
+        if caption.lower().startswith("/riassumi"):           # richiamo esplicito del workflow
+            return await self._summarize_direct(update, ctx, doc, caption[len("/riassumi"):].strip())
+        name = doc.file_name or "documento"
+
+        async def run(path):                                     # decide il router
+            await self._ask(update, ctx, f"[Documento caricato: {name}] {caption}".strip(),
+                            document=path, document_name=name)
+        await self._with_document(update, ctx, doc, run)
+
+    async def on_riassumi(self, update, ctx):
+        if not self.authorized(update):
+            return
+        replied = getattr(update.message, "reply_to_message", None)
+        doc = getattr(replied, "document", None) if replied else None
+        if doc is None:
+            return await update.message.reply_text("Rispondi a un documento con /riassumi oppure usalo come didascalia.")
+        await self._summarize_direct(update, ctx, doc, " ".join(ctx.args or []))
 
 
 def build_application(s: Settings, service: PicoBotService) -> tuple[Application, TelegramGateway]:
@@ -209,6 +294,10 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("forget", gw.on_forget))
     app.add_handler(CommandHandler("schedule", gw.on_schedule))
     app.add_handler(CommandHandler("schedules", gw.on_schedules))
+    app.add_handler(CommandHandler("skills", gw.on_skills))
+    app.add_handler(CommandHandler("simple", gw.on_simple))
+    app.add_handler(CommandHandler("complex", gw.on_complex))
+    app.add_handler(CommandHandler("riassumi", gw.on_riassumi))
     app.add_handler(CommandHandler("unschedule", gw.on_unschedule))
     app.add_handler(CallbackQueryHandler(gw.on_callback, pattern=r"^cf:"))
     app.add_handler(MessageHandler(filters.Document.ALL, gw.on_document))

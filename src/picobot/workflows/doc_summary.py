@@ -1,12 +1,13 @@
 """Workflow Agno: riassunto documento = estrai (codice) -> [map in parallelo se lungo] -> riduci (1 agente)."""
 import asyncio
+from pathlib import Path
 
 from agno.agent import Agent
 from agno.workflow import Step, StepInput, StepOutput, Workflow
 
 from .. import prompts
 from ..config import Settings
-from ..documents import split_chunks
+from ..documents import extract_text, split_chunks
 from ..models import make_model
 
 
@@ -34,3 +35,15 @@ def build_doc_workflow(s: Settings) -> Workflow:
         name="DocSummary",
         steps=[Step(name="prepare", executor=prepare), Step(name="summarize", agent=reducer)],
     )
+
+
+async def run_summary(flow: Workflow, s: Settings, path: Path, instruction: str, *, user_id: str, name: str) -> str:
+    """Estrae il testo (gli errori escono come DocumentError) ed esegue il workflow."""
+    text, truncated = await asyncio.to_thread(extract_text, path, s.doc_max_chars)
+    out = await flow.arun(
+        input="riassunto",
+        additional_data={"text": text, "truncated": truncated, "name": name or path.name,
+                         "instruction": instruction.strip()[:1000]},
+        user_id=user_id,
+    )
+    return out.content if isinstance(out.content, str) else str(out.content)
