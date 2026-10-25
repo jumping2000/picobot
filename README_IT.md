@@ -6,7 +6,7 @@
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
-[![Versione](https://img.shields.io/badge/versione-0.5.0-blue)](pyproject.toml)
+[![Versione](https://img.shields.io/badge/versione-0.6.0-blue)](pyproject.toml)
 [![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
@@ -39,6 +39,7 @@ esegue task programmati con cron.
 | 👥 **Due team di agenti** | SimpleTeam (Web, Finance, Coder) e ComplexTeam (Researcher, Analyst, Writer, Critic) |
 | 📄 **Documenti Office** | Crea file `.docx`, `.pptx`, `.xlsx` con [Agent Skills](docs/it/skills.md) installabili |
 | 🔌 **Server MCP** | Qualsiasi server MCP (stdio o HTTP) in formato Claude Desktop, condiviso dal ComplexTeam |
+| 🎤 **Messaggi vocali** | Note vocali e file audio Telegram trascritti in locale (faster-whisper su CPU, italiano e inglese) ed eseguiti come testo scritto — vedi [vocali](docs/it/voice.md) |
 | 📚 **Riassunti di documenti** | PDF, DOCX, TXT, MD, CSV, JSON, LOG; map-reduce in parallelo oltre 100.000 caratteri |
 | 🧠 **Memoria e profilo** | Memorie, profilo strutturato (lingua, fuso, formato, titoli) ed entità, privati per utente |
 | ⏰ **Scheduler** | Task ricorrenti con cron; l'esito torna sul canale che li ha creati |
@@ -143,6 +144,7 @@ Dettagli: [docs/it/security.md](docs/it/security.md).
 | Skill e dipendenze | [skill](docs/it/skills.md) | [skills](docs/en/skills.md) |
 | Server MCP | [mcp](docs/it/mcp.md) | [mcp](docs/en/mcp.md) |
 | Memoria, profilo, entità | [memoria](docs/it/memory.md) | [memory](docs/en/memory.md) |
+| Messaggi vocali (STT) | [vocali](docs/it/voice.md) | [voice](docs/en/voice.md) |
 | Task programmati | [scheduler](docs/it/scheduler.md) | [scheduler](docs/en/scheduler.md) |
 | Sicurezza | [sicurezza](docs/it/security.md) | [security](docs/en/security.md) |
 | Sviluppo e test | [sviluppo](docs/it/development.md) | [development](docs/en/development.md) |

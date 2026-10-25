@@ -1,6 +1,7 @@
 """Canale Telegram: auth fail-closed, sessioni persistenti, HITL a bottoni, documenti, schedule."""
 import asyncio
 import logging
+import mimetypes
 import uuid
 from io import BytesIO
 from collections import defaultdict
@@ -19,9 +20,18 @@ from ..context import Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
+from ..stt import SttError, transcribe
 from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text
 
 logger = logging.getLogger(__name__)
+
+# estensione del file audio scaricato quando manca il nome (mimetypes da' ".oga" per audio/ogg, niente per wav)
+_AUDIO_EXT = {"audio/ogg": ".ogg", "audio/opus": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a",
+              "audio/x-m4a": ".m4a", "audio/wav": ".wav", "audio/x-wav": ".wav"}
+_STT_MESSAGES = {
+    "unavailable": "Trascrizione non disponibile al momento: riprova o scrivi il messaggio.",
+    "unreadable": "Non riesco a leggere questo audio.",
+}
 
 
 async def send_safe(update: Update, text: str) -> None:
@@ -191,18 +201,78 @@ class TelegramGateway:
                       confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language), **kw)
 
     async def _ask(self, update, ctx, text: str, target: str = "auto", **ctx_kw):
+        async with self._locks[update.effective_chat.id]:
+            await self._ask_locked(update, ctx, text, target, **ctx_kw)
+
+    async def _ask_locked(self, update, ctx, text: str, target: str = "auto", **ctx_kw):
+        """Come _ask, per chi tiene gia' il lock della chat (trascrizione + richiesta in un solo turno)."""
         chat_id, uid = update.effective_chat.id, update.effective_user.id
+        try:
+            reply = await self._with_typing(ctx, chat_id, self.service.ask(
+                text, user_id=str(uid), session_id=self.session_id(ctx, chat_id),
+                ctx=self._run_ctx(ctx, chat_id, uid, **ctx_kw), target=target))
+            await self.send_reply(update, reply)
+        except DocumentError as e:
+            await update.message.reply_text(str(e))
+        except Exception:
+            logger.exception("Errore nel run")
+            await update.message.reply_text("Errore interno durante l'elaborazione. Riprova tra poco.")
+
+    # -- messaggi vocali e audio ----------------------------------------------------------
+    async def on_voice(self, update, ctx):
+        if not self.authorized(update) or not update.message:
+            return
+        media = update.message.voice or update.message.audio
+        if media is not None:
+            await self._transcribe_and_ask(update, ctx, media, (update.message.caption or "").strip())
+
+    @staticmethod
+    def _audio_ext(media, is_voice: bool) -> str:
+        suffix = Path(getattr(media, "file_name", None) or "").suffix.lower()
+        mime = (getattr(media, "mime_type", None) or "").lower()
+        return suffix or _AUDIO_EXT.get(mime) or mimetypes.guess_extension(mime) or (".ogg" if is_voice else ".bin")
+
+    async def _transcribe_and_ask(self, update, ctx, media, caption: str) -> None:
+        """Vocale/audio -> stt -> eco "🎤 ..." -> router, come un messaggio scritto. Il file non resta su disco."""
+        s, chat_id, reply = self.s, update.effective_chat.id, update.message.reply_text
         async with self._locks[chat_id]:
+            if not s.stt_url:
+                return await reply("I messaggi vocali non sono abilitati.")
+            too_long = f"Vocale troppo lungo (max {s.max_voice_s // 60} minuti)."
+            if (getattr(media, "duration", None) or 0) > s.max_voice_s:
+                return await reply(too_long)
+            if (media.file_size or 0) > s.max_upload_mb * 1024 * 1024:
+                return await reply(f"File troppo grande (max {s.max_upload_mb} MB).")
+            is_voice = media is getattr(update.message, "voice", None)
+            ext = self._audio_ext(media, is_voice)
+            name = getattr(media, "file_name", None) or f"vocale{ext}"
+            inbox = s.data_dir / "inbox"
+            inbox.mkdir(parents=True, exist_ok=True)
+            path = inbox / f"{uuid.uuid4().hex}{ext}"
             try:
-                reply = await self._with_typing(ctx, chat_id, self.service.ask(
-                    text, user_id=str(uid), session_id=self.session_id(ctx, chat_id),
-                    ctx=self._run_ctx(ctx, chat_id, uid, **ctx_kw), target=target))
-                await self.send_reply(update, reply)
-            except DocumentError as e:
-                await update.message.reply_text(str(e))
-            except Exception:
-                logger.exception("Errore nel run")
-                await update.message.reply_text("Errore interno durante l'elaborazione. Riprova tra poco.")
+                try:
+                    tg_file = await media.get_file()
+                    await tg_file.download_to_drive(custom_path=path)
+                except Exception:
+                    logger.exception("Download del vocale fallito")
+                    return await reply("Impossibile scaricare il vocale, riprova.")
+                try:
+                    result = await self._with_typing(ctx, chat_id, transcribe(s, path, name))
+                except SttError as e:
+                    if e.kind == "unavailable":
+                        logger.exception("Trascrizione non disponibile")
+                    else:
+                        logger.warning("Trascrizione rifiutata: %s", e)
+                    return await reply(too_long if e.kind == "too_long" else _STT_MESSAGES[e.kind])
+                text = result.text.strip()
+                if not text:
+                    return await reply("Non ho capito il vocale, puoi ripeterlo o scriverlo?")
+                for chunk in split_text(f"🎤 {text}"):     # testo semplice: niente Markdown da rompere
+                    await reply(chunk)
+                prompt = f"{caption}\n\n[Trascrizione audio]: {text}" if caption else text
+                await self._ask_locked(update, ctx, prompt)
+            finally:
+                path.unlink(missing_ok=True)   # l'audio non resta sul server
 
     async def on_message(self, update, ctx):
         if not self.authorized(update) or not update.message or not update.message.text:
@@ -262,6 +332,8 @@ class TelegramGateway:
         if not self.authorized(update) or not update.message or not update.message.document:
             return
         doc, caption = update.message.document, (update.message.caption or "").strip()
+        if (getattr(doc, "mime_type", None) or "").startswith("audio/"):   # file audio inviato come documento
+            return await self._transcribe_and_ask(update, ctx, doc, caption)
         if caption.lower().startswith("/riassumi"):           # richiamo esplicito del workflow
             return await self._summarize_direct(update, ctx, doc, caption[len("/riassumi"):].strip())
         name = doc.file_name or "documento"
@@ -300,6 +372,7 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("riassumi", gw.on_riassumi))
     app.add_handler(CommandHandler("unschedule", gw.on_unschedule))
     app.add_handler(CallbackQueryHandler(gw.on_callback, pattern=r"^cf:"))
+    app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, gw.on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, gw.on_document))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, gw.on_message))
     return app, gw

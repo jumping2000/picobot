@@ -70,6 +70,11 @@ uv run picobot skills add /percorso/skills/xlsx
 
 Vedi [Skill](skills.md).
 
+> [!TIP]
+> **Messaggi vocali (opzionale):** `mkdir -p models && sudo chown -R 1000 models`, imposta
+> `STT_URL=http://stt:8000` in `.env` e avvia con `docker compose --profile stt up -d --build`. Vedi
+> [Messaggi vocali](voice.md).
+
 ## 4. Avvio
 
 ```bash
@@ -108,7 +113,7 @@ Registry:
 | Tag | Significato |
 |---|---|
 | `latest` | Ultima release stabile |
-| `0.5.0`, `0.5` | Una versione precisa / l'ultima patch di una versione minore |
+| `0.6.0`, `0.6` | Una versione precisa / l'ultima patch di una versione minore |
 | `sha-<commit>` | Commit esatto |
 
 In `docker-compose.yaml` sostituisci `build: .` con:

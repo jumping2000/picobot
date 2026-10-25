@@ -11,6 +11,7 @@ from ..service import PicoBotService
 from .common import HELP, format_memory_report, format_schedules, parse_schedule_args
 
 CLI_HELP = (HELP
+            .replace("Invia un messaggio vocale o un file audio: lo trascrivo e lo eseguo come un messaggio scritto.\n", "")
             .replace("Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.",
                      "/file <percorso> [richiesta] - usa un documento (decide il router: riassunto o altro)")
             .replace("/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento",

@@ -39,7 +39,7 @@ def test_compose_env_ignores():
     assert "skills/" in read(".gitignore") and "skills" in read(".dockerignore").split()
     env = read(".env.example")
     for k in ("ENABLE_SKILLS", "SKILLS_DIR", "CODE_NODE_MEM_MB", "CODE_MAX_RUNS", "MAX_OUTPUT_MB",
-              "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H"):
+              "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H", "STT_URL", "STT_TIMEOUT_S", "MAX_VOICE_S"):
         assert k in env, k
 
 
@@ -66,3 +66,29 @@ def test_npm_step_fails_if_node_path_differs(tmp_path):
         npm.chmod(0o755)
         r = subprocess.run(["sh", "-c", script], env=env, capture_output=True, text=True)
         assert (r.returncode == 0) is expected_ok, (root, r.returncode, r.stderr)
+
+
+def test_stt_compose_service():
+    import yaml
+    services = yaml.safe_load(read("docker-compose.yaml"))["services"]
+    svc = services["stt"]
+    assert svc["profiles"] == ["stt"] and "ports" not in svc
+    assert "./models:/models" in svc["volumes"] and svc["build"] == "./stt"
+    assert "env_file" not in svc                      # le chiavi di PicoBot non arrivano a stt
+    assert "depends_on" not in services["picobot"]    # stt giu' non blocca PicoBot
+
+
+def test_stt_dockerfile_non_root():
+    d = read("stt/Dockerfile")
+    assert "USER stt" in d and "HF_HOME=/models" in d and "main:app" in d
+    assert "models/" in read(".gitignore") and "models" in read(".dockerignore").split()
+
+
+def test_stt_dependencies_locked():
+    """L'immagine stt si costruisce dal lock (versioni esatte): una nuova release di una dipendenza
+    (come PyAV 19 per faster-whisper) non deve rompere silenziosamente la trascrizione."""
+    d = read("stt/Dockerfile")
+    assert (ROOT / "stt/uv.lock").is_file()
+    assert "COPY pyproject.toml uv.lock ./" in d and "uv sync --no-dev --frozen" in d
+    assert "uv.lock" not in read("stt/.dockerignore").split()
+    assert "!stt/uv.lock" in read(".gitignore")

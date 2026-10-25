@@ -89,6 +89,16 @@ Source of truth: [`src/picobot/config.py`](../../src/picobot/config.py). Boolean
 | `DOC_CHUNK_CHARS` | `100000` | Below this size a summary is a single call; above it, parallel map + reduce |
 | `DOC_MAX_CHARS` | `400000` | Extracted text is truncated here |
 
+## Voice messages (STT)
+
+| Variable | Default | Description |
+|---|---|---|
+| `STT_URL` | *(empty = off)* | Transcription service, e.g. `http://stt:8000` |
+| `STT_TIMEOUT_S` | `180` | Max wait for a transcript |
+| `MAX_VOICE_S` | `300` | Max voice duration, checked before downloading |
+
+The variables of the `stt` container (`STT_MODEL`, `STT_BEAM_SIZE`, …) are described in [voice.md](voice.md).
+
 ## Scheduler
 
 | Variable | Default | Description |

@@ -45,6 +45,7 @@ Collaudo manuale con un modello reale: [manual-qa.md](../manual-qa.md).
 picobot/
 ├── src/picobot/          # pacchetto dell'applicazione (vedi architecture.md → Mappa dei sorgenti)
 ├── tests/                # suite pytest con LLM finto
+├── stt/                  # servizio di trascrizione (FastAPI + faster-whisper), con pyproject e test propri
 ├── config/mcp_config.json
 ├── deps/                 # punti di estensione apt/pip/npm + setup.sh
 ├── docs/                 # questa documentazione (en/, it/), collaudo manuale, spec di design
@@ -89,8 +90,10 @@ Workflow: [`.github/workflows/release_ci-cd.yml`](../../.github/workflows/releas
 | `build-docker` | Release pubblicata, avvio manuale | Scansione Trivy (repo), build multi-arch e push su GHCR, smoke test, scansione Trivy (immagine), SBOM, report allegati alla release |
 | `notify` | Release, avvio manuale | Email con l'esito, **solo se** i secret SMTP sono configurati |
 
-Immagine: `ghcr.io/jumping2000/picobot`. Tag: versione (`0.5.0`), minore (`0.5`), `sha-<commit>` e `latest` per
+Immagine: `ghcr.io/jumping2000/picobot`. Tag: versione (`0.6.0`), minore (`0.6`), `sha-<commit>` e `latest` per
 le release non prerelease.
+Gli stessi job testano, controllano e pubblicano l'immagine di trascrizione `ghcr.io/jumping2000/picobot-stt`
+(test: `uv run --directory stt --group dev pytest tests`).
 
 Secret opzionali per l'email: `SMTP_SERVER`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `NOTIFICATION_EMAIL`.
 Il push su GHCR usa il `GITHUB_TOKEN` integrato: non serve nessun altro secret.
@@ -107,7 +110,7 @@ Tienile allineate: la CI rifiuta di pubblicare se non coincidono.
 Per fare una release:
 
 1. Aggiorna la versione nei due file e fai commit su `main`.
-2. Crea una release su GitHub con tag `v<versione>` (es. `v0.5.0`).
+2. Crea una release su GitHub con tag `v<versione>` (es. `v0.6.0`).
 3. La CI pubblica l'immagine e allega `trivy-fs-report.txt`, `trivy-image-report.txt` e `sbom.spdx.json`.
 
 Un avvio manuale (*Actions → PicoBot CI/CD Pipeline → Run workflow*) ricostruisce e pubblica la versione corrente

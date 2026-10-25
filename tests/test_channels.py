@@ -518,3 +518,238 @@ def test_telegram_memory_shows_sections(tmp_path):
         return replies
     replies = asyncio.run(t())
     assert "Profilo" in replies[-1] and "AAPL, ENI" in replies[-1]
+
+
+# ---------------- vocali e audio (v0.6) ----------------
+import picobot.channels.telegram as tg_mod  # noqa: E402
+from pathlib import Path  # noqa: E402
+from picobot.stt import SttError, Transcript  # noqa: E402
+
+VOICE_LONG = "Vocale troppo lungo (max 5 minuti)."
+
+
+def _tg_voice(stt_url="http://stt:8000"):
+    s = Settings(telegram_allowed_user_ids="1", stt_url=stt_url)
+    svc = PicoBotService(s)
+    return s, svc, TelegramGateway(s, svc)
+
+
+def _fake_stt(monkeypatch, result):
+    calls = []
+
+    async def fake(s, path, filename):
+        calls.append((Path(path), filename, Path(path).exists()))
+        if isinstance(result, SttError):
+            raise result
+        return Transcript(result, "it")
+    monkeypatch.setattr(tg_mod, "transcribe", fake)
+    return calls
+
+
+def _voice_update(replies, kws, kind="voice", duration=5, file_size=1000, mime="audio/ogg", file_name=None,
+                  caption=None, dl_fails=False, uid=1):
+    async def reply(text, **kw):
+        replies.append(text)
+        kws.append(kw)
+
+    async def reply_document(document, **kw):
+        replies.append(f"FILE:{kw['filename']}")
+
+    async def dl(custom_path):
+        if dl_fails:
+            raise RuntimeError("rete")
+        Path(custom_path).write_bytes(b"OggS")
+    media = NS(duration=duration, file_size=file_size, mime_type=mime, file_name=file_name,
+               get_file=AsyncMock(return_value=NS(download_to_drive=dl)))
+    msg = NS(voice=None, audio=None, document=None, caption=caption, text=None, reply_text=reply,
+             reply_document=reply_document, reply_to_message=None)
+    setattr(msg, kind, media)
+    return NS(effective_user=NS(id=uid), effective_chat=NS(id=9), message=msg), media
+
+
+def _send(gw, upd, kind="voice"):
+    handler = gw.on_document if kind == "document" else gw.on_voice
+    return handler(upd, _ctx())
+
+
+def _inbox_empty(s):
+    return not list((s.data_dir / "inbox").glob("*"))
+
+
+def test_voice_echo_then_router(monkeypatch):
+    calls = _fake_stt(monkeypatch, "quotazione di AAPL")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        fake_llm.LOG.clear()
+        upd, _ = _voice_update(replies, kws)
+        await _send(gw, upd)
+        return s, replies, kws
+    s, replies, kws = asyncio.run(t())
+    assert replies[0] == "🎤 quotazione di AAPL" and "parse_mode" not in kws[0]
+    assert "quotazione di AAPL" in str(fake_llm.LOG[0]["messages"]) and replies[-1] == "RISPOSTA-FINTA"
+    assert calls[0][2] and calls[0][0].suffix == ".ogg" and _inbox_empty(s)    # file presente durante, poi cancellato
+
+
+def test_voice_empty_transcript_skips_router(monkeypatch):
+    _fake_stt(monkeypatch, "   ")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        fake_llm.LOG.clear()
+        await _send(gw, _voice_update(replies, kws)[0])
+        return s, replies
+    s, replies = asyncio.run(t())
+    assert replies == ["Non ho capito il vocale, puoi ripeterlo o scriverlo?"] and fake_llm.LOG == [] and _inbox_empty(s)
+
+
+def test_voice_disabled_without_stt_url(monkeypatch):
+    calls = _fake_stt(monkeypatch, "x")
+
+    async def t():
+        s, svc, gw = _tg_voice(stt_url=""); await svc.start(); replies, kws = [], []
+        upd, media = _voice_update(replies, kws)
+        await _send(gw, upd)
+        return replies, media
+    replies, media = asyncio.run(t())
+    assert replies == ["I messaggi vocali non sono abilitati."] and calls == []
+    media.get_file.assert_not_called()
+
+
+def test_voice_too_long_rejected_before_download(monkeypatch):
+    calls = _fake_stt(monkeypatch, "x")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        upd, media = _voice_update(replies, kws, duration=301)
+        await _send(gw, upd)
+        return replies, media
+    replies, media = asyncio.run(t())
+    assert replies == [VOICE_LONG] and calls == []
+    media.get_file.assert_not_called()
+
+
+def test_voice_too_big_rejected_before_download(monkeypatch):
+    calls = _fake_stt(monkeypatch, "x")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        upd, media = _voice_update(replies, kws, file_size=15 * 1024 * 1024 + 1)
+        await _send(gw, upd)
+        return replies, media
+    replies, media = asyncio.run(t())
+    assert replies == ["File troppo grande (max 15 MB)."] and calls == []
+    media.get_file.assert_not_called()
+
+
+@pytest.mark.parametrize("kind,msg", [
+    ("unavailable", "Trascrizione non disponibile al momento: riprova o scrivi il messaggio."),
+    ("unreadable", "Non riesco a leggere questo audio."),
+    ("too_long", VOICE_LONG),                                   # Review Focus 1 (audio lungo senza durata)
+])
+def test_voice_stt_errors(monkeypatch, kind, msg):
+    _fake_stt(monkeypatch, SttError(kind))
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        fake_llm.LOG.clear()
+        upd, _ = _voice_update(replies, kws, kind="document", duration=None, mime="audio/mpeg", file_name="n.mp3")
+        await _send(gw, upd, "document")
+        return s, replies
+    s, replies = asyncio.run(t())
+    assert replies[-1] == msg and fake_llm.LOG == [] and _inbox_empty(s)
+
+
+def test_voice_download_failure(monkeypatch):
+    calls = _fake_stt(monkeypatch, "x")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        await _send(gw, _voice_update(replies, kws, dl_fails=True)[0])
+        return s, replies
+    s, replies = asyncio.run(t())
+    assert replies[-1] == "Impossibile scaricare il vocale, riprova." and calls == [] and _inbox_empty(s)
+
+
+def test_audio_document_is_transcribed(monkeypatch):
+    calls = _fake_stt(monkeypatch, "nota audio")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        upd, _ = _voice_update(replies, kws, kind="document", duration=None, mime="audio/mpeg", file_name="nota.mp3")
+        await _send(gw, upd, "document")
+        return replies
+    replies = asyncio.run(t())
+    assert replies[0] == "🎤 nota audio" and calls[0][1] == "nota.mp3" and calls[0][0].suffix == ".mp3"
+
+
+def test_audio_caption_is_combined(monkeypatch):
+    _fake_stt(monkeypatch, "testo")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        fake_llm.LOG.clear()
+        upd, _ = _voice_update(replies, kws, kind="audio", mime="audio/mpeg", file_name="a.mp3", caption="riassumi")
+        await _send(gw, upd)
+    asyncio.run(t())
+    assert "riassumi\\n\\n[Trascrizione audio]: testo" in str(fake_llm.LOG[0]["messages"])
+
+
+def test_voice_unauthorized_is_ignored(monkeypatch):
+    calls = _fake_stt(monkeypatch, "x")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        await _send(gw, _voice_update(replies, kws, uid=99)[0])
+        return replies
+    assert asyncio.run(t()) == [] and calls == []
+
+
+def test_voice_echo_with_markdown_chars(monkeypatch):           # Review Focus 2
+    _fake_stt(monkeypatch, "a_b *c* [d")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        await _send(gw, _voice_update(replies, kws)[0])
+        return replies, kws
+    replies, kws = asyncio.run(t())
+    assert replies[0] == "🎤 a_b *c* [d" and "parse_mode" not in kws[0]
+
+
+def test_voice_long_echo_is_split(monkeypatch):                 # Review Focus 3
+    _fake_stt(monkeypatch, "parola " * 1300)
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        await _send(gw, _voice_update(replies, kws)[0])
+        return replies
+    replies = asyncio.run(t())
+    echo = replies[:-1]                                         # l'ultima risposta e' quella del router
+    assert len(echo) >= 3 and echo[0].startswith("🎤 ") and all(len(e) <= 4000 for e in echo)
+
+
+def test_text_after_stt_down_still_answered(monkeypatch):       # Review Focus 4
+    _fake_stt(monkeypatch, SttError("unavailable"))
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        await _send(gw, _voice_update(replies, kws)[0])
+        async def reply(text, **kw): replies.append(text)
+        text_upd = NS(effective_user=NS(id=1), effective_chat=NS(id=9),
+                      message=NS(text="ciao", reply_text=reply, reply_document=AsyncMock()))
+        await asyncio.wait_for(gw.on_message(text_upd, _ctx()), 5)
+        return replies
+    replies = asyncio.run(t())
+    assert replies[0].startswith("Trascrizione non disponibile") and replies[-1] == "RISPOSTA-FINTA"
+
+
+def test_forwarded_audio_without_name(monkeypatch):             # Review Focus 5
+    calls = _fake_stt(monkeypatch, "inoltrato")
+
+    async def t():
+        s, svc, gw = _tg_voice(); await svc.start(); replies, kws = [], []
+        upd, _ = _voice_update(replies, kws, kind="document", duration=None, mime="audio/ogg", file_name=None)
+        await _send(gw, upd, "document")
+        return replies
+    replies = asyncio.run(t())
+    assert calls[0][0].suffix == ".ogg" and replies[0] == "🎤 inoltrato"
