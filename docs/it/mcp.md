@@ -43,7 +43,8 @@ Formato Claude Desktop, più il flag opzionale `enabled`:
 I segreti stanno in `.env`, non nel JSON: in qualsiasi stringa scrivi `${NOME}` e PicoBot lo sostituisce con `NOME`
 preso dal `.env` (nella cartella corrente, come le altre impostazioni) o dall'ambiente, che ha la precedenza. È
 supportata solo la forma `${NOME}`. Metti i segreti in `headers` o `env`, non nell'`url`: gli errori di connessione
-finiscono nel log insieme all'URL.
+finiscono nel log insieme all'URL. Con un `url` `http://` gli header, chiavi comprese, viaggiano in chiaro: per i
+server remoti con un segreto usa `https://`, oppure tienili su una rete fidata.
 
 Nell'immagine ci sono `npx` (server Node) e `uvx` (server Python).
 

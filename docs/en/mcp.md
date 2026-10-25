@@ -43,7 +43,8 @@ Claude Desktop format, plus an optional `enabled` flag:
 Keep secrets in `.env`, not in the JSON: write `${NAME}` in any string value and PicoBot replaces it with `NAME`
 from `.env` (in the current directory, as for the other settings) or from the environment, which takes precedence.
 Only the `${NAME}` form is supported. Put secrets in `headers` or `env`, not in `url`: connection errors are logged
-with the URL.
+with the URL. With an `http://` `url`, headers (keys included) travel in cleartext: use `https://` for remote
+servers that need a secret, or keep them on a trusted network.
 
 The image ships `npx` (Node servers) and `uvx` (Python servers).
 

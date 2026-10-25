@@ -64,7 +64,8 @@ session, so you can ask follow-up questions.
 on Telegram, CLI and API. It is meant for articles and blogs: online PDFs, login or paywalled pages, pages
 filled only by JavaScript and videos are not supported. Only `http`/`https`, max 5 MB, 20 s timeout. Links to
 `localhost`, the private network or cloud metadata are refused, also after a redirect. Without a proxy, the IP the
-connection actually reaches is checked too (against DNS rebinding). With a proxy (`HTTPS_PROXY`/`HTTP_PROXY`/
+connection actually reaches is checked too (against DNS rebinding): the response of a private host is discarded
+unread, but the GET request still reaches it. With a proxy (`HTTPS_PROXY`/`HTTP_PROXY`/
 `ALL_PROXY`, except `NO_PROXY`) the proxy resolves the name: configure it to deny private destinations. The
 pre-check still resolves names from the container: if the container has no external DNS and only the proxy resolves
 names, links fail with "host … sconosciuto" (unknown host).
