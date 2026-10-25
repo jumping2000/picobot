@@ -38,5 +38,6 @@ It is reachable through Telegram, an interactive CLI and a REST API, all served 
 
 ## Other documents
 
-- [Manual acceptance checklist](../manual-qa.md) (Italian)
+- [Manual acceptance checklist](manual-qa.md)
+- [Changelog](../../CHANGELOG.md)
 - Design specs and implementation plans (Italian): [`docs/superpowers/`](../superpowers/)

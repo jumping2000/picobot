@@ -40,9 +40,15 @@ def build_doc_workflow(s: Settings) -> Workflow:
 async def run_summary(flow: Workflow, s: Settings, path: Path, instruction: str, *, user_id: str, name: str) -> str:
     """Estrae il testo (gli errori escono come DocumentError) ed esegue il workflow."""
     text, truncated = await asyncio.to_thread(extract_text, path, s.doc_max_chars)
+    return await run_summary_text(flow, text, truncated, instruction, user_id=user_id, name=name or path.name)
+
+
+async def run_summary_text(flow: Workflow, text: str, truncated: bool, instruction: str, *,
+                           user_id: str, name: str) -> str:
+    """Workflow su un testo gia' estratto (documento o pagina web)."""
     out = await flow.arun(
         input="riassunto",
-        additional_data={"text": text, "truncated": truncated, "name": name or path.name,
+        additional_data={"text": text, "truncated": truncated, "name": name,
                          "instruction": instruction.strip()[:1000]},
         user_id=user_id,
     )

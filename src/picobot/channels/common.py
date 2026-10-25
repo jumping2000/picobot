@@ -6,6 +6,7 @@ HELP = (
     "/simple <richiesta> - usa direttamente il SimpleTeam (quotazioni, ricerche, script)\n"
     "/complex <richiesta> - usa direttamente il ComplexTeam (documenti, compiti complessi)\n"
     "/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento\n"
+    "/riassumi <link> [istruzioni] - riassunto di una pagina web (articoli, blog)\n"
     "/new - nuova conversazione (la memoria a lungo termine resta)\n"
     "/memory - cosa so di te\n"
     "/forget - cancella la mia memoria su di te (con conferma)\n"

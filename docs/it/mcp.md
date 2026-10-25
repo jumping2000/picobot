@@ -20,12 +20,13 @@ Formato Claude Desktop, più il flag opzionale `enabled`:
     "mio-server-python": {
       "command": "uvx",
       "args": ["qualche-server-mcp"],
-      "env": {"QUALCHE_API_KEY": "..."},
+      "env": {"QUALCHE_API_KEY": "${QUALCHE_API_KEY}"},
       "enabled": false
     },
     "remoto": {
       "url": "https://mcp.example.com/mcp",
-      "transport": "streamable-http"
+      "transport": "streamable-http",
+      "headers": {"X-API-Key": "${REMOTO_API_KEY}"}
     }
   }
 }
@@ -36,12 +37,19 @@ Formato Claude Desktop, più il flag opzionale `enabled`:
 | `command` + `args` | Server stdio avviato come sottoprocesso (timeout 30 s) |
 | `env` | Variabili d'ambiente aggiuntive per quel server |
 | `url` + `transport` | Server remoto; `transport` di default è `streamable-http` |
+| `headers` | Header HTTP inviati a un server remoto (es. una chiave API) |
 | `enabled` | `false` salta il server (default `true`) |
+
+I segreti stanno in `.env`, non nel JSON: in qualsiasi stringa scrivi `${NOME}` e PicoBot lo sostituisce con `NOME`
+preso dal `.env` (nella cartella corrente, come le altre impostazioni) o dall'ambiente, che ha la precedenza. È
+supportata solo la forma `${NOME}`. Metti i segreti in `headers` o `env`, non nell'`url`: gli errori di connessione
+finiscono nel log insieme all'URL.
 
 Nell'immagine ci sono `npx` (server Node) e `uvx` (server Python).
 
 ## Comportamento
 
+- Un server che usa una `${NOME}` non definita viene saltato con un avviso che riporta il nome della variabile.
 - I server vengono connessi all'avvio; **le modifiche richiedono il riavvio** (`docker compose restart picobot`).
 - Un server che fallisce o non espone tool viene saltato con un avviso; il bot parte comunque.
 - Nel log compare `MCP: server '<nome>' connesso (N tool).` per ogni server connesso; la riga di avvio riporta il

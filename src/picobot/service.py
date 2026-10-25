@@ -20,7 +20,8 @@ from .prompts import router_instructions
 from .skills import SkillInfo, SkillRegistry
 from .team import build_router
 from .tools.files import purge_outbox
-from .workflows.doc_summary import build_doc_workflow, run_summary
+from .web import fetch_article
+from .workflows.doc_summary import build_doc_workflow, run_summary, run_summary_text
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,16 @@ class PicoBotService:
         if session_id:   # il riassunto entra nella storia della sessione: follow-up possibili
             await self._record_in_session(session_id, user_id,
                                           f"[Documento caricato: {name or path.name}] {instruction.strip()}".strip(), summary)
+        return summary
+
+    async def summarize_url(self, url: str, instruction: str = "", *, user_id: str,
+                            session_id: str | None = None) -> str:
+        assert self.doc_flow is not None
+        text = await fetch_article(url)   # come per i documenti: i DocumentError arrivano al canale
+        summary = await run_summary_text(self.doc_flow, text[: self.s.doc_max_chars], len(text) > self.s.doc_max_chars,
+                                         instruction, user_id=user_id, name=url)
+        if session_id:
+            await self._record_in_session(session_id, user_id, f"[Pagina web: {url}] {instruction.strip()}".strip(), summary)
         return summary
 
     async def _record_in_session(self, session_id: str, user_id: str, user_text: str, answer: str) -> None:

@@ -1,16 +1,22 @@
 """CLI admin `picobot skills`: installazione atomica e sicura da cartella, zip o git."""
+
 import os
 import shutil
 import subprocess
 import sys
 import zipfile
-from pathlib import Path
 
 import pytest
 
 from picobot import skills_cli
 from picobot.config import Settings
-from picobot.skills_cli import SkillInstallError, install, main_skills, remove, validate_dir
+from picobot.skills_cli import (
+    SkillInstallError,
+    install,
+    main_skills,
+    remove,
+    validate_dir,
+)
 
 GOOD = "---\nname: docx\ndescription: Crea documenti Word\n---\n# docx\n"
 
@@ -34,7 +40,12 @@ def good_src(tmp_path, folder="docx-main", md=GOOD, scripts=True):
 
 def test_install_dir_renames_to_frontmatter_name(tmp_path, d):
     info = install(str(good_src(tmp_path)), d)
-    assert info.name == "docx" and (d / "docx" / "SKILL.md").exists() and info.has_scripts and info.files == 2
+    assert (
+        info.name == "docx"
+        and (d / "docx" / "SKILL.md").exists()
+        and info.has_scripts
+        and info.files == 2
+    )
     assert [p.name for p in d.iterdir()] == ["docx"]
 
 
@@ -45,22 +56,50 @@ def test_duplicate_needs_force(tmp_path, d):
         install(str(src), d)
     (src / "extra.md").write_text("x")
     assert install(str(src), d, force=True).files == 3
-    assert sorted(p.name for p in d.iterdir()) == ["docx"]          # nessun .old-* o .tmp-* residuo
+    assert sorted(p.name for p in d.iterdir()) == [
+        "docx"
+    ]  # nessun .old-* o .tmp-* residuo
 
 
 def _no_md(tmp):
-    p = tmp / "s"; p.mkdir(); (p / "README.md").write_text("x"); return p
-def _no_desc(tmp): return good_src(tmp, md="---\nname: docx\n---\n")
-def _traversal(tmp): return good_src(tmp, md="---\nname: ../x\ndescription: d\n---\n")
-def _upper(tmp): return good_src(tmp, md="---\nname: Docx\ndescription: d\n---\n")
+    p = tmp / "s"
+    p.mkdir()
+    (p / "README.md").write_text("x")
+    return p
+
+
+def _no_desc(tmp):
+    return good_src(tmp, md="---\nname: docx\n---\n")
+
+
+def _traversal(tmp):
+    return good_src(tmp, md="---\nname: ../x\ndescription: d\n---\n")
+
+
+def _upper(tmp):
+    return good_src(tmp, md="---\nname: Docx\ndescription: d\n---\n")
+
+
 def _symlink(tmp):
-    p = good_src(tmp); os.symlink("/etc/passwd", p / "passwd"); return p
-FIXTURES = {"no_skill_md": _no_md, "no_description": _no_desc, "name_traversal": _traversal,
-            "name_upper": _upper, "symlink_inside": _symlink}
+    p = good_src(tmp)
+    try:
+        os.symlink("/etc/passwd", p / "passwd")
+    except OSError:  # Windows senza Developer Mode
+        pytest.skip("symlink non consentiti")
+    return p
+
+
+FIXTURES = {
+    "no_skill_md": _no_md,
+    "no_description": _no_desc,
+    "name_traversal": _traversal,
+    "name_upper": _upper,
+    "symlink_inside": _symlink,
+}
 
 
 @pytest.mark.parametrize("bad", sorted(FIXTURES))
-def test_invalid_rejected_no_residue(bad, tmp_path, d):     # Review Focus 1/2
+def test_invalid_rejected_no_residue(bad, tmp_path, d):  # Review Focus 1/2
     with pytest.raises(SkillInstallError):
         install(str(FIXTURES[bad](tmp_path)), d)
     assert list(d.iterdir()) == []
@@ -90,8 +129,10 @@ def test_zip_layouts(tmp_path, d, root_folder):
     assert info.name == "docx" and (d / "docx" / "scripts" / "a.py").exists()
 
 
-@pytest.mark.parametrize("member", ["../evil.txt", "/abs/evil.txt", "docx-main/../../evil.txt"])
-def test_zip_hostile_rejected(member, tmp_path, d):          # Review Focus 1
+@pytest.mark.parametrize(
+    "member", ["../evil.txt", "/abs/evil.txt", "docx-main/../../evil.txt"]
+)
+def test_zip_hostile_rejected(member, tmp_path, d):  # Review Focus 1
     with pytest.raises(SkillInstallError):
         install(str(make_zip(tmp_path, extra=member)), d)
     assert list(d.iterdir()) == [] and not (tmp_path / "evil.txt").exists()
@@ -101,9 +142,18 @@ def test_git_source(tmp_path, d):
     if shutil.which("git") is None:
         pytest.skip("git non installato")
     repo = good_src(tmp_path, folder="repo")
-    env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t",
-           "GIT_COMMITTER_EMAIL": "t@t"}
-    for cmd in (["git", "init", "-q"], ["git", "add", "-A"], ["git", "commit", "-qm", "x"]):
+    env = {
+        **os.environ,
+        "GIT_AUTHOR_NAME": "t",
+        "GIT_AUTHOR_EMAIL": "t@t",
+        "GIT_COMMITTER_NAME": "t",
+        "GIT_COMMITTER_EMAIL": "t@t",
+    }
+    for cmd in (
+        ["git", "init", "-q"],
+        ["git", "add", "-A"],
+        ["git", "commit", "-qm", "x"],
+    ):
         subprocess.run(cmd, cwd=repo, check=True, env=env)
     info = install(f"file://{repo}", d)
     assert info.name == "docx" and not (d / "docx" / ".git").exists()
@@ -131,7 +181,9 @@ def test_cli_dispatch(capsys, tmp_path, d):
     s = Settings(skills_dir=d)
     assert main_skills(["add", str(good_src(tmp_path))], s) == 0
     out = capsys.readouterr().out
-    assert "docx" in out and "Crea documenti Word" in out and "conferma" in out      # avviso scripts/
+    assert (
+        "docx" in out and "Crea documenti Word" in out and "conferma" in out
+    )  # avviso scripts/
     assert main_skills(["list"], s) == 0 and "docx" in capsys.readouterr().out
     assert main_skills(["validate"], s) == 0
     assert main_skills(["add", "/nonexistent"], s) == 1
@@ -140,23 +192,34 @@ def test_cli_dispatch(capsys, tmp_path, d):
 
 def test_main_skills_needs_no_api_key(tmp_path, d):
     env = {"SKILLS_DIR": str(d), "PATH": os.environ["PATH"], "HOME": str(tmp_path)}
-    r = subprocess.run([sys.executable, "-m", "picobot", "skills", "list"], env=env, cwd=tmp_path,
-                       capture_output=True, text=True)
+    if os.name == "nt":  # senza SYSTEMROOT asyncio non si importa (WinError 10106)
+        env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+    r = subprocess.run(
+        [sys.executable, "-m", "picobot", "skills", "list"],
+        env=env,
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+    )
     assert r.returncode == 0, r.stderr
 
 
 # ---------------- skills deps (Task 11) ----------------
-import json                                                        # noqa: E402
+import json
 
-from picobot.skills_cli import declared_deps, missing_deps, write_missing   # noqa: E402
+from picobot.skills_cli import declared_deps, missing_deps, write_missing
 
 
 def skill_with_deps(root, name="s1"):
     p = root / name
     p.mkdir(parents=True)
-    (p / "SKILL.md").write_text(f"---\nname: {name}\ndescription: con dipendenze\n---\n")
+    (p / "SKILL.md").write_text(
+        f"---\nname: {name}\ndescription: con dipendenze\n---\n"
+    )
     (p / "requirements.txt").write_text("# commento\n\nopenpyxl==3.1.5\n")
-    (p / "package.json").write_text(json.dumps({"dependencies": {"docx": "^9.0.0", "pptxgenjs": "~4.0.1"}}))
+    (p / "package.json").write_text(
+        json.dumps({"dependencies": {"docx": "^9.0.0", "pptxgenjs": "~4.0.1"}})
+    )
     (p / "apt.txt").write_text("fonts-liberation\n")
     return p
 
@@ -166,7 +229,13 @@ def test_declared(d):
     (d / "senza").mkdir()
     (d / "senza" / "SKILL.md").write_text("---\nname: senza\ndescription: x\n---\n")
     decl = declared_deps(d)
-    assert decl == {"s1": {"pip": ["openpyxl==3.1.5"], "npm": ["docx@9.0.0", "pptxgenjs@4.0.1"], "apt": ["fonts-liberation"]}}
+    assert decl == {
+        "s1": {
+            "pip": ["openpyxl==3.1.5"],
+            "npm": ["docx@9.0.0", "pptxgenjs@4.0.1"],
+            "apt": ["fonts-liberation"],
+        }
+    }
 
 
 def test_missing_compares_by_name(d, tmp_path):
@@ -185,16 +254,26 @@ def test_write_missing_idempotent(d, tmp_path):
     decl = declared_deps(d)
     assert write_missing(decl, deps) == 4 and write_missing(decl, deps) == 0
     npm = (deps / "npm.txt").read_text()
-    assert "# skill: s1" in npm and "docx@9.0.0" in npm and missing_deps(decl, deps) == {"pip": [], "npm": [], "apt": []}
+    assert (
+        "# skill: s1" in npm
+        and "docx@9.0.0" in npm
+        and missing_deps(decl, deps) == {"pip": [], "npm": [], "apt": []}
+    )
 
 
 def test_cli_deps_exit_codes(d, tmp_path, capsys):
     s = Settings(skills_dir=d)
     deps = tmp_path / "deps"
-    assert main_skills(["deps", "--deps-dir", str(deps)], s) == 0              # nessuna dipendenza dichiarata
+    assert (
+        main_skills(["deps", "--deps-dir", str(deps)], s) == 0
+    )  # nessuna dipendenza dichiarata
     skill_with_deps(d)
-    assert main_skills(["deps", "--deps-dir", str(deps)], s) == 1              # mancanti, senza --write
-    assert "pptxgenjs@4.0.1" in capsys.readouterr().out and not deps.exists()  # non scrive e non installa
+    assert (
+        main_skills(["deps", "--deps-dir", str(deps)], s) == 1
+    )  # mancanti, senza --write
+    assert (
+        "pptxgenjs@4.0.1" in capsys.readouterr().out and not deps.exists()
+    )  # non scrive e non installa
     assert main_skills(["deps", "--write", "--deps-dir", str(deps)], s) == 0
     assert main_skills(["deps", "--deps-dir", str(deps)], s) == 0
 
@@ -205,15 +284,23 @@ def test_add_summary_lists_declared_deps(capsys, tmp_path, d):
     assert "pip: openpyxl==3.1.5" in capsys.readouterr().out
 
 
-def test_zip_size_checked_before_extraction(monkeypatch, tmp_path, d):     # zip-bomba: nulla va su disco
+def test_zip_size_checked_before_extraction(
+    monkeypatch, tmp_path, d
+):  # zip-bomba: nulla va su disco
     monkeypatch.setattr(skills_cli, "MAX_SKILL_BYTES", 1000)
     z = tmp_path / "bomb.zip"
     with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zf:
         zf.writestr("docx/SKILL.md", GOOD)
-        zf.writestr("docx/big.bin", b"\0" * 200_000)        # comprime a poche centinaia di byte
+        zf.writestr(
+            "docx/big.bin", b"\0" * 200_000
+        )  # comprime a poche centinaia di byte
     extracted = []
     real = zipfile.ZipFile.extractall
-    monkeypatch.setattr(zipfile.ZipFile, "extractall", lambda self, *a, **k: (extracted.append(1), real(self, *a, **k)))
+    monkeypatch.setattr(
+        zipfile.ZipFile,
+        "extractall",
+        lambda self, *a, **k: (extracted.append(1), real(self, *a, **k)),
+    )
     with pytest.raises(SkillInstallError, match="troppo grande"):
         install(str(z), d)
     assert extracted == [] and list(d.iterdir()) == []

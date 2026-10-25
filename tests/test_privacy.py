@@ -1,4 +1,5 @@
 """Revisione finale: nessuna telemetria verso Agno, salvo scelta esplicita dell'utente."""
+
 import os
 import subprocess
 import sys

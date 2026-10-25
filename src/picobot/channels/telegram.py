@@ -21,9 +21,11 @@ from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..stt import SttError, transcribe
+from ..web import is_url
 from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text
 
 logger = logging.getLogger(__name__)
+_RIASSUMI_USAGE = "Uso: /riassumi <link> [istruzioni], oppure rispondi a un documento con /riassumi (o usalo come didascalia)."
 
 # estensione del file audio scaricato quando manca il nome (mimetypes da' ".oga" per audio/ogg, niente per wav)
 _AUDIO_EXT = {"audio/ogg": ".ogg", "audio/opus": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a",
@@ -312,20 +314,25 @@ class TelegramGateway:
         finally:
             path.unlink(missing_ok=True)   # il documento non resta sul server
 
+    async def _send_summary(self, update, ctx, summarize, what: str) -> None:
+        """summarize(session_id) -> coroutine del riassunto; i DocumentError arrivano all'utente come messaggio."""
+        chat_id = update.effective_chat.id
+        async with self._locks[chat_id]:
+            try:
+                text = await self._with_typing(ctx, chat_id, summarize(self.session_id(ctx, chat_id)))
+                await send_safe(update, text)
+            except DocumentError as e:
+                await update.message.reply_text(str(e))
+            except Exception:
+                logger.exception("Errore riassunto %s", what)
+                await update.message.reply_text(f"Errore durante il riassunto {what}.")
+
     async def _summarize_direct(self, update, ctx, doc, instruction: str) -> None:
-        chat_id, uid = update.effective_chat.id, str(update.effective_user.id)
+        uid = str(update.effective_user.id)
 
         async def run(path):
-            async with self._locks[chat_id]:
-                try:
-                    text = await self._with_typing(ctx, chat_id, self.service.summarize(
-                        path, instruction, user_id=uid, name=doc.file_name, session_id=self.session_id(ctx, chat_id)))
-                    await send_safe(update, text)
-                except DocumentError as e:
-                    await update.message.reply_text(str(e))
-                except Exception:
-                    logger.exception("Errore riassunto documento")
-                    await update.message.reply_text("Errore durante il riassunto del documento.")
+            await self._send_summary(update, ctx, lambda sid: self.service.summarize(
+                path, instruction, user_id=uid, name=doc.file_name, session_id=sid), "del documento")
         await self._with_document(update, ctx, doc, run)
 
     async def on_document(self, update, ctx):
@@ -346,11 +353,16 @@ class TelegramGateway:
     async def on_riassumi(self, update, ctx):
         if not self.authorized(update):
             return
+        args = ctx.args or []
+        if args and is_url(args[0]):                              # /riassumi <link> [istruzioni]
+            uid = str(update.effective_user.id)
+            return await self._send_summary(update, ctx, lambda sid: self.service.summarize_url(
+                args[0], " ".join(args[1:]), user_id=uid, session_id=sid), "della pagina")
         replied = getattr(update.message, "reply_to_message", None)
         doc = getattr(replied, "document", None) if replied else None
         if doc is None:
-            return await update.message.reply_text("Rispondi a un documento con /riassumi oppure usalo come didascalia.")
-        await self._summarize_direct(update, ctx, doc, " ".join(ctx.args or []))
+            return await update.message.reply_text(_RIASSUMI_USAGE)
+        await self._summarize_direct(update, ctx, doc, " ".join(args))
 
 
 def build_application(s: Settings, service: PicoBotService) -> tuple[Application, TelegramGateway]:

@@ -434,7 +434,7 @@ def test_telegram_riassumi_reply_to_document(tmp_path):
         assert not _calls_router() and "breve" in str(fake_llm.LOG[-1]["messages"]) and replies[-1] == "RISPOSTA-FINTA"
         replies.clear()
         await gw.on_riassumi(_doc_update(replies, name=None, text="/riassumi"), _ctx())
-        assert replies == ["Rispondi a un documento con /riassumi oppure usalo come didascalia."]
+        assert replies == ["Uso: /riassumi <link> [istruzioni], oppure rispondi a un documento con /riassumi (o usalo come didascalia)."]
         assert not list((s.data_dir / "inbox").glob("*"))
     asyncio.run(t())
 
@@ -482,6 +482,7 @@ def test_help_lists_new_commands():
     from picobot.channels.common import HELP
     assert all(c in HELP for c in ("/simple", "/complex", "/riassumi"))
     assert all(c in CLI_HELP for c in ("/simple", "/complex", "/riassumi <percorso>", "/file <percorso>"))
+    assert "/riassumi <link>" in HELP and "/riassumi <link>" in CLI_HELP   # pagine web su tutti i canali
 
 
 # ---------------- /memory e /forget completi (v0.5) ----------------
@@ -753,3 +754,67 @@ def test_forwarded_audio_without_name(monkeypatch):             # Review Focus 5
         return replies
     replies = asyncio.run(t())
     assert calls[0][0].suffix == ".ogg" and replies[0] == "🎤 inoltrato"
+
+
+# ---------------- /riassumi <link> su tutti i canali ----------------
+URL = "https://microservices.io/post/architecture/2026/09/29/architecting-with-llms.html"
+
+
+@pytest.fixture
+def fake_page(monkeypatch):  # niente rete: la pagina "scaricata" e' fissa; 'blocked' simula un indirizzo privato
+    from picobot.documents import DocumentError
+    seen = []
+
+    async def fetch(url):
+        seen.append(url)
+        if "blocked" in url:
+            raise DocumentError("Indirizzo non consentito (rete locale o privata).")
+        return "Testo ARTICOLO-XYZ della pagina."
+    monkeypatch.setattr("picobot.service.fetch_article", fetch)
+    return seen
+
+
+def test_telegram_riassumi_link(tmp_path, fake_page):
+    async def t():
+        s, svc, gw = _tg(tmp_path); await svc.start(); replies = []
+        fake_llm.LOG.clear()
+        ctx = _ctx(); ctx.args = [URL, "breve"]
+        await gw.on_riassumi(_doc_update(replies, name=None, text=f"/riassumi {URL} breve"), ctx)
+        assert not _calls_router() and replies[-1] == "RISPOSTA-FINTA"
+        assert "ARTICOLO-XYZ" in str(fake_llm.LOG[-1]["messages"]) and "breve" in str(fake_llm.LOG[-1]["messages"])
+        ctx.args = ["http://blocked.local/"]
+        await gw.on_riassumi(_doc_update(replies, name=None, text="/riassumi http://blocked.local/"), ctx)
+        assert replies[-1] == "Indirizzo non consentito (rete locale o privata)."
+    asyncio.run(t())
+    assert fake_page == [URL, "http://blocked.local/"]
+
+
+def test_cli_riassumi_link(monkeypatch, capsys, fake_page):
+    inputs = iter([f"/riassumi {URL} breve", "/riassumi http://blocked.local/", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(); svc = PicoBotService(s); await svc.start()
+        fake_llm.LOG.clear()
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    out = capsys.readouterr().out
+    assert fake_page == [URL, "http://blocked.local/"] and "RISPOSTA-FINTA" in out and "Indirizzo non consentito" in out
+    assert "breve" in str(fake_llm.LOG[0]["messages"])
+
+
+def test_api_summarize_url(fake_page, tmp_path):
+    async def t(c, svc):
+        r = await c.post("/v1/summarize", headers=A, data={"url": URL, "instruction": "breve"})
+        assert r.status_code == 200 and r.json()["summary"] == "RISPOSTA-FINTA"
+        sid = r.json()["session_id"]
+        fake_llm.LOG.clear()
+        await c.post("/v1/chat", json={"message": "dimmi di piu'", "session_id": sid}, headers=A)
+        assert f"[Pagina web: {URL}] breve" in str(fake_llm.LOG[0]["messages"])
+        blocked = await c.post("/v1/summarize", headers=A, data={"url": "http://blocked.local/"})
+        assert blocked.status_code == 422 and "non consentito" in blocked.json()["detail"]
+        assert (await c.post("/v1/summarize", headers=A, data={"instruction": "x"})).status_code == 422   # ne' file ne' url
+        both = await c.post("/v1/summarize", headers=A, files={"file": ("n.txt", b"x")}, data={"url": URL})
+        assert both.status_code == 422
+        assert (await c.post("/v1/summarize", headers=A, data={"url": "ftp://x/y"})).status_code == 422
+    with_api(t)

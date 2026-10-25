@@ -15,6 +15,7 @@ Available on Telegram and in the CLI.
 | `/simple <request>` | Send directly to the SimpleTeam (quotes, searches, scripts) |
 | `/complex <request>` | Send directly to the ComplexTeam (documents, complex tasks) |
 | `/riassumi [instructions]` | Direct summary (Telegram: as a document caption or as a reply to a document) |
+| `/riassumi <link> [instructions]` | Direct summary of a web page (articles, blogs) |
 | `/memory` | Show memories, profile and entities |
 | `/forget` | Delete memories, profile and entities (asks for confirmation) |
 | `/schedule <cron> \| <request>` | Create a recurring task, e.g. `/schedule 0 8 * * 1-5 \| AAPL and MSFT quotes` |
@@ -56,6 +57,17 @@ Supported formats: **PDF, DOCX, TXT, MD, CSV, JSON, LOG**, up to `MAX_UPLOAD_MB`
 
 The file is downloaded to `data/inbox/` and **always deleted** after processing. The summary is recorded in the
 session, so you can ask follow-up questions.
+
+### Web pages
+
+`/riassumi <link> [instructions]` downloads the page and summarizes its main text (no menus, ads or footer),
+on Telegram, CLI and API. It is meant for articles and blogs: online PDFs, login or paywalled pages, pages
+filled only by JavaScript and videos are not supported. Only `http`/`https`, max 5 MB, 20 s timeout. Links to
+`localhost`, the private network or cloud metadata are refused, also after a redirect. Without a proxy, the IP the
+connection actually reaches is checked too (against DNS rebinding). With a proxy (`HTTPS_PROXY`/`HTTP_PROXY`/
+`ALL_PROXY`, except `NO_PROXY`) the proxy resolves the name: configure it to deny private destinations. The
+pre-check still resolves names from the container: if the container has no external DNS and only the proxy resolves
+names, links fail with "host … sconosciuto" (unknown host).
 
 ### Voice messages
 

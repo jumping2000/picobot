@@ -1,6 +1,9 @@
 """Controlli statici su deps/, Dockerfile, compose ed esempi di configurazione (nessun Docker richiesto)."""
 import re
+import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -50,6 +53,7 @@ def _run_step(marker):
     return line[4:]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="script sh POSIX")
 def test_npm_step_fails_if_node_path_differs(tmp_path):
     import os
     import subprocess

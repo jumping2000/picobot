@@ -1,9 +1,10 @@
 """Profilo personalizzato ed entity memory: solo il router scrive, privati per utente."""
+
 import asyncio
 
+import fake_llm
 import pytest
 
-import fake_llm
 from picobot.config import Settings
 from picobot.context import RunCtx
 from picobot.service import PicoBotService

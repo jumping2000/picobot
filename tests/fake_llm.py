@@ -51,7 +51,7 @@ class H(BaseHTTPRequestHandler):
         elif last["role"] != "tool" and "relazione" in user and "summarize_document" in names:   # router
             msg = _tool_call("delegate_task_to_member", {"member_id": "complexteam", "task": user}, "rc")
         elif "documento word" in user and "deliver_file" in names:      # Writer: crea il file, poi lo consegna
-            if any("Consegnato" in o for o in tool_out):
+            if any("Consegnato" in o for o in tool_out) or len(tool_out) >= 4:  # mai in loop
                 msg = {"role": "assistant", "content": "File creato e consegnato."}
             elif any("exit=0" in o for o in tool_out):
                 msg = _tool_call("deliver_file", {"path": "outputs/e2e città.docx"}, "c3")
