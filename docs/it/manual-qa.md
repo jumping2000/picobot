@@ -1,5 +1,7 @@
 # PicoBot v0.6 — collaudo manuale
 
+🇮🇹 Italiano · 🇬🇧 [English](../en/manual-qa.md) · ⬅️ [Indice](index.md)
+
 Prerequisiti: `.env` con chiave LLM reale, `TELEGRAM_BOT_TOKEN`, il tuo id in `TELEGRAM_ALLOWED_USER_IDS`, `API_TOKENS`;
 skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --build` completato senza errori.
 
@@ -31,3 +33,11 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d --b
 | 19 | `docker compose stop stt`, poi un vocale, poi un messaggio scritto | "Trascrizione non disponibile al momento…"; il messaggio scritto riceve risposta | |
 | 20 | File mp3 con didascalia "riassumi" | eco della trascrizione, poi un riassunto del contenuto | |
 | 21 | `docker compose --profile stt run --rm stt python bench.py /models/<it>.ogg /models/<en>.ogg` | tabella con tempi e RTF per `base`/`small` × beam 1/5; annota qui la scelta di `STT_MODEL` e `STT_BEAM_SIZE` | |
+
+**Pagine web**
+
+| # | Prova | Atteso | Esito |
+|---|---|---|---|
+| 22 | Telegram: `/riassumi https://microservices.io/post/architecture/2026/09/29/architecting-with-llms.html in 5 punti`; poi una domanda sul riassunto | riassunto in 5 punti dell'articolo, senza menu; la domanda successiva ne ha il contesto | |
+| 23 | `/riassumi http://192.168.1.1/` e `/riassumi <link a un PDF online esistente>` | "Indirizzo non consentito (rete locale o privata)." e "Il link non è una pagina HTML..." | |
+| 24 | CLI e API: `/riassumi <link>` e `POST /v1/summarize -F url=<link>` | riassunto come su Telegram | |

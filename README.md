@@ -101,7 +101,7 @@ The router chooses by itself, but you can pick the path:
 
 | Channel | SimpleTeam | ComplexTeam | Summary |
 |---|---|---|---|
-| Telegram / CLI | `/simple <request>` | `/complex <request>` | `/riassumi [instructions]` |
+| Telegram / CLI | `/simple <request>` | `/complex <request>` | `/riassumi [instructions]` or `/riassumi <link>` |
 | REST API | `"target": "simple"` | `"target": "complex"` | `POST /v1/summarize` |
 | Natural language | "use the SimpleTeam to…" | "use the ComplexTeam to…" | "summarize this document" |
 
@@ -159,7 +159,7 @@ Details: [docs/en/security.md](docs/en/security.md).
 uv run --group dev pytest tests     # fake LLM, no API key needed
 ```
 
-Manual acceptance checklist (Italian): [docs/manual-qa.md](docs/manual-qa.md).
+Manual acceptance checklist: [docs/en/manual-qa.md](docs/en/manual-qa.md). Changelog: [CHANGELOG.md](CHANGELOG.md).
 CI runs the suite on Python 3.11–3.13 and publishes the Docker image on every release:
 see [development → CI/CD](docs/en/development.md#cicd).
 

@@ -37,7 +37,7 @@ model providers.
 | `test_docker_static.py` | Static checks on Dockerfile and compose |
 | `test_context_config.py` | Settings |
 
-Manual acceptance checklist with a real model: [manual-qa.md](../manual-qa.md) (Italian).
+Manual acceptance checklist with a real model: [manual-qa.md](manual-qa.md).
 
 ## Project layout
 

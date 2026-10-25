@@ -78,7 +78,8 @@ Vedi [Skill](skills.md).
 ## 4. Avvio
 
 ```bash
-docker compose up -d --build
+
+
 docker compose logs -f picobot      # atteso "PicoBot pronto (modello=..., strong=..., mcp=N)."
 ```
 

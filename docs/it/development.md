@@ -37,7 +37,7 @@ chiamata di rete verso i provider dei modelli.
 | `test_docker_static.py` | Controlli statici su Dockerfile e compose |
 | `test_context_config.py` | Impostazioni |
 
-Collaudo manuale con un modello reale: [manual-qa.md](../manual-qa.md).
+Collaudo manuale con un modello reale: [manual-qa.md](manual-qa.md).
 
 ## Struttura del progetto
 

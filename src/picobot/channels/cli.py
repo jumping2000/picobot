@@ -8,6 +8,7 @@ from ..context import RunCtx
 from ..documents import DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
+from ..web import is_url
 from .common import HELP, format_memory_report, format_schedules, parse_schedule_args
 
 CLI_HELP = (HELP
@@ -79,6 +80,9 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
                 _print_reply(reply)
             elif cmd in {"/file", "/riassumi"}:
                 path_s, _, instr = arg.strip().partition(" ")
+                if cmd == "/riassumi" and is_url(path_s):   # pagina web
+                    print(await service.summarize_url(path_s, instr, user_id=uid, session_id=session))
+                    continue
                 p = Path(path_s).expanduser()
                 if not p.is_file():
                     print("File non trovato.")

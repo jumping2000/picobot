@@ -1,0 +1,3 @@
+# File letti da sh/bash dentro i container Linux: sempre LF, anche con core.autocrlf=true su Windows
+*.sh     text eol=lf
+deps/**  text eol=lf

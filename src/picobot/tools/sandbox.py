@@ -49,6 +49,8 @@ async def _execute(s: Settings, ctx: RunCtx | None, code: str, language: str) ->
     script = scripts / f"_run-{uuid.uuid4().hex}{'.py' if language == 'python' else '.js'}"
     script.write_text(code, encoding="utf-8")
     env = {"PATH": os.environ.get("PATH", ""), "HOME": str(s.workspace_dir), "PYTHONIOENCODING": "utf-8"}
+    if os.name == "nt":  # senza SYSTEMROOT su Windows node abortisce e Python non importa asyncio
+        env["SYSTEMROOT"] = os.environ.get("SYSTEMROOT", "")
     if language == "node":
         if s.node_path:
             env["NODE_PATH"] = s.node_path

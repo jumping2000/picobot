@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     enable_learning: bool = True
     enable_session_summaries: bool = False   # +1 chiamata LLM per run: off di default
     enable_critic: bool = True
-    team_max_iterations: int = 8
+    team_max_iterations: int = 3
 
     # --- Codice generato ---
     code_timeout_s: int = 30

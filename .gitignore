@@ -1,18 +1,23 @@
 .env
-workspace/
-data/
+# blind mount
+workspace/*
+!workspace/.gitkeep
+data/*
+!data/.gitkeep
 certs/*
 !certs/.gitkeep
+models/*
+!models/.gitkeep
+skills/*
+!skills/.gitkeep
+config/mcp_secrets.json
 .venv/
 __pycache__/
 *.db
 *.pkl
 .superpowers/
-# skill installate (licenze proprie, non ridistribuire)
-skills/
 *.egg-info/
-# modelli di trascrizione (stt)
-models/
+src/*.egg-info/
 # lockfile di uv (non versionati), tranne quello dell'immagine stt
 uv.lock
 !stt/uv.lock

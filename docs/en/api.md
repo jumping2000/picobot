@@ -27,7 +27,7 @@ and files: use your Telegram ID to share them with Telegram. Missing or invalid 
 | `GET` | `/health` | `{"status": "ok", "version": "0.6.0"}` — no auth |
 | `POST` | `/v1/chat` | Send a message |
 | `GET` | `/v1/files/{id}` | Download a delivered file (24 h) |
-| `POST` | `/v1/summarize` | Summarize an uploaded document (multipart) |
+| `POST` | `/v1/summarize` | Summarize an uploaded document or a web page (form) |
 | `GET` | `/v1/memory` | Memories, profile, entities |
 | `DELETE` | `/v1/memory?confirm=true` | Delete memories, profile, entities |
 | `GET` | `/v1/schedules` | List scheduled tasks |
@@ -68,15 +68,17 @@ the same `404`. Files are purged after `OUTBOX_TTL_H` (24 h).
 
 ### `POST /v1/summarize`
 
-Multipart form:
+Form (multipart with `file`, or plain with `url`):
 
 | Field | Required | Notes |
 |---|---|---|
-| `file` | yes | PDF, DOCX, TXT, MD, CSV, JSON, LOG; max `MAX_UPLOAD_MB` |
+| `file` | one of `file` and `url` | PDF, DOCX, TXT, MD, CSV, JSON, LOG; max `MAX_UPLOAD_MB` |
+| `url` | one of `file` and `url` | `http`/`https` web page (articles, blogs); private network refused |
 | `instruction` | no | e.g. "in 5 bullet points" (max 1,000 characters) |
 | `session_id` | no | Use the returned value in `/v1/chat` for follow-up questions |
 
-Response: `{"summary": "...", "session_id": "..."}`. Always direct (no router).
+Response: `{"summary": "...", "session_id": "..."}`. Always direct (no router). A page that cannot be
+downloaded or has no readable article gives `422` with the reason.
 
 ### `GET /v1/memory`
 
@@ -132,4 +134,6 @@ curl -OJ localhost:8000/v1/files/<id> -H "Authorization: Bearer $TOKEN"
 # summary
 curl -X POST localhost:8000/v1/summarize -H "Authorization: Bearer $TOKEN" \
      -F file=@report.pdf -F instruction="in 5 bullet points"
+curl -X POST localhost:8000/v1/summarize -H "Authorization: Bearer $TOKEN" \
+     -F url=https://microservices.io/post/architecture/2026/09/29/architecting-with-llms.html -F instruction="in 5 bullet points"
 ```

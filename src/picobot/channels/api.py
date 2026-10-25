@@ -19,6 +19,7 @@ from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..tools.files import find_output, purge_outbox, store_outputs
+from ..web import is_url
 
 logger = logging.getLogger(__name__)
 
@@ -94,12 +95,23 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
         return FileResponse(path, filename=path.name)
 
     @app.post("/v1/summarize")
-    async def summarize(user: User, file: UploadFile = File(...), instruction: str = Form(""),
-                        session_id: str | None = Form(None)):
-        ext = Path(file.filename or "").suffix.lower()
+    async def summarize(user: User, file: UploadFile | None = File(None), url: str | None = Form(None),
+                        instruction: str = Form(""), session_id: str | None = Form(None)):
+        if (file is None) == (url is None):
+            raise HTTPException(422, "Serve un file oppure un url (uno solo)")
         if session_id is not None and not re.fullmatch(r"[A-Za-z0-9_\-]{1,80}", session_id):
             raise HTTPException(422, "session_id non valido")
         short = session_id or uuid.uuid4().hex[:8]
+        if url is not None:                                   # pagina web (articoli, blog)
+            if not is_url(url):
+                raise HTTPException(422, "url non valido (serve http:// o https://)")
+            try:
+                summary = await service.summarize_url(url.strip(), instruction[:1000], user_id=user,
+                                                      session_id=f"api-{user}-{short}")
+            except DocumentError as e:
+                raise HTTPException(422, str(e))
+            return {"summary": summary, "session_id": short}
+        ext = Path(file.filename or "").suffix.lower()
         if ext not in SUPPORTED:
             raise HTTPException(415, "Formato non supportato (PDF, DOCX, TXT, MD, CSV, JSON, LOG)")
         inbox = s.data_dir / "inbox"

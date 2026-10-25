@@ -15,6 +15,7 @@ Disponibili su Telegram e nella CLI.
 | `/simple <richiesta>` | Invia direttamente allo SimpleTeam (quotazioni, ricerche, script) |
 | `/complex <richiesta>` | Invia direttamente al ComplexTeam (documenti, compiti complessi) |
 | `/riassumi [istruzioni]` | Riassunto diretto (Telegram: come didascalia di un documento o in risposta a un documento) |
+| `/riassumi <link> [istruzioni]` | Riassunto diretto di una pagina web (articoli, blog) |
 | `/memory` | Mostra memorie, profilo ed entità |
 | `/forget` | Cancella memorie, profilo ed entità (chiede conferma) |
 | `/schedule <cron> \| <richiesta>` | Crea un task ricorrente, es. `/schedule 0 8 * * 1-5 \| quotazioni AAPL e MSFT` |
@@ -57,6 +58,18 @@ Formati supportati: **PDF, DOCX, TXT, MD, CSV, JSON, LOG**, fino a `MAX_UPLOAD_M
 
 Il file viene scaricato in `data/inbox/` e **sempre cancellato** dopo l'elaborazione. Il riassunto entra nella
 sessione, quindi puoi fare domande successive.
+
+### Pagine web
+
+`/riassumi <link> [istruzioni]` scarica la pagina e ne riassume il testo principale (senza menu, pubblicità e
+piè di pagina), su Telegram, CLI e API. È pensato per articoli e blog: PDF online, pagine con login o paywall,
+pagine riempite solo da JavaScript e video non sono supportati. Solo `http`/`https`, max 5 MB, timeout 20 s.
+I link verso `localhost`, la rete privata o i metadata cloud sono rifiutati, anche dopo un redirect.
+Senza proxy viene controllato anche l'IP a cui la connessione arriva davvero (contro il DNS rebinding): la risposta
+di un host privato viene scartata senza leggerla, ma la richiesta GET gli arriva comunque. Con un
+proxy (`HTTPS_PROXY`/`HTTP_PROXY`/`ALL_PROXY`, salvo `NO_PROXY`) il nome lo risolve il proxy: configuralo perché
+neghi le destinazioni private. Il controllo preventivo risolve comunque i nomi dal container: se il container non
+ha un DNS esterno e lo risolve solo il proxy, i link falliscono con "host … sconosciuto".
 
 ### Messaggi vocali
 

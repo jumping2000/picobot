@@ -38,5 +38,6 @@ Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un
 
 ## Altri documenti
 
-- [Collaudo manuale](../manual-qa.md)
+- [Collaudo manuale](manual-qa.md)
+- [Changelog](../../CHANGELOG.md) (in inglese)
 - Spec di design e piani di implementazione: [`docs/superpowers/`](../superpowers/)

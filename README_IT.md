@@ -98,7 +98,7 @@ Il router sceglie da solo, ma puoi indicare tu la strada:
 
 | Canale | SimpleTeam | ComplexTeam | Riassunto |
 |---|---|---|---|
-| Telegram / CLI | `/simple <richiesta>` | `/complex <richiesta>` | `/riassumi [istruzioni]` |
+| Telegram / CLI | `/simple <richiesta>` | `/complex <richiesta>` | `/riassumi [istruzioni]` o `/riassumi <link>` |
 | API REST | `"target": "simple"` | `"target": "complex"` | `POST /v1/summarize` |
 | Linguaggio naturale | "usa lo SimpleTeam per…" | "usa il ComplexTeam per…" | "riassumi questo documento" |
 
@@ -156,7 +156,7 @@ Dettagli: [docs/it/security.md](docs/it/security.md).
 uv run --group dev pytest tests     # LLM finto, nessuna chiave necessaria
 ```
 
-Collaudo manuale: [docs/manual-qa.md](docs/manual-qa.md).
+Collaudo manuale: [docs/it/manual-qa.md](docs/it/manual-qa.md). Changelog (in inglese): [CHANGELOG.md](CHANGELOG.md).
 La CI esegue la suite su Python 3.11-3.13 e pubblica l'immagine Docker a ogni release:
 vedi [sviluppo → CI/CD](docs/it/development.md#cicd).
 
