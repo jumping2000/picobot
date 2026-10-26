@@ -54,9 +54,10 @@ class PicoBotService:
             logger.exception("Pulizia outbox fallita")
         self._mcp = await load_mcp_tools(self.s.mcp_config_path)
         self.doc_flow = build_doc_workflow(self.s)
-        self.team = build_router(self.s, self.registry, mcp_tools=self._mcp, doc_flow=self.doc_flow)
+        self.scheduler = Scheduler(self.s, self._ask_text)   # prima del router: i suoi tool lo usano
+        self.team = build_router(self.s, self.registry, mcp_tools=self._mcp, doc_flow=self.doc_flow,
+                                 scheduler=self.scheduler)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
-        self.scheduler = Scheduler(self.s, self._ask_text)
         logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d).",
                     self.s.llm_model_id, self.s.strong_model_id, len(self._mcp))
 

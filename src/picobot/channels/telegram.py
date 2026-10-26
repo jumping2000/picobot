@@ -199,7 +199,7 @@ class TelegramGateway:
             task.cancel()
 
     def _run_ctx(self, ctx, chat_id: int, uid: int, **kw) -> RunCtx:
-        return RunCtx(user_id=str(uid), channel="telegram",
+        return RunCtx(user_id=str(uid), channel="telegram", target=str(chat_id),
                       confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language), **kw)
 
     async def _ask(self, update, ctx, text: str, target: str = "auto", **ctx_kw):

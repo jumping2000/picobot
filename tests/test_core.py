@@ -163,6 +163,14 @@ def test_next_run_is_in_configured_timezone(svc):
     assert n.hour == 8 and n.minute == 0 and str(n.tzinfo) == svc.s.timezone
 
 
+def test_natural_language_schedule_creates_task(svc):
+    run(svc.ask("ogni mattina alle 8 dimmi il meteo", user_id="nl", session_id="nl1",
+                ctx=RunCtx("nl", "telegram", target="777")))
+    [row] = svc.scheduler.list("nl")
+    assert (row["cron"], row["target"], row["channel"]) == ("0 8 * * *", "777", "telegram")
+    assert any("Prossima esecuzione" in r for r in _tool_results())
+
+
 def test_schedule_run_delivers_and_blocks_code(svc):
     sent = []
     async def notify(target, text): sent.append((target, text))
