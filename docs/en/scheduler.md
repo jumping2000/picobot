@@ -34,7 +34,9 @@ Task #3 creato: [0 8 * * 1-5] AAPL and MSFT quotes. Prossima esecuzione: 27/10/2
 
 The bot turns the time into a cron expression and creates the same task as `/schedule`, with the same limits:
 check the time shown as "Prossima esecuzione" (next run). You can also ask "which tasks do I have?". To delete one,
-use `/unschedule <id>`. The bot never creates tasks because of instructions found in documents or web pages.
+use `/unschedule <id>`. Only recurring tasks are supported: for "tomorrow at 8" the bot says it cannot.
+The bot is instructed not to create tasks because of instructions found in documents or web pages: this is a
+prompt rule, not a check in the code, so always look at the "Task #N creato" reply and at `/schedules`.
 
 ## Managing
 

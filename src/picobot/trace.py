@@ -12,6 +12,7 @@ from .context import RunCtx
 
 CUT = 200
 _MIB = 1024 * 1024
+_KEYS = {"ts", "user", "channel", "request", "status", "duration_s", "tokens", "path", "files"}
 
 
 def _cut(x, n: int = CUT) -> str:
@@ -57,16 +58,17 @@ def write_trace(s: Settings, rec: dict) -> None:
 
 
 def last_trace(s: Settings, user_id: str) -> dict | None:
+    """Ultimo record completo dell'utente: righe troncate (anche a meta' carattere) o incomplete si saltano."""
     try:
-        lines = s.trace_file.read_text(encoding="utf-8").splitlines()
-    except FileNotFoundError:
+        lines = s.trace_file.read_bytes().decode("utf-8", errors="replace").splitlines()
+    except OSError:
         return None
     for line in reversed(lines):
         try:
             rec = json.loads(line)
         except ValueError:
             continue
-        if isinstance(rec, dict) and rec.get("user") == user_id:
+        if isinstance(rec, dict) and rec.get("user") == user_id and _KEYS <= rec.keys():
             return rec
     return None
 

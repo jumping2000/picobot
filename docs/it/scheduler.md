@@ -34,7 +34,9 @@ Task #3 creato: [0 8 * * 1-5] quotazioni di AAPL e MSFT. Prossima esecuzione: 27
 
 Il bot traduce l'orario in cron e crea un task identico a quello di `/schedule`, con gli stessi limiti: controlla
 l'orario indicato in "Prossima esecuzione". Puoi chiedere anche "quali task ho?". Per eliminarne uno usa
-`/unschedule <id>`. Il bot non crea task per istruzioni contenute in documenti o pagine web.
+`/unschedule <id>`. Sono supportati solo i task ricorrenti: per "domani alle 8" il bot risponde che non può.
+Il bot è istruito a non creare task per istruzioni contenute in documenti o pagine web: è una regola del prompt,
+non un blocco nel codice, quindi controlla sempre la risposta "Task #N creato" e l'elenco `/schedules`.
 
 ## Gestione
 

@@ -84,6 +84,7 @@ def test_router_has_schedule_tools_and_rule(s):
     assert {"schedule_task", "list_scheduled_tasks"} <= names(r)
     text = " ".join(r.instructions)
     assert "schedule_task" in text and "pagine web" in text
+    assert "una tantum" in text   # "domani alle 8": niente task annuale, lo si dice all'utente
 
 
 def test_router_prompt_explicit_rule(s):

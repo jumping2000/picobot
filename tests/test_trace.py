@@ -87,3 +87,14 @@ def test_format_trace_and_summary():
 
 def test_trace_disabled_by_default():
     assert Settings().trace_enabled is False
+
+
+def test_last_trace_survives_torn_utf8_and_incomplete_records(tmp_path):
+    s = Settings(data_dir=tmp_path)
+    write_trace(s, {**_rec(text="perché è così"), "user": "a"})
+    with s.trace_file.open("ab") as f:
+        f.write('{"user": "a", "request": "perch'.encode() + "é".encode()[:1] + b"\n")   # riga troncata a meta' carattere
+        f.write(b'{"user": "a"}\n')                                                       # record senza campi
+    rec = last_trace(s, "a")
+    assert rec["request"] == "perché è così"
+    assert "Richiesta: perché è così" in format_trace(rec)
