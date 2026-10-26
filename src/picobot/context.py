@@ -34,6 +34,7 @@ class RunCtx:
     runs: int = 0                      # esecuzioni di codice approvate in questa richiesta
     document: Path | None = None       # documento caricato in questa richiesta (Telegram, CLI)
     document_name: str = ""
+    target: str = ""                   # dove consegnare gli esiti degli schedule (chat Telegram); vuoto = user_id
 
     @property
     def can_run_code(self) -> bool:
