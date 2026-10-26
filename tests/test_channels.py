@@ -10,11 +10,12 @@ from telegram.error import BadRequest
 import fake_llm
 from picobot.channels import cli as cli_mod
 from picobot.channels.api import create_app
-from picobot.channels.common import parse_schedule_args, split_text
+from picobot.channels.common import HELP, parse_schedule_args, split_text, trace_text
 from picobot.channels.telegram import TelegramGateway, send_safe
 from picobot.config import Settings
 from picobot.context import OutputFile, Reply
 from picobot.service import PicoBotService
+from picobot.trace import write_trace
 
 A, B = {"Authorization": "Bearer tok-a"}, {"Authorization": "Bearer tok-b"}
 
@@ -188,6 +189,18 @@ def test_telegram_document_flow(tmp_path):
         await svc.ask("e il punto 2?", user_id="1", session_id=sid)
         assert "[Documento caricato: a.txt]" in str(fake_llm.LOG[0]["messages"])
     asyncio.run(t())
+
+
+def test_trace_text_messages(tmp_path):
+    s = Settings(data_dir=tmp_path)
+    assert "TRACE_ENABLED=true" in trace_text(s, "1")
+    s = Settings(data_dir=tmp_path, trace_enabled=True)
+    assert trace_text(s, "1") == "Nessuna richiesta tracciata."
+    write_trace(s, {"ts": "2026-10-26T08:00:00+00:00", "user": "1", "channel": "cli", "session": "x",
+                    "target": "auto", "request": "ciao", "status": "completed", "duration_s": 0.1, "tokens": 2,
+                    "path": [{"depth": 0, "agent": "PicoBot", "duration_s": 0.1, "tokens": 2}], "files": []})
+    assert "Richiesta: ciao" in trace_text(s, "1")
+    assert "/trace" in HELP
 
 
 def test_schedule_arg_parsing():

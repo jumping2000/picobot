@@ -39,7 +39,7 @@ def build_trace(out, *, text: str, ctx: RunCtx, session_id: str, target: str, du
     status = getattr(out, "status", None)
     rec = {"ts": datetime.now(timezone.utc).isoformat(timespec="seconds"), "user": ctx.user_id,
            "channel": ctx.channel, "session": session_id, "target": target, "request": _cut(text),
-           "status": "error" if error is not None else str(getattr(status, "value", status)),
+           "status": "error" if error is not None else str(getattr(status, "value", status)).lower(),
            "duration_s": round(duration_s, 2), "tokens": sum(n["tokens"] for n in path if "agent" in n),
            "path": path, "files": [f.name for f in ctx.outputs]}
     if error is not None:

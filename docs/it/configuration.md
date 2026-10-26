@@ -108,6 +108,13 @@ Le variabili del container `stt` (`STT_MODEL`, `STT_BEAM_SIZE`, …) sono descri
 | `SCHEDULE_MIN_INTERVAL_MIN` | `30` | Intervallo minimo tra due esecuzioni (controllo costi) |
 | `MAX_SCHEDULES_PER_USER` | `10` | Task per utente |
 
+## Traccia delle richieste
+
+| Variabile | Default | Descrizione |
+|---|---|---|
+| `TRACE_ENABLED` | `false` | Una riga JSON per richiesta in `data/trace.jsonl` (team, agenti, tool, esiti); `/trace` mostra l'ultima |
+| `TRACE_MAX_MB` | `5` | Oltre questa dimensione `trace.jsonl` diventa `trace.jsonl.1` |
+
 ## Percorsi
 
 | Variabile | Default | Descrizione |

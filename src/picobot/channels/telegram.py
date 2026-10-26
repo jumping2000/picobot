@@ -22,7 +22,7 @@ from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..stt import SttError, transcribe
 from ..web import is_url
-from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text
+from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text, trace_text
 
 logger = logging.getLogger(__name__)
 _RIASSUMI_USAGE = "Uso: /riassumi <link> [istruzioni], oppure rispondi a un documento con /riassumi (o usalo come didascalia)."
@@ -175,6 +175,11 @@ class TelegramGateway:
     async def on_schedules(self, update, ctx):
         if self.authorized(update):
             await update.message.reply_text(format_schedules(self.service.scheduler.list(str(update.effective_user.id))))
+
+    async def on_trace(self, update, ctx):
+        if self.authorized(update):
+            for chunk in split_text(trace_text(self.s, str(update.effective_user.id))):
+                await update.message.reply_text(chunk)
 
     async def on_unschedule(self, update, ctx):
         if not self.authorized(update):
@@ -383,6 +388,7 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("complex", gw.on_complex))
     app.add_handler(CommandHandler("riassumi", gw.on_riassumi))
     app.add_handler(CommandHandler("unschedule", gw.on_unschedule))
+    app.add_handler(CommandHandler("trace", gw.on_trace))
     app.add_handler(CallbackQueryHandler(gw.on_callback, pattern=r"^cf:"))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, gw.on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, gw.on_document))

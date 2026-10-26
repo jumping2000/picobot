@@ -8,6 +8,8 @@ from picobot.documents import DocumentError, extract_text, split_chunks
 from picobot.scheduler import ScheduleError
 from picobot.service import PicoBotService
 from picobot.tools.sandbox import make_code_tools
+from picobot.trace import last_trace
+import picobot.service
 
 
 @pytest.fixture(scope="module")
@@ -230,3 +232,34 @@ def test_summary_70k_doc_single_call(svc, tmp_path):     # soglia 100.000 caratt
     f = tmp_path / "medio.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char
     run(svc.summarize(f, "", user_id="1"))
     assert len(fake_llm.LOG) == 1
+
+
+# ---------- traccia ----------
+def test_trace_records_path_of_request(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    run(svc.ask("quotazione AAPL", user_id="tr", session_id="tr1", ctx=RunCtx("tr", "telegram")))
+    rec = last_trace(svc.s, "tr")
+    assert [n["agent"] for n in rec["path"] if "agent" in n] == ["PicoBot", "SimpleTeam", "Finance"]
+    assert any(n.get("tool") == "delegate_task_to_member" for n in rec["path"])
+    assert (rec["status"], rec["channel"]) == ("completed", "telegram")
+
+
+def test_trace_off_writes_nothing(svc):
+    run(svc.ask("ciao", user_id="tr-off", session_id="tr2", ctx=RunCtx("tr-off", "cli")))
+    assert last_trace(svc.s, "tr-off") is None
+
+
+def test_trace_records_errors_and_reraises(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    async def boom(*a, **k): raise RuntimeError("x")
+    monkeypatch.setattr(svc.team, "arun", boom)
+    with pytest.raises(RuntimeError):
+        run(svc.ask("ciao", user_id="tr-err", session_id="tr3", ctx=RunCtx("tr-err", "cli")))
+    assert last_trace(svc.s, "tr-err")["status"] == "error"
+
+
+def test_trace_failure_never_breaks_request(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    monkeypatch.setattr(picobot.service, "write_trace", lambda *a: 1 / 0)
+    reply = run(svc.ask("ciao", user_id="tr-ko", session_id="tr4", ctx=RunCtx("tr-ko", "cli")))
+    assert reply.text == "RISPOSTA-FINTA"

@@ -22,6 +22,7 @@ Disponibili su Telegram e nella CLI.
 | `/schedules` | Elenco dei tuoi task |
 | `/unschedule <id>` | Elimina un task |
 | `/skills` | Skill installate (sola lettura) |
+| `/trace` | Percorso dell'ultima richiesta: team, agenti, tool ed esiti (con `TRACE_ENABLED=true`) |
 
 Solo CLI:
 

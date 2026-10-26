@@ -60,6 +60,32 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 | `Massimo 10 schedule per utente.` | Delete tasks or raise `MAX_SCHEDULES_PER_USER` |
 | Task never runs | Tasks run only in `picobot serve`; check that the process is up and `TIMEZONE` is right |
 
+## Following the path of a request
+
+With `TRACE_ENABLED=true` in `.env` (then restart), every request leaves a JSON line in `data/trace.jsonl`, and
+`/trace` shows your last one:
+
+```text
+2026-10-26T08:00 telegram | 4.2s | 1830 token | completed
+Richiesta: write a Word document on the history of Siena
+PicoBot (0.9s, 410 tok)
+  - delegate_task_to_member({"member_id": "complexteam", ...}) -> File created and delivered.
+  ComplexTeam (3.1s, 980 tok)
+    - list_skills({"query": "word"}) -> - docx: Create and edit Word documents...
+    Writer (2.0s, 440 tok)
+      - run_node({"code": "const docx = require('docx')..."}) -> exit=0
+      - deliver_file({"path": "outputs/siena.docx"}) -> Consegnato: siena.docx (8123 byte).
+File: siena.docx
+```
+
+It shows which team the router chose, which agents worked and where a chain of tools stops (for example
+`exit=1 ... Cannot find module 'docx'`). Each line also goes to the process log (`docker compose logs picobot`).
+To follow them live: `tail -f data/trace.jsonl`.
+
+> [!NOTE]
+> The file holds request and tool texts, cut to 200 characters. It stays in `data/` and above `TRACE_MAX_MB`
+> (5 MB) it becomes `trace.jsonl.1`, overwriting the previous one.
+
 ## Resetting
 
 ```bash

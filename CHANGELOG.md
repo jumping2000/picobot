@@ -11,6 +11,9 @@ All notable changes to PicoBot are listed here. The format follows
 - Scheduled tasks in plain words: "every weekday at 8am send me AAPL quotes", from Telegram or the CLI, creates
   a real task (same limits as `/schedule`) and the bot answers with its id and next run time. "Which tasks do I
   have?" lists them. A scheduled run cannot create other tasks.
+- Request trace: with `TRACE_ENABLED=true` every request writes one JSON line to `data/trace.jsonl` with the
+  teams, agents and tools it went through (texts cut to 200 characters), plus a summary line in the log. `/trace`
+  on Telegram and the CLI shows the path of your last request. Off by default; `TRACE_MAX_MB` (5) rotates the file.
 
 ### Changed
 

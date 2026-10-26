@@ -1,5 +1,7 @@
 """Logica condivisa dai canali (testo help, parsing /schedule, split messaggi)."""
+from ..config import Settings
 from ..scheduler import format_schedules  # noqa: F401  (re-export per i canali)
+from ..trace import format_trace, last_trace
 
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
@@ -16,6 +18,7 @@ HELP = (
     "/schedules - elenco task schedulati\n"
     "/unschedule <id> - elimina un task\n"
     "/skills - skill installate (le gestisce l'amministratore)\n"
+    "/trace - percorso dell'ultima richiesta (se TRACE_ENABLED=true)\n"
     "/help - questo messaggio\n\n"
     "Il codice Python viene eseguito solo dopo la tua conferma."
 )
@@ -27,6 +30,14 @@ def parse_schedule_args(arg: str) -> tuple[str, str]:
         raise ValueError("Formato: /schedule <min ora giorno mese giorno_sett> | <richiesta>")
     cron, prompt = arg.split("|", 1)
     return cron.strip(), prompt.strip()
+
+
+def trace_text(s: Settings, user_id: str) -> str:
+    """Testo di /trace: percorso dell'ultima richiesta dell'utente."""
+    if not s.trace_enabled:
+        return "Traccia disattivata: imposta TRACE_ENABLED=true nel file .env e riavvia."
+    rec = last_trace(s, user_id)
+    return format_trace(rec) if rec else "Nessuna richiesta tracciata."
 
 
 def split_text(text: str, limit: int = 4000) -> list[str]:
