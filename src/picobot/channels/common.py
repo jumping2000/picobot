@@ -1,4 +1,6 @@
 """Logica condivisa dai canali (testo help, parsing /schedule, split messaggi)."""
+from ..scheduler import format_schedules  # noqa: F401  (re-export per i canali)
+
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
     "Invia un PDF/DOCX/TXT: lo riassumo, oppure scrivi nella didascalia cosa farne.\n"
@@ -25,16 +27,6 @@ def parse_schedule_args(arg: str) -> tuple[str, str]:
         raise ValueError("Formato: /schedule <min ora giorno mese giorno_sett> | <richiesta>")
     cron, prompt = arg.split("|", 1)
     return cron.strip(), prompt.strip()
-
-
-def format_schedules(rows: list[dict]) -> str:
-    if not rows:
-        return "Nessun task schedulato."
-    out = []
-    for r in rows:
-        last = f" | ultimo: {r['last_run'][:16]}" if r["last_run"] else ""
-        out.append(f"#{r['id']} [{r['cron']}] {r['prompt'][:70]}{last}")
-    return "\n".join(out)
 
 
 def split_text(text: str, limit: int = 4000) -> list[str]:

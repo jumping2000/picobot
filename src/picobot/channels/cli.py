@@ -97,7 +97,8 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/schedule":
                 cron, prompt = parse_schedule_args(arg)
                 sid = service.scheduler.add(uid, "cli", uid, cron, prompt)
-                print(f"Task #{sid} creato (gira nel processo `picobot serve`; risultati con /schedules).")
+                print(f"Task #{sid} creato. Lo esegue `picobot serve`; l'esito arriva su Telegram se CLI_USER_ID "
+                      "e' il tuo id Telegram, altrimenti lo leggi con /schedules.")
             elif cmd == "/schedules":
                 rows = service.scheduler.list(uid)
                 print(format_schedules(rows))

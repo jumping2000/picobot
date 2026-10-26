@@ -149,6 +149,20 @@ def test_schedule_validation_and_limits(svc):
     assert not sch.remove("altro", sch.list("lim")[0]["id"])   # non puoi cancellare i task altrui
 
 
+def test_cli_schedule_routed_to_telegram_when_cli_user_is_telegram_id(svc):
+    sid = svc.scheduler.add("2", "cli", "2", "0 9 * * *", "meteo")      # conftest: TELEGRAM_ALLOWED_USER_IDS="1,2"
+    row = next(r for r in svc.scheduler.list("2") if r["id"] == sid)
+    assert (row["channel"], row["target"]) == ("telegram", "2")
+    sid2 = svc.scheduler.add("cli", "cli", "cli", "0 9 * * *", "meteo")
+    row2 = next(r for r in svc.scheduler.list("cli") if r["id"] == sid2)
+    assert (row2["channel"], row2["target"]) == ("cli", "cli")
+
+
+def test_next_run_is_in_configured_timezone(svc):
+    n = svc.scheduler.next_run("0 8 * * *")
+    assert n.hour == 8 and n.minute == 0 and str(n.tzinfo) == svc.s.timezone
+
+
 def test_schedule_run_delivers_and_blocks_code(svc):
     sent = []
     async def notify(target, text): sent.append((target, text))
