@@ -1,0 +1,37 @@
+services:
+  picobot:
+    image: ghcr.io/jumping2000/picobot:latest
+    container_name: picobot-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${API_BIND:-127.0.0.1}:8000:8000"   # API_BIND=0.0.0.0 per esporla (abilita TLS: vedi .env)
+    volumes:
+      - ./data:/app/data            # DB SQLite, stato Telegram
+      - ./workspace:/app/workspace  # file e script dell'agente (unico posto dove gira il codice generato)
+      - ./config:/app/config:ro
+      - ./skills:/app/skills:ro     # skill: aggiungi/cancella cartelle qui (o `picobot skills add`), nessun riavvio
+      # - ./certs:/app/certs:ro      # se usi HTTPS diretto (API_SSL_CERTFILE=/app/certs/cert.pem ...)
+    # prima volta: mkdir -p data workspace skills && sudo chown -R 1000 data workspace
+    # nuove librerie per una skill: modifica deps/*.txt, poi docker compose build && docker compose up -d
+    # CLI:  docker compose exec -it picobot python -m picobot cli
+
+  # Trascrizione dei messaggi vocali (opzionale): parte solo con il profilo "stt".
+  # prima volta: mkdir -p models && sudo chown -R 1000 models; in .env STT_URL=http://stt:8000
+  # avvio:       docker compose --profile stt up -d --build
+  stt:
+    image: ghcr.io/jumping2000/picobot-stt:latest
+    container_name: picobot-stt
+    restart: unless-stopped
+    mem_limit: 2g
+    # nessuna porta pubblicata: raggiungibile solo da picobot come http://stt:8000
+    volumes:
+      - ./models:/models            # cache dei modelli faster-whisper (scaricati al primo avvio)
+    environment:
+      STT_MODEL: ${STT_MODEL:-small}
+      STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8}
+      STT_THREADS: ${STT_THREADS:-4}
+      STT_BEAM_SIZE: ${STT_BEAM_SIZE:-1}
+      STT_LANGUAGES: ${STT_LANGUAGES:-it,en}
+      STT_MAX_MB: ${STT_MAX_MB:-20}
+      STT_MAX_SECONDS: ${STT_MAX_SECONDS:-300}
