@@ -37,7 +37,7 @@ def test_dockerfile_order_and_hardening():
 
 
 def test_compose_env_ignores():
-    compose = read("docker-compose.yaml")
+    compose = read("compose.yaml")
     assert "./skills:/app/skills:ro" in compose and "./config:/app/config:ro" in compose
     assert "skills/" in read(".gitignore") and "skills" in read(".dockerignore").split()
     env = read(".env.example")
@@ -74,7 +74,7 @@ def test_npm_step_fails_if_node_path_differs(tmp_path):
 
 def test_stt_compose_service():
     import yaml
-    services = yaml.safe_load(read("docker-compose.yaml"))["services"]
+    services = yaml.safe_load(read("compose.yaml"))["services"]
     svc = services["stt"]
     assert svc["profiles"] == ["stt"] and "ports" not in svc
     assert "./models:/models" in svc["volumes"] and svc["build"] == "./stt"
