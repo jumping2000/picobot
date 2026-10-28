@@ -9,7 +9,7 @@ from ..documents import DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..web import is_url
-from .common import HELP, format_memory_report, format_schedules, parse_schedule_args
+from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, trace_text
 
 CLI_HELP = (HELP
             .replace("Invia un messaggio vocale o un file audio: lo trascrivo e lo eseguo come un messaggio scritto.\n", "")
@@ -97,13 +97,16 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/schedule":
                 cron, prompt = parse_schedule_args(arg)
                 sid = service.scheduler.add(uid, "cli", uid, cron, prompt)
-                print(f"Task #{sid} creato (gira nel processo `picobot serve`; risultati con /schedules).")
+                print(f"Task #{sid} creato. Lo esegue `picobot serve`; l'esito arriva su Telegram se CLI_USER_ID "
+                      "e' il tuo id Telegram, altrimenti lo leggi con /schedules.")
             elif cmd == "/schedules":
                 rows = service.scheduler.list(uid)
                 print(format_schedules(rows))
                 for r in rows:
                     if r["last_result"]:
                         print(f"\n#{r['id']} ultimo risultato:\n{r['last_result'][:1500]}")
+            elif cmd == "/trace":
+                print(trace_text(s, uid))
             elif cmd == "/unschedule":
                 print("Eliminato." if service.scheduler.remove(uid, int(arg)) else "Task non trovato.")
             else:

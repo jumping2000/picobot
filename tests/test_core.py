@@ -8,6 +8,8 @@ from picobot.documents import DocumentError, extract_text, split_chunks
 from picobot.scheduler import ScheduleError
 from picobot.service import PicoBotService
 from picobot.tools.sandbox import make_code_tools
+from picobot.trace import last_trace
+import picobot.service
 
 
 @pytest.fixture(scope="module")
@@ -149,6 +151,28 @@ def test_schedule_validation_and_limits(svc):
     assert not sch.remove("altro", sch.list("lim")[0]["id"])   # non puoi cancellare i task altrui
 
 
+def test_cli_schedule_routed_to_telegram_when_cli_user_is_telegram_id(svc):
+    sid = svc.scheduler.add("2", "cli", "2", "0 9 * * *", "meteo")      # conftest: TELEGRAM_ALLOWED_USER_IDS="1,2"
+    row = next(r for r in svc.scheduler.list("2") if r["id"] == sid)
+    assert (row["channel"], row["target"]) == ("telegram", "2")
+    sid2 = svc.scheduler.add("cli", "cli", "cli", "0 9 * * *", "meteo")
+    row2 = next(r for r in svc.scheduler.list("cli") if r["id"] == sid2)
+    assert (row2["channel"], row2["target"]) == ("cli", "cli")
+
+
+def test_next_run_is_in_configured_timezone(svc):
+    n = svc.scheduler.next_run("0 8 * * *")
+    assert n.hour == 8 and n.minute == 0 and str(n.tzinfo) == svc.s.timezone
+
+
+def test_natural_language_schedule_creates_task(svc):
+    run(svc.ask("ogni mattina alle 8 dimmi il meteo", user_id="nl", session_id="nl1",
+                ctx=RunCtx("nl", "telegram", target="777")))
+    [row] = svc.scheduler.list("nl")
+    assert (row["cron"], row["target"], row["channel"]) == ("0 8 * * *", "777", "telegram")
+    assert any("Prossima esecuzione" in r for r in _tool_results())
+
+
 def test_schedule_run_delivers_and_blocks_code(svc):
     sent = []
     async def notify(target, text): sent.append((target, text))
@@ -208,3 +232,34 @@ def test_summary_70k_doc_single_call(svc, tmp_path):     # soglia 100.000 caratt
     f = tmp_path / "medio.txt"; f.write_text("riga di testo\n" * 5000)   # ~70k char
     run(svc.summarize(f, "", user_id="1"))
     assert len(fake_llm.LOG) == 1
+
+
+# ---------- traccia ----------
+def test_trace_records_path_of_request(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    run(svc.ask("quotazione AAPL", user_id="tr", session_id="tr1", ctx=RunCtx("tr", "telegram")))
+    rec = last_trace(svc.s, "tr")
+    assert [n["agent"] for n in rec["path"] if "agent" in n] == ["PicoBot", "SimpleTeam", "Finance"]
+    assert any(n.get("tool") == "delegate_task_to_member" for n in rec["path"])
+    assert (rec["status"], rec["channel"]) == ("completed", "telegram")
+
+
+def test_trace_off_writes_nothing(svc):
+    run(svc.ask("ciao", user_id="tr-off", session_id="tr2", ctx=RunCtx("tr-off", "cli")))
+    assert last_trace(svc.s, "tr-off") is None
+
+
+def test_trace_records_errors_and_reraises(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    async def boom(*a, **k): raise RuntimeError("x")
+    monkeypatch.setattr(svc.team, "arun", boom)
+    with pytest.raises(RuntimeError):
+        run(svc.ask("ciao", user_id="tr-err", session_id="tr3", ctx=RunCtx("tr-err", "cli")))
+    assert last_trace(svc.s, "tr-err")["status"] == "error"
+
+
+def test_trace_failure_never_breaks_request(svc, monkeypatch):
+    monkeypatch.setattr(svc.s, "trace_enabled", True)
+    monkeypatch.setattr(picobot.service, "write_trace", lambda *a: 1 / 0)
+    reply = run(svc.ask("ciao", user_id="tr-ko", session_id="tr4", ctx=RunCtx("tr-ko", "cli")))
+    assert reply.text == "RISPOSTA-FINTA"

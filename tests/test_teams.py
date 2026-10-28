@@ -9,6 +9,7 @@ from picobot.config import Settings
 from picobot.context import RunCtx
 from picobot.service import PicoBotService
 from picobot.skills import SkillRegistry
+from picobot.scheduler import Scheduler
 from picobot.team import build_router
 from picobot.workflows.doc_summary import build_doc_workflow
 
@@ -76,6 +77,14 @@ def test_router_structure(s):
         "save_python_file",
     } <= names(member(simple, "Coder"))
     assert simple.skills is None and all(m.skills is None for m in simple.members)
+
+
+def test_router_has_schedule_tools_and_rule(s):
+    r = build_router(s, scheduler=Scheduler(s, run_fn=None))
+    assert {"schedule_task", "list_scheduled_tasks"} <= names(r)
+    text = " ".join(r.instructions)
+    assert "schedule_task" in text and "pagine web" in text
+    assert "una tantum" in text   # "domani alle 8": niente task annuale, lo si dice all'utente
 
 
 def test_router_prompt_explicit_rule(s):

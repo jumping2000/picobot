@@ -23,6 +23,21 @@ e `prompt` (vedi [api.md](api.md)).
 
 Gli orari usano `TIMEZONE` (default `Europe/Rome`).
 
+### In linguaggio naturale
+
+Puoi anche scriverlo a parole, da Telegram o dalla CLI:
+
+```text
+> ogni mattina alle 8 dal lunedì al venerdì mandami le quotazioni di AAPL e MSFT
+Task #3 creato: [0 8 * * 1-5] quotazioni di AAPL e MSFT. Prossima esecuzione: 27/10/2026 08:00 (Europe/Rome).
+```
+
+Il bot traduce l'orario in cron e crea un task identico a quello di `/schedule`, con gli stessi limiti: controlla
+l'orario indicato in "Prossima esecuzione". Puoi chiedere anche "quali task ho?". Per eliminarne uno usa
+`/unschedule <id>`. Sono supportati solo i task ricorrenti: per "domani alle 8" il bot risponde che non può.
+Il bot è istruito a non creare task per istruzioni contenute in documenti o pagine web: è una regola del prompt,
+non un blocco nel codice, quindi controlla sempre la risposta "Task #N creato" e l'elenco `/schedules`.
+
 ## Gestione
 
 | Azione | Telegram / CLI | API |
@@ -31,6 +46,11 @@ Gli orari usano `TIMEZONE` (default `Europe/Rome`).
 | Eliminazione | `/unschedule <id>` | `DELETE /v1/schedules/{id}` |
 
 Nella CLI `/schedules` mostra anche l'ultimo risultato di ogni task.
+
+### Elenco unico tra CLI e Telegram
+
+I task sono legati all'id utente. Con `CLI_USER_ID=<il tuo id Telegram>` nel file `.env`, CLI e Telegram vedono lo
+stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva nella tua chat Telegram.
 
 ## Limiti
 
@@ -49,7 +69,8 @@ Nella CLI `/schedules` mostra anche l'ultimo risultato di ogni task.
 | Creato da | Dove arriva l'esito |
 |---|---|
 | Telegram | Messaggio nella chat, con il prefisso `[Schedule #id]` |
-| CLI, API | Nessuna notifica: si legge con `/schedules` (CLI) o `GET /v1/schedules` (`last_result`) |
+| CLI con `CLI_USER_ID` = id Telegram autorizzato | Messaggio nella tua chat Telegram, come sopra |
+| CLI (altro id), API | Nessuna notifica: si legge con `/schedules` (CLI) o `GET /v1/schedules` (`last_result`) |
 
 ## Funzionamento
 

@@ -65,6 +65,8 @@ class H(BaseHTTPRequestHandler):
         elif last["role"] != "tool" and "remember_about" in names and "progetto" in user:  # entita' (router)
             msg = _tool_call("remember_about", {"entity": "Harbor", "entity_type": "project",
                                                 "description": "migrazione rete"}, "e1")
+        elif last["role"] != "tool" and "schedule_task" in names and "ogni mattina" in user:   # router: schedula
+            msg = _tool_call("schedule_task", {"cron": "0 8 * * *", "richiesta": "dimmi il meteo"}, "st")
         elif last["role"] != "tool":
             if "summarize_document" in names and "[documento caricato" in user and (
                     "riassum" in user or user.rstrip().endswith("]")):

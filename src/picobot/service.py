@@ -20,6 +20,7 @@ from .prompts import router_instructions
 from .skills import SkillInfo, SkillRegistry
 from .team import build_router
 from .tools.files import purge_outbox
+from .trace import build_trace, summary_line, write_trace
 from .web import fetch_article
 from .workflows.doc_summary import build_doc_workflow, run_summary, run_summary_text
 
@@ -54,9 +55,10 @@ class PicoBotService:
             logger.exception("Pulizia outbox fallita")
         self._mcp = await load_mcp_tools(self.s.mcp_config_path)
         self.doc_flow = build_doc_workflow(self.s)
-        self.team = build_router(self.s, self.registry, mcp_tools=self._mcp, doc_flow=self.doc_flow)
+        self.scheduler = Scheduler(self.s, self._ask_text)   # prima del router: i suoi tool lo usano
+        self.team = build_router(self.s, self.registry, mcp_tools=self._mcp, doc_flow=self.doc_flow,
+                                 scheduler=self.scheduler)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
-        self.scheduler = Scheduler(self.s, self._ask_text)
         logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d).",
                     self.s.llm_model_id, self.s.strong_model_id, len(self._mcp))
 
@@ -81,14 +83,32 @@ class PicoBotService:
         # un team richiamato direttamente non usa MAI l'id di sessione del router (non deve sovrascriverla)
         run_sid = session_id if target == "auto" else f"{session_id}:{target}"
         token = set_ctx(ctx)
+        t0, out, err = time.monotonic(), None, None
         try:
             out = await runner.arun(text, user_id=user_id, session_id=run_sid)
+        except Exception as e:
+            err = e
+            raise
         finally:
             reset_ctx(token)
+            self._trace(out, text, ctx, session_id, target, time.monotonic() - t0, err)
         content = out.content if isinstance(out.content, str) else str(out.content)
         if target != "auto":   # lo scambio entra nella sessione del router: i follow-up hanno il contesto
             await self._record_in_session(session_id, user_id, f"[/{target}] {text}", content)
         return Reply(content, list(ctx.outputs))
+
+    def _trace(self, out, text: str, ctx: RunCtx, session_id: str, target: str, duration_s: float,
+               error: BaseException | None) -> None:
+        """Percorso della richiesta in data/trace.jsonl (TRACE_ENABLED). Non fa mai fallire la richiesta."""
+        if not self.s.trace_enabled:
+            return
+        try:
+            rec = build_trace(out, text=text, ctx=ctx, session_id=session_id, target=target,
+                              duration_s=duration_s, error=error)
+            write_trace(self.s, rec)
+            logger.info(summary_line(rec))
+        except Exception:  # noqa: BLE001
+            logger.exception("Traccia della richiesta non scritta")
 
     def _member(self, name: str):
         return next(m for m in self.team.members if m.name == name)

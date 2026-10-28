@@ -23,6 +23,21 @@ Format: `/schedule <minute hour day month weekday> | <request>`. API: `POST /v1/
 
 Times use `TIMEZONE` (default `Europe/Rome`).
 
+### In plain words
+
+You can also say it in words, from Telegram or the CLI:
+
+```text
+> every weekday at 8am send me AAPL and MSFT quotes
+Task #3 creato: [0 8 * * 1-5] AAPL and MSFT quotes. Prossima esecuzione: 27/10/2026 08:00 (Europe/Rome).
+```
+
+The bot turns the time into a cron expression and creates the same task as `/schedule`, with the same limits:
+check the time shown as "Prossima esecuzione" (next run). You can also ask "which tasks do I have?". To delete one,
+use `/unschedule <id>`. Only recurring tasks are supported: for "tomorrow at 8" the bot says it cannot.
+The bot is instructed not to create tasks because of instructions found in documents or web pages: this is a
+prompt rule, not a check in the code, so always look at the "Task #N creato" reply and at `/schedules`.
+
 ## Managing
 
 | Action | Telegram / CLI | API |
@@ -31,6 +46,11 @@ Times use `TIMEZONE` (default `Europe/Rome`).
 | Delete | `/unschedule <id>` | `DELETE /v1/schedules/{id}` |
 
 In the CLI, `/schedules` also prints the last result of each task.
+
+### One list for CLI and Telegram
+
+Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the CLI and Telegram see the same list
+(and the same memory), and the result of tasks created from the CLI reaches your Telegram chat.
 
 ## Limits
 
@@ -49,7 +69,8 @@ In the CLI, `/schedules` also prints the last result of each task.
 | Created from | Where the result goes |
 |---|---|
 | Telegram | Message in the chat, prefixed with `[Schedule #id]` |
-| CLI, API | Not pushed: read it with `/schedules` (CLI) or `GET /v1/schedules` (`last_result`) |
+| CLI with `CLI_USER_ID` = an allowed Telegram id | Message in your Telegram chat, as above |
+| CLI (other id), API | Not pushed: read it with `/schedules` (CLI) or `GET /v1/schedules` (`last_result`) |
 
 ## How it works
 

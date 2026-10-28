@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     output_extensions: str = "docx,pptx,xlsx,csv,txt,md,pdf,html,json,py"
     outbox_ttl_h: int = 24
 
+    # --- Traccia delle richieste ---
+    trace_enabled: bool = False   # una riga JSON per richiesta in data/trace.jsonl; /trace mostra l'ultima
+    trace_max_mb: int = 5         # oltre, trace.jsonl diventa trace.jsonl.1
+
     # --- Skill ---
     enable_skills: bool = True
     skills_dir: Path = Path("/app/skills")
@@ -90,6 +94,10 @@ class Settings(BaseSettings):
     @property
     def database_file(self) -> Path:
         return self.data_dir / "picobot.db"
+
+    @property
+    def trace_file(self) -> Path:
+        return self.data_dir / "trace.jsonl"
 
     @property
     def output_ext_set(self) -> set[str]:

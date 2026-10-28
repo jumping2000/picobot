@@ -59,6 +59,32 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 | `Massimo 10 schedule per utente.` | Elimina dei task o aumenta `MAX_SCHEDULES_PER_USER` |
 | Il task non parte mai | I task girano solo in `picobot serve`: controlla che il processo sia attivo e che `TIMEZONE` sia corretto |
 
+## Capire il percorso di una richiesta
+
+Con `TRACE_ENABLED=true` nel file `.env` (poi riavvia), ogni richiesta lascia una riga JSON in `data/trace.jsonl`,
+e `/trace` mostra la tua ultima:
+
+```text
+2026-10-26T08:00 telegram | 4.2s | 1830 token | completed
+Richiesta: fammi un documento Word sulla storia di Siena
+PicoBot (0.9s, 410 tok)
+  - delegate_task_to_member({"member_id": "complexteam", ...}) -> File creato e consegnato.
+  ComplexTeam (3.1s, 980 tok)
+    - list_skills({"query": "word"}) -> - docx: Crea e modifica documenti Word...
+    Writer (2.0s, 440 tok)
+      - run_node({"code": "const docx = require('docx')..."}) -> exit=0
+      - deliver_file({"path": "outputs/siena.docx"}) -> Consegnato: siena.docx (8123 byte).
+File: siena.docx
+```
+
+Si vede quale team ha scelto il router, quali agenti hanno lavorato e dove si ferma una catena di tool (per esempio
+`exit=1 ... Cannot find module 'docx'`). Ogni riga va anche nel log del processo (`docker compose logs picobot`).
+Per seguirle dal vivo: `tail -f data/trace.jsonl`.
+
+> [!NOTE]
+> Il file contiene i testi delle richieste e dei tool, troncati a 200 caratteri. Resta in `data/` e oltre
+> `TRACE_MAX_MB` (5 MB) diventa `trace.jsonl.1`, sovrascrivendo il precedente.
+
 ## Ripartire da zero
 
 ```bash

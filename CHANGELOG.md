@@ -4,6 +4,22 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.1] - 2026-10-28
+
+### Added
+
+- Scheduled tasks in plain words: "every weekday at 8am send me AAPL quotes", from Telegram or the CLI, creates
+  a real task (same limits as `/schedule`) and the bot answers with its id and next run time. "Which tasks do I
+  have?" lists them. A scheduled run cannot create other tasks.
+- Request trace: with `TRACE_ENABLED=true` every request writes one JSON line to `data/trace.jsonl` with the
+  teams, agents and tools it went through (texts cut to 200 characters), plus a summary line in the log. `/trace`
+  on Telegram and the CLI shows the path of your last request. Off by default; `TRACE_MAX_MB` (5) rotates the file.
+
+### Changed
+
+- A task created from the CLI is delivered to Telegram when `CLI_USER_ID` is an allowed Telegram id, so the CLI
+  and Telegram share one task list and the result reaches your chat.
+
 ## [0.7.0] - 2026-10-25
 
 ### Added

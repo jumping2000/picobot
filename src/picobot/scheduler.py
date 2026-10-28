@@ -23,6 +23,16 @@ class ScheduleError(ValueError):
     pass
 
 
+def format_schedules(rows: list[dict]) -> str:
+    if not rows:
+        return "Nessun task schedulato."
+    out = []
+    for r in rows:
+        last = f" | ultimo: {r['last_run'][:16]}" if r["last_run"] else ""
+        out.append(f"#{r['id']} [{r['cron']}] {r['prompt'][:70]}{last}")
+    return "\n".join(out)
+
+
 class Scheduler:
     def __init__(self, s: Settings, run_fn: RunFn):
         self.s, self.run_fn = s, run_fn
@@ -54,11 +64,17 @@ class Scheduler:
             raise ScheduleError(f"Intervallo minimo {self.s.schedule_min_interval_min} minuti (controllo costi).")
         return trig
 
+    def next_run(self, cron: str) -> datetime | None:
+        """Prossima esecuzione (nel fuso TIMEZONE) di un cron valido."""
+        return self.validate(cron).get_next_fire_time(None, datetime.now(timezone.utc))
+
     def add(self, user_id: str, channel: str, target: str, cron: str, prompt: str) -> int:
         prompt = prompt.strip()
         if not prompt or len(prompt) > 1000:
             raise ScheduleError("Prompt vuoto o troppo lungo (max 1000 caratteri).")
         self.validate(cron)
+        if channel == "cli" and user_id.isdigit() and int(user_id) in self.s.allowed_ids:
+            channel, target = "telegram", user_id   # CLI_USER_ID = id Telegram: l'esito arriva nella chat privata
         with self._db() as c:
             n = c.execute("SELECT COUNT(*) FROM picobot_schedules WHERE user_id=?", (user_id,)).fetchone()[0]
             if n >= self.s.max_schedules_per_user:

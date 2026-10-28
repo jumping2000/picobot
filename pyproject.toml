@@ -1,6 +1,6 @@
 [project]
 name = "picobot-agent"
-version = "0.7.0"
+version = "0.7.1"
 description = "PicoBot - multi-agent personal assistant (Agno 3): Telegram, CLI, REST API"
 readme = "README.md"
 requires-python = ">=3.12"
