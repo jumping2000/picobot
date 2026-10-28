@@ -4,6 +4,14 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.2] - 2026-10-28
+
+### Changed
+
+- Web search no longer depends on DuckDuckGo alone: Web and Researcher use DDGS in `auto` mode, which rotates
+  between several engines (Bing, Brave, Google, Yahoo, DuckDuckGo…), so a DuckDuckGo block (403/202) no longer
+  ends in "No results found.". New `REGION` setting (default `it-it`) for the region of the results.
+
 ## [0.7.1] - 2026-10-28
 
 ### Added

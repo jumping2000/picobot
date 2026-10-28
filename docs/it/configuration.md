@@ -53,6 +53,12 @@ accettano `true`/`false`.
 | `TEAM_MAX_ITERATIONS` | `8` | Definita ma non usata dal codice attuale |
 | `AGNO_TELEMETRY` | `false` | PicoBot spegne la telemetria di Agno, a meno che tu non la imposti a `true` |
 
+## Ricerca web
+
+| Variabile | Default | Descrizione |
+|---|---|---|
+| `REGION` | `it-it` | Regione dei risultati della ricerca web (es. `us-en`, `uk-en`) |
+
 ## Codice generato
 
 | Variabile | Default | Descrizione |

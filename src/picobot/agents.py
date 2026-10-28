@@ -2,7 +2,7 @@
 from agno.agent import Agent
 from agno.team import Team
 from agno.team.mode import TeamMode
-from agno.tools.duckduckgo import DuckDuckGoTools
+from agno.tools.websearch import WebSearchTools
 from agno.tools.yfinance import YFinanceTools
 
 from . import prompts
@@ -25,6 +25,11 @@ def _yf() -> YFinanceTools:
     )
 
 
+def _web(s: Settings) -> WebSearchTools:
+    # "auto": ddgs ruota tra piu' motori, cosi' un blocco di DuckDuckGo (403/202) non azzera la ricerca
+    return WebSearchTools(backend="auto", region=s.region)
+
+
 def _view(s: Settings, db) -> dict:
     """Profilo ed entita' in sola lettura: Agno inizializza il learning solo se l'agente ha anche `db`."""
     return {"db": db, "learning": make_learning_view(s, db), "add_learnings_to_context": True} if db is not None else {}
@@ -42,7 +47,7 @@ def build_web(s: Settings) -> Agent:
     return Agent(
         name="Web",
         role="Cerca informazioni e notizie aggiornate sul web.",
-        model=make_model(s), tools=[DuckDuckGoTools()], instructions=[prompts.WEB],
+        model=make_model(s), tools=[_web(s)], instructions=[prompts.WEB],
     )
 
 
@@ -77,7 +82,7 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
     read = make_read_tools(s)
     members = [
         Agent(name="Researcher", role="Ricerca web approfondita con fonti.", model=strong(),
-              tools=[DuckDuckGoTools(), *mcp], skills=skills, instructions=[prompts.RESEARCHER]),
+              tools=[_web(s), *mcp], skills=skills, instructions=[prompts.RESEARCHER]),
         Agent(name="Analyst", role="Ragiona, analizza e calcola (dati di mercato, codice, grafici); passa il materiale al Writer.",
               model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *read, *mcp],
               skills=skills, instructions=[prompts.ANALYST]),

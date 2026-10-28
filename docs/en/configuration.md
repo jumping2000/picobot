@@ -52,6 +52,12 @@ Source of truth: [`src/picobot/config.py`](../../src/picobot/config.py). Boolean
 | `TEAM_MAX_ITERATIONS` | `8` | Defined but not used by the current code |
 | `AGNO_TELEMETRY` | `false` | PicoBot turns Agno telemetry off unless you set it to `true` |
 
+## Web search
+
+| Variable | Default | Description |
+|---|---|---|
+| `REGION` | `it-it` | Region of web search results (e.g. `us-en`, `uk-en`) |
+
 ## Generated code
 
 | Variable | Default | Description |

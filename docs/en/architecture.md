@@ -44,7 +44,7 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
  |- answers chat and general questions by itself ................ 1 LLM call
  |- summarize_document -> DocSummary workflow (uploaded document, cheap model)
  |- SimpleTeam (cheap model; profile read-only)
- |    |- Web       web search (DuckDuckGo)
+ |    |- Web       web search (DDGS: Bing, Brave, Google, DuckDuckGo…)
  |    |- Finance   yfinance (sees the tickers you follow)
  |    '- Coder     Python programs (with confirmation), text files, file delivery
  '- ComplexTeam (STRONG model for every member; skills and MCP; profile read-only)
@@ -59,10 +59,10 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
 | Agent | Tools |
 |---|---|
 | Router | `summarize_document`, memory (`add_memory`…), `update_profile`, `remember_about` |
-| Web | DuckDuckGo |
+| Web | DDGS (several engines: Bing, Brave, Google, DuckDuckGo…) |
 | Finance | yfinance (price, company info, history, analyst recommendations, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
-| Researcher | DuckDuckGo, MCP, skills |
+| Researcher | DDGS, MCP, skills |
 | Analyst | yfinance, `save_python_file`, `run_python`, `run_node`, `read_document`, MCP, skills — **no** `deliver_file` |
 | Writer | `save_text_file`, `save_python_file`, `run_python`, `run_node`, `deliver_file`, `read_document`, MCP, skills |
 | Critic | MCP, skills (no code) |

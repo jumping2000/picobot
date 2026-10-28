@@ -10,12 +10,13 @@ models/*
 !models/.gitkeep
 skills/*
 !skills/.gitkeep
-config/mcp_secrets.json
+config/mcp_config.json
 .venv/
 __pycache__/
 *.db
 *.pkl
 .superpowers/
+docs/superpowers/
 *.egg-info/
 src/*.egg-info/
 # lockfile di uv (non versionati), tranne quello dell'immagine stt

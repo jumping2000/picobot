@@ -43,7 +43,7 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
  |- risponde da solo a conversazione e domande generali ...... 1 chiamata LLM
  |- summarize_document -> workflow DocSummary (documento caricato, modello economico)
  |- SimpleTeam (modello economico; profilo in sola lettura)
- |    |- Web       ricerca web (DuckDuckGo)
+ |    |- Web       ricerca web (DDGS: Bing, Brave, Google, DuckDuckGo…)
  |    |- Finance   yfinance (vede i titoli seguiti)
  |    '- Coder     programmi Python (con conferma), file di testo, consegna file
  '- ComplexTeam (modello FORTE per tutti i membri; skill e MCP; profilo in sola lettura)
@@ -58,10 +58,10 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
 | Agente | Tool |
 |---|---|
 | Router | `summarize_document`, memoria (`add_memory`…), `update_profile`, `remember_about` |
-| Web | DuckDuckGo |
+| Web | DDGS (più motori: Bing, Brave, Google, DuckDuckGo…) |
 | Finance | yfinance (prezzo, info società, storico, raccomandazioni analisti, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
-| Researcher | DuckDuckGo, MCP, skill |
+| Researcher | DDGS, MCP, skill |
 | Analyst | yfinance, `save_python_file`, `run_python`, `run_node`, `read_document`, MCP, skill — **niente** `deliver_file` |
 | Writer | `save_text_file`, `save_python_file`, `run_python`, `run_node`, `deliver_file`, `read_document`, MCP, skill |
 | Critic | MCP, skill (niente codice) |

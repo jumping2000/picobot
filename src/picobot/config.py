@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     enable_critic: bool = True
     team_max_iterations: int = 3
 
+    # --- Ricerca web ---
+    region: str = "it-it"   # regione dei risultati DDGS (es. us-en, uk-en)
+
     # --- Codice generato ---
     code_timeout_s: int = 30
     code_max_output: int = 4000

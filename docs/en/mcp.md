@@ -15,7 +15,7 @@ Claude Desktop format, plus an optional `enabled` flag:
   "mcpServers": {
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/app/workspace"]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem@2026.8.31", "/app/workspace"]
     },
     "my-python-server": {
       "command": "uvx",
