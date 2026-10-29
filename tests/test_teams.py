@@ -1,10 +1,13 @@
 """Struttura v0.5: router -> SimpleTeam (Web, Finance, Coder) / ComplexTeam / workflow riassunti."""
 
 import asyncio
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import fake_llm
 import pytest
 
+from picobot import prompts
 from picobot.config import Settings
 from picobot.context import RunCtx
 from picobot.service import PicoBotService
@@ -85,6 +88,27 @@ def test_router_has_schedule_tools_and_rule(s):
     text = " ".join(r.instructions)
     assert "schedule_task" in text and "pagine web" in text
     assert "una tantum" in text   # "domani alle 8": niente task annuale, lo si dice all'utente
+
+
+def _tree(x):
+    yield x
+    for m in getattr(x, "members", None) or []:
+        yield from _tree(m)
+
+
+def test_every_agent_and_team_knows_current_date(s):
+    r = build_router(s, SkillRegistry(s), doc_flow=build_doc_workflow(s))
+    nodes = list(_tree(r))
+    assert len(nodes) == 10   # router, SimpleTeam (+3), ComplexTeam (+4)
+    assert [n.name for n in nodes if not (n.add_datetime_to_context and n.timezone_identifier == s.timezone)] == []
+    assert all("non eseguire codice per ottenerle" in p for p in (prompts.CODER, prompts.ANALYST))
+
+
+def test_every_model_call_sees_todays_date(svc):
+    ask(svc, "cerca le notizie di oggi su Stellantis", "dt")
+    today = datetime.now(ZoneInfo(svc.s.timezone)).strftime("%Y-%m-%d")
+    assert len(fake_llm.LOG) >= 3
+    assert [tool_names(b) for b in fake_llm.LOG if today not in system_prompt(b)] == []
 
 
 def test_router_prompt_explicit_rule(s):

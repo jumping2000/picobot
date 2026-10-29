@@ -4,7 +4,16 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.7.2] - 2026-10-28
+## [0.7.3] - 2026-10-29
+
+### Fixed
+
+- The agents now know today's date and time (in `TIMEZONE`). Before, "today's news" searched around the model's
+  training date, and to find out the date the bot asked to run Python code. The router and every team and agent
+  get the current date and time in their system prompt (a few tokens per call); Coder and Analyst are told not to
+  run code to get them.
+
+## [0.7.2] - 2026-10-29
 
 ### Changed
 
