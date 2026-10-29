@@ -48,8 +48,8 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 | `Skill '<nome>' ignorata: ...` | Lancia `uv run picobot skills validate`; il nome della cartella deve essere uguale a `name` in `SKILL.md` |
 | Una nuova skill non viene vista | Si ricarica alla richiesta successiva; controlla che sia in `./skills` sull'host |
 | `skill '<nome>' gia' installata: usa --force` | Aggiungi `--force` per sostituirla |
-| `Solo un amministratore può installare o rimuovere skill.` | Metti il tuo id in `ADMIN_USER_IDS` (`.env`) e riavvia; con la chiave vuota i comandi sono spenti |
-| `il repository risponde con un redirect...` | Da chat git non segue i redirect HTTP: usa l'URL attuale del repository (per esempio `github.com` senza `www.`) |
+| `Solo un amministratore può installare o rimuovere skill.` | Metti il tuo id in `ADMIN_USER_IDS` (`.env`) e applica con `docker compose up -d` (un semplice `restart` non rilegge `.env`); con la chiave vuota i comandi sono spenti |
+| `il repository risponde con un redirect...` | Da chat git non segue i redirect HTTP: usa l'URL attuale del repository (per esempio `github.com` senza `www.`, o con `.git` alla fine su GitLab) |
 | `MCP: server '<nome>' non disponibile, salto` | Controlla comando/URL; provalo a mano nel container; riavvia dopo le modifiche |
 | `MCP: config non valida` | JSON non valido in `config/mcp_config.json` |
 

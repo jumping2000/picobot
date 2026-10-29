@@ -71,7 +71,7 @@ Dettagli in [docs/it/architecture.md](docs/it/architecture.md).
 ```bash
 git clone https://github.com/jumping2000/picobot.git && cd picobot
 cp .env.example .env            # imposta OPENROUTER_API_KEY, TELEGRAM_* e/o API_TOKENS
-mkdir -p data workspace skills && sudo chown -R 1000 data workspace
+mkdir -p data workspace skills && sudo chown -R 1000 data workspace skills
 docker compose up -d --build
 ```
 

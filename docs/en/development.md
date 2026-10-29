@@ -32,6 +32,7 @@ model providers.
 | `test_files.py`, `test_documents_tools.py` | File delivery and its refusals, document tools |
 | `test_sandbox_node.py` | Node execution, clean env, run cap |
 | `test_skills.py`, `test_skills_cli.py` | Skill registry and admin CLI |
+| `test_skill_chat.py` | Skill install and removal from chat: sources, confirmation, log |
 | `test_mcp.py` (+ `mcp_probe_server.py`) | MCP loading |
 | `test_e2e_office.py` | End to end: document → router → ComplexTeam → file |
 | `test_docker_static.py` | Static checks on Dockerfile and compose |

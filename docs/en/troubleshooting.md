@@ -49,8 +49,8 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 | `Skill '<name>' ignorata: ...` | Run `uv run picobot skills validate`; folder name must equal `name` in `SKILL.md` |
 | A new skill is not seen | It is reloaded at the next request; check that it is in `./skills` on the host |
 | `skill '<name>' gia' installata: usa --force` | Add `--force` to replace it |
-| `Solo un amministratore può installare o rimuovere skill.` | Put your id in `ADMIN_USER_IDS` (`.env`) and restart; with the key empty the commands are off |
-| `il repository risponde con un redirect...` | From chat, git does not follow HTTP redirects: use the repository's current URL (for example `github.com` without `www.`) |
+| `Solo un amministratore può installare o rimuovere skill.` | Put your id in `ADMIN_USER_IDS` (`.env`) and apply with `docker compose up -d` (a plain `restart` does not re-read `.env`); with the key empty the commands are off |
+| `il repository risponde con un redirect...` | From chat, git does not follow HTTP redirects: use the repository's current URL (for example `github.com` without `www.`, or ending in `.git` on GitLab) |
 | `MCP: server '<name>' non disponibile, salto` | Check command/URL; try it by hand inside the container; restart after changes |
 | `MCP: config non valida` | Invalid JSON in `config/mcp_config.json` |
 

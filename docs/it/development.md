@@ -32,6 +32,7 @@ chiamata di rete verso i provider dei modelli.
 | `test_files.py`, `test_documents_tools.py` | Consegna dei file e rifiuti, tool sui documenti |
 | `test_sandbox_node.py` | Esecuzione Node, ambiente ripulito, tetto di esecuzioni |
 | `test_skills.py`, `test_skills_cli.py` | Registro delle skill e CLI di amministrazione |
+| `test_skill_chat.py` | Installazione e rimozione delle skill da chat: sorgenti, conferma, log |
 | `test_mcp.py` (+ `mcp_probe_server.py`) | Caricamento MCP |
 | `test_e2e_office.py` | End to end: documento → router → ComplexTeam → file |
 | `test_docker_static.py` | Controlli statici su Dockerfile e compose |

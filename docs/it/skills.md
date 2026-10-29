@@ -77,7 +77,7 @@ in un'unica sottocartella.
 - **Percorsi locali solo dalla CLI.** Da Telegram sono accettati solo URL o allegati, e solo `https://`.
 - **Esito.** Il bot risponde con nome e descrizione della skill, le dipendenze dichiarate (`requirements.txt`,
   `package.json`, `apt.txt`) e un avviso se contiene `scripts/`. La skill è attiva dalla richiesta successiva.
-- **Skill già presente.** Il bot chiede se sostituirla: bottoni Sì/No su Telegram, `[y/N]` nella CLI. Senza risposta
+- **Skill già presente.** Il bot chiede se sostituirla: bottoni "Conferma"/"Annulla" su Telegram, `[y/N]` nella CLI. Senza risposta
   entro `CONFIRM_TIMEOUT_S` non sostituisce nulla.
 - **Dipendenze.** Da chat il bot le **segnala** ma non le installa: sull'host lancia
   `uv run picobot skills deps --write` e ricostruisci l'immagine (vedi [Dipendenze](#dipendenze-punti-di-estensione)).
@@ -90,7 +90,7 @@ Limiti:
   con più skill: `SKILL.md` deve stare alla radice o in un'unica sottocartella;
 - niente repository privati né credenziali git (il clone non chiede mai username o password);
 - da chat git non segue i redirect HTTP: un URL che risponde con un redirect (per esempio `www.github.com` al posto
-  di `github.com`) fallisce e il bot chiede l'URL attuale. Un repository GitHub rinominato o trasferito si clona
+  di `github.com`) fallisce e il bot chiede l'URL attuale (su GitLab, per esempio, con `.git` alla fine). Un repository GitHub rinominato o trasferito si clona
   comunque;
 - zip scaricato al massimo 50 MB, con timeout complessivo di 120 s; `git clone` con timeout di 120 s;
 - gli host in rete locale o privata sono rifiutati (vedi [Sicurezza](security.md#installazione-delle-skill)).

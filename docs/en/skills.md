@@ -78,7 +78,7 @@ a single subfolder.
 - **Result.** The bot replies with the skill's name and description, the declared dependencies
   (`requirements.txt`, `package.json`, `apt.txt`) and a warning if it contains `scripts/`. The skill is active from
   the next request.
-- **Skill already present.** The bot asks whether to replace it: Yes/No buttons on Telegram, `[y/N]` in the CLI. No
+- **Skill already present.** The bot asks whether to replace it: "Conferma"/"Annulla" buttons on Telegram, `[y/N]` in the CLI. No
   answer within `CONFIRM_TIMEOUT_S` replaces nothing.
 - **Dependencies.** From chat the bot **reports** them but does not install them: on the host run
   `uv run picobot skills deps --write` and rebuild the image (see
@@ -92,7 +92,7 @@ Limits:
   several skills: `SKILL.md` must be at the root or in a single subfolder;
 - no private repositories or git credentials (the clone never asks for a username or password);
 - from chat, git does not follow HTTP redirects: a URL that answers with a redirect (for example `www.github.com`
-  instead of `github.com`) fails and the bot asks for the current URL. A renamed or transferred GitHub repository
+  instead of `github.com`) fails and the bot asks for the current URL (on GitLab, for example, ending in `.git`). A renamed or transferred GitHub repository
   still clones fine;
 - downloaded zip at most 50 MB, with an overall 120 s timeout; `git clone` with a 120 s timeout;
 - hosts on local or private networks are rejected (see [Security](security.md#skill-installation)).
