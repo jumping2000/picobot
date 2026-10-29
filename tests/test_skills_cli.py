@@ -11,6 +11,7 @@ import pytest
 from picobot import skills_cli
 from picobot.config import Settings
 from picobot.skills_cli import (
+    SkillExistsError,
     SkillInstallError,
     install,
     main_skills,
@@ -157,6 +158,68 @@ def test_git_source(tmp_path, d):
         subprocess.run(cmd, cwd=repo, check=True, env=env)
     info = install(f"file://{repo}", d)
     assert info.name == "docx" and not (d / "docx" / ".git").exists()
+
+
+def test_duplicate_raises_skill_exists(tmp_path, d):
+    src = good_src(tmp_path)
+    install(str(src), d)
+    with pytest.raises(SkillExistsError) as ei:
+        install(str(src), d)
+    assert ei.value.name == "docx" and isinstance(ei.value, SkillInstallError)
+
+
+def _fake_git(monkeypatch, calls, returncode=1, stderr="x"):
+    monkeypatch.setattr(shutil, "which", lambda _: "git")
+
+    def run(cmd, **kw):
+        calls.append({"cmd": cmd, "env": kw.get("env"), "timeout": kw.get("timeout")})
+        return subprocess.CompletedProcess(cmd, returncode, "", stderr)
+
+    monkeypatch.setattr(subprocess, "run", run)
+
+
+def test_git_timeout(monkeypatch, tmp_path, d):
+    monkeypatch.setattr(shutil, "which", lambda _: "git")
+
+    def run(cmd, **kw):
+        raise subprocess.TimeoutExpired(cmd, 120)
+
+    monkeypatch.setattr(subprocess, "run", run)
+    with pytest.raises(SkillInstallError, match="120"):
+        install("https://h/r.git", d)
+
+
+def test_git_strict_flags(monkeypatch, tmp_path, d):
+    calls = []
+    _fake_git(monkeypatch, calls)
+    with pytest.raises(SkillInstallError):
+        install("https://h/r.git", d, strict_git=True)
+    c = calls[-1]
+    assert "http.followRedirects=false" in c["cmd"]
+    assert "protocol.allow=never" in c["cmd"]
+    assert "protocol.https.allow=always" in c["cmd"]
+    assert c["env"]["GIT_TERMINAL_PROMPT"] == "0" and c["timeout"] == 120
+    with pytest.raises(SkillInstallError):
+        install("https://h/r.git", d, strict_git=False)
+    c = calls[-1]
+    assert not any(
+        x in c["cmd"]
+        for x in (
+            "http.followRedirects=false",
+            "protocol.allow=never",
+            "protocol.https.allow=always",
+        )
+    )
+    assert c["env"]["GIT_TERMINAL_PROMPT"] == "0" and c["timeout"] == 120
+
+
+def test_git_redirect_message(monkeypatch, tmp_path, d):
+    _fake_git(
+        monkeypatch, [], stderr="fatal: unable to update url base from redirection"
+    )
+    with pytest.raises(SkillInstallError) as ei:
+        install("https://h/r.git", d, strict_git=True)
+    assert "redirect" in str(ei.value) and "URL attuale" in str(ei.value)
 
 
 def test_remove(tmp_path, d):

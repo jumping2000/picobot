@@ -21,10 +21,19 @@ from .skills import NAME_RE, SkillInfo, read_frontmatter, skill_problem
 
 MAX_SKILL_BYTES = 50 * 1024 * 1024
 _GIT_PREFIXES = ("file://", "http://", "https://", "git@", "ssh://")
+GIT_TIMEOUT_S = 120
 
 
 class SkillInstallError(ValueError):
     pass
+
+
+class SkillExistsError(SkillInstallError):
+    """La cartella di destinazione esiste gia' e force=False."""
+
+    def __init__(self, name: str):
+        super().__init__(f"skill '{name}' gia' installata: usa --force per sostituirla")
+        self.name = name
 
 
 def _info(folder: Path) -> SkillInfo:
@@ -48,13 +57,24 @@ def _safe_extract(zip_path: Path, dest: Path) -> None:
         zf.extractall(dest)
 
 
-def _fetch(source: str, work: Path) -> Path:
+def _fetch(source: str, work: Path, *, strict_git: bool = False) -> Path:
     if source.startswith(_GIT_PREFIXES) or source.endswith(".git"):
         if shutil.which("git") is None:
             raise SkillInstallError("git non installato: serve per installare da un repository")
-        r = subprocess.run(["git", "clone", "--depth", "1", "--quiet", source, str(work / "repo")],
-                           capture_output=True, text=True)
+        # da chat (strict_git): niente redirect e solo https; mai prompt di credenziali, tempo limitato
+        flags = (["-c", "http.followRedirects=false", "-c", "protocol.allow=never",
+                  "-c", "protocol.https.allow=always"] if strict_git else [])
+        env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
+        try:
+            r = subprocess.run(["git", *flags, "clone", "--depth", "1", "--quiet", source, str(work / "repo")],
+                               capture_output=True, text=True, env=env, timeout=GIT_TIMEOUT_S)
+        except subprocess.TimeoutExpired as e:
+            raise SkillInstallError(
+                f"git clone oltre {GIT_TIMEOUT_S} s: repository irraggiungibile o troppo grande") from e
         if r.returncode != 0:
+            if strict_git and "redirect" in r.stderr.lower():
+                raise SkillInstallError(
+                    "il repository risponde con un redirect (rinominato o spostato?): usa l'URL attuale")
             raise SkillInstallError(f"git clone fallito: {r.stderr.strip()[:200]}")
         shutil.rmtree(work / "repo" / ".git", ignore_errors=True)
         return work / "repo"
@@ -102,7 +122,7 @@ def _validate_tree(folder: Path) -> tuple[str, str]:
     return name, desc
 
 
-def install(source: str, dir: Path, force: bool = False) -> SkillInfo:
+def install(source: str, dir: Path, force: bool = False, *, strict_git: bool = False) -> SkillInfo:
     """Installa una skill da cartella, .zip o repository git. Atomica: o tutto o niente."""
     dir = Path(dir)
     dir.mkdir(parents=True, exist_ok=True)
@@ -110,11 +130,11 @@ def install(source: str, dir: Path, force: bool = False) -> SkillInfo:
     old = dir / f".old-{uuid.uuid4().hex}"
     try:
         with tempfile.TemporaryDirectory(prefix="picobot-skill-") as work:
-            skill = _find_skill_dir(_fetch(source, Path(work)))
+            skill = _find_skill_dir(_fetch(source, Path(work), strict_git=strict_git))
             name, _ = _validate_tree(skill)
             target = dir / name
             if target.exists() and not force:
-                raise SkillInstallError(f"skill '{name}' gia' installata: usa --force per sostituirla")
+                raise SkillExistsError(name)
             shutil.copytree(skill, tmp, symlinks=True, ignore=shutil.ignore_patterns(".git"))
             if target.exists():
                 os.replace(target, old)
