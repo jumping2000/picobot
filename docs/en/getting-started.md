@@ -73,8 +73,8 @@ uv run picobot skills add /path/to/skills/xlsx
 See [Skills](skills.md). With `ADMIN_USER_IDS` in `.env` you can also install them from Telegram (`/skill_add`).
 
 > [!TIP]
-> **Voice messages (optional):** `mkdir -p models && sudo chown -R 1000 models`, set `STT_URL=http://stt:8000`
-> in `.env` and start with `docker compose --profile stt up -d --build`. See [Voice messages](voice.md).
+> **Voice messages (optional):** `mkdir -p models && sudo chown -R 1000 models`, set `voice.stt_url: http://stt:8000`
+> in `config/config.yaml` and start with `docker compose --profile stt up -d --build`. See [Voice messages](voice.md).
 
 ## 4. Start
 

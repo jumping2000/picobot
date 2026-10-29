@@ -65,7 +65,7 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 
 ## Following the path of a request
 
-With `TRACE_ENABLED=true` in `.env` (then restart), every request leaves a JSON line in `data/trace.jsonl`, and
+With `trace.trace_enabled: true` in `config/config.yaml` (then `docker compose restart`), every request leaves a JSON line in `data/trace.jsonl`, and
 `/trace` shows your last one:
 
 ```text

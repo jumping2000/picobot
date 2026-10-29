@@ -19,7 +19,8 @@ The feature is **off by default**: with `STT_URL` empty PicoBot behaves exactly 
 
 ```bash
 mkdir -p models && sudo chown -R 1000 models
-echo "STT_URL=http://stt:8000" >> .env
+[ -f config/config.yaml ] || cp config/config_example.yaml config/config.yaml
+# in config/config.yaml, voice block:  stt_url: http://stt:8000
 docker compose --profile stt up -d --build
 docker compose logs -f stt          # the first start downloads the model from Hugging Face
 ```

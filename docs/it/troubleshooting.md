@@ -64,7 +64,7 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 
 ## Capire il percorso di una richiesta
 
-Con `TRACE_ENABLED=true` nel file `.env` (poi riavvia), ogni richiesta lascia una riga JSON in `data/trace.jsonl`,
+Con `trace.trace_enabled: true` in `config/config.yaml` (poi `docker compose restart`), ogni richiesta lascia una riga JSON in `data/trace.jsonl`,
 e `/trace` mostra la tua ultima:
 
 ```text

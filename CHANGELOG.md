@@ -15,6 +15,10 @@ All notable changes to PicoBot are listed here. The format follows
   separated Telegram ids, in `.env`) says who is an admin: empty means the commands are off for everyone, and
   `ALLOW_ALL_USERS=true` alone makes nobody an admin. Hosts on local or private networks are refused, git does not
   follow redirects from chat, and every install and removal is logged with user, channel, source and outcome.
+- Settings can live in `config/config.yaml`, split into blocks (`memory:`, `web:`, `code:`, …) whose keys have the
+  same names as before. Copy `config/config_example.yaml`, which lists every key with its default and a comment, and
+  change only what you need. Secrets stay in `.env` and can be referenced as `${NAME}`. An unknown key, a key in the
+  wrong block, a wrong value or a key reserved for `.env` stops the startup with a message naming `block.key`.
 
 ### Changed
 
@@ -22,6 +26,10 @@ All notable changes to PicoBot are listed here. The format follows
   run `sudo chown -R 1000 skills` once on the host; the container user (UID 1000) cannot write to it otherwise,
   and the chat commands answer with that hint. `git clone` in `picobot skills add` now has a 120 s timeout and never
   asks for credentials.
+- `.env.example` now lists only the keys that must stay in `.env` (LLM keys and models, Telegram token and ids,
+  `ADMIN_USER_IDS`, `API_TOKENS`, `CLI_USER_ID`). Environment variables keep working and win over `config.yaml`, so
+  an existing `.env` behaves as before; to move a setting into the YAML file, remove its line from `.env`. The log
+  warns when a key is set in both.
 
 ## [0.7.4] - 2026-10-29
 

@@ -73,7 +73,7 @@ Vedi [Skill](skills.md). Con `ADMIN_USER_IDS` in `.env` puoi installarle anche d
 
 > [!TIP]
 > **Messaggi vocali (opzionale):** `mkdir -p models && sudo chown -R 1000 models`, imposta
-> `STT_URL=http://stt:8000` in `.env` e avvia con `docker compose --profile stt up -d --build`. Vedi
+> `voice.stt_url: http://stt:8000` in `config/config.yaml` e avvia con `docker compose --profile stt up -d --build`. Vedi
 > [Messaggi vocali](voice.md).
 
 ## 4. Avvio
