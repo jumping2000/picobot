@@ -1,0 +1,78 @@
+# Configurazione di PicoBot: copia questo file in config/config.yaml e cambia solo cio' che ti serve.
+# Le chiavi qui sotto hanno i default del codice: copiarlo cosi' com'e' non cambia il comportamento.
+#
+# - .env e le variabili d'ambiente vincono su questo file: se HISTORY_RUNS e' in .env, memory.history_runs qui
+#   non ha effetto (il log lo segnala). Per spostare un parametro qui, togli la riga da .env.
+# - Chiavi e segreti (OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS, API_TOKENS, ...) stanno solo in .env.
+#   Un segreto si richiama come ${NOME}, con il valore in .env.
+# - Una chiave sconosciuta o un valore sbagliato bloccano l'avvio con un messaggio che nomina blocco.chiave.
+# - Il file si legge all'avvio: dopo una modifica serve docker compose restart.
+
+telegram:
+  allow_all_users: false            # true = chiunque puo' usare il bot (sconsigliato); non rende admin nessuno
+
+paths:
+  data_dir: /app/data               # DB, stato Telegram (NON visibile al codice generato). Nell'immagine Docker la fissa il Dockerfile (/app/data): qui non ha effetto
+  workspace_dir: /app/workspace     # file di lavoro dell'agente. Nell'immagine Docker la fissa il Dockerfile (/app/workspace): qui non ha effetto
+  mcp_config_path: /app/config/mcp_config.json
+
+memory:                             # sessione, memoria e costi
+  history_runs: 6
+  enable_memory: true
+  enable_learning: true
+  enable_session_summaries: false   # +1 chiamata LLM per run: off di default
+  enable_critic: true
+  team_max_iterations: 3
+
+web:
+  region: it-it                     # regione dei risultati della ricerca web (es. us-en, uk-en)
+
+code:                               # codice generato
+  code_timeout_s: 30
+  code_max_output: 4000
+  confirm_timeout_s: 120            # secondi per confermare un'esecuzione o una sostituzione
+  code_node_mem_mb: 1536            # pptxgenjs va in abort sotto 1 GB
+  code_max_runs: 6                  # esecuzioni approvate per richiesta
+  node_path: ""                     # NODE_PATH per gli script Node. Nell'immagine Docker la fissa il Dockerfile (/usr/local/lib/node_modules): qui non ha effetto
+
+outputs:                            # file in uscita
+  max_output_mb: 20
+  max_output_files: 5
+  output_extensions: docx,pptx,xlsx,csv,txt,md,pdf,html,json,py
+  outbox_ttl_h: 24                  # file scaricabili via API per 24 ore
+
+trace:
+  trace_enabled: false              # una riga JSON per richiesta in data/trace.jsonl; /trace mostra l'ultima
+  trace_max_mb: 5                   # oltre, trace.jsonl diventa trace.jsonl.1
+
+skills:                             # skill del ComplexTeam
+  enable_skills: true
+  skills_dir: /app/skills           # sull'host la CLI usa ./skills. Nell'immagine Docker la fissa il Dockerfile (/app/skills): qui non ha effetto
+  skills_list_max: 50
+  skills_router_hint_max: 15
+
+documents:
+  max_upload_mb: 15
+  doc_chunk_chars: 100000           # sotto questa soglia il riassunto e' 1 sola chiamata
+  doc_max_chars: 400000
+
+voice:                              # messaggi vocali (STT)
+  # Servizio di trascrizione del profilo compose "stt": mkdir -p models && sudo chown -R 1000 models,
+  # poi docker compose --profile stt up -d --build.
+  stt_url: ""                       # es. http://stt:8000 (servizio del profilo compose "stt"); vuoto = vocali spenti
+  stt_timeout_s: 180
+  max_voice_s: 300                  # durata massima di un vocale (secondi), controllata prima del download
+
+scheduler:
+  timezone: Europe/Rome
+  schedule_min_interval_min: 30
+  max_schedules_per_user: 10
+
+api:
+  api_enabled: true
+  api_host: 127.0.0.1               # nell'immagine Docker la fissa il Dockerfile (0.0.0.0): qui non ha effetto
+  api_port: 8000
+  # HTTPS diretto (senza reverse proxy). Senza TLS il token viaggia in chiaro se esponi l'API.
+  # Cert di prova: openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 365 -subj "/CN=host"
+  api_ssl_certfile: ""              # es. /app/certs/cert.pem
+  api_ssl_keyfile: ""               # es. /app/certs/key.pem

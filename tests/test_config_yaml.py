@@ -164,3 +164,29 @@ def test_cli_exits_with_message(tmp_path):
                        capture_output=True, text=True, env={**os.environ})
     assert r.returncode != 0
     assert "memory.histroy_runs" in r.stderr and "Traceback" not in r.stderr
+
+
+ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
+
+
+def test_example_matches_defaults(monkeypatch, tmp_path):
+    """Copiare config_example.yaml in config.yaml non cambia nulla: chiavi attive con i default del codice."""
+    import yaml
+
+    example = ROOT / "config" / "config_example.yaml"
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(picobot.config, "CONFIG_FILE", example)
+    fields = [f for fs in BLOCKS.values() for f in fs]
+    for f in fields:
+        monkeypatch.delenv(f.upper(), raising=False)
+    s = Settings()
+    assert {f: getattr(s, f) for f in fields} == {f: Settings.model_fields[f].default for f in fields}
+    data = yaml.safe_load(example.read_text(encoding="utf-8"))
+    assert {k for block in data.values() for k in block} == set(fields)
+
+
+def test_env_example_only_env_keys():
+    """In .env.example restano attive solo le chiavi riservate a .env; il resto va in config.yaml."""
+    active = [l.split("=", 1)[0] for l in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+              if re.match(r"^[A-Z_]+=", l)]
+    assert active and [k for k in active if k.lower() not in ENV_ONLY] == []

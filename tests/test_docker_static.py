@@ -46,11 +46,11 @@ def test_compose_env_ignores():
         assert "./config:/app/config:ro" in compose, name
         assert "chown -R 1000 data workspace skills" in compose, name
     assert "skills/" in read(".gitignore") and "skills" in read(".dockerignore").split()
-    env = read(".env.example")
-    assert "ADMIN_USER_IDS=" in env
+    assert "ADMIN_USER_IDS=" in read(".env.example")
+    example = read("config/config_example.yaml")
     for k in ("ENABLE_SKILLS", "SKILLS_DIR", "CODE_NODE_MEM_MB", "CODE_MAX_RUNS", "MAX_OUTPUT_MB",
               "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H", "STT_URL", "STT_TIMEOUT_S", "MAX_VOICE_S"):
-        assert k in env, k
+        assert f"{k.lower()}:" in example, k
 
 
 def _run_step(marker):
