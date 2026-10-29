@@ -222,6 +222,27 @@ def test_git_redirect_message(monkeypatch, tmp_path, d):
     assert "redirect" in str(ei.value) and "URL attuale" in str(ei.value)
 
 
+E301 = "fatal: unable to access 'https://www.github.com/psf/requests.git/': The requested URL returned error: 301"
+
+
+def test_git_redirect_real_stderr(monkeypatch, tmp_path, d):
+    _fake_git(monkeypatch, [], stderr=E301)
+    with pytest.raises(SkillInstallError, match="redirect.*URL attuale"):
+        install("https://h/r.git", d, strict_git=True)
+
+
+def test_git_redirect_word_in_url_is_not_redirect(monkeypatch, tmp_path, d):
+    _fake_git(monkeypatch, [], stderr="fatal: repository 'https://h/redirect-tool.git/' not found")
+    with pytest.raises(SkillInstallError, match="git clone fallito"):
+        install("https://h/redirect-tool.git", d, strict_git=True)
+
+
+def test_git_301_not_strict_is_generic(monkeypatch, tmp_path, d):
+    _fake_git(monkeypatch, [], stderr=E301)
+    with pytest.raises(SkillInstallError, match="git clone fallito"):
+        install("https://h/r.git", d, strict_git=False)
+
+
 def test_remove(tmp_path, d):
     install(str(good_src(tmp_path)), d)
     remove("docx", d)

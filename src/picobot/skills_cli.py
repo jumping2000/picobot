@@ -22,6 +22,8 @@ from .skills import NAME_RE, SkillInfo, read_frontmatter, skill_problem
 MAX_SKILL_BYTES = 50 * 1024 * 1024
 _GIT_PREFIXES = ("file://", "http://", "https://", "git@", "ssh://")
 GIT_TIMEOUT_S = 120
+# con followRedirects=false git non scrive "redirect": segnala "returned error: 301" (o simili)
+_GIT_REDIRECT_RE = re.compile(r"returned error: 30[1-8]|redirection", re.I)
 
 
 class SkillInstallError(ValueError):
@@ -72,7 +74,7 @@ def _fetch(source: str, work: Path, *, strict_git: bool = False) -> Path:
             raise SkillInstallError(
                 f"git clone oltre {GIT_TIMEOUT_S} s: repository irraggiungibile o troppo grande") from e
         if r.returncode != 0:
-            if strict_git and "redirect" in r.stderr.lower():
+            if strict_git and _GIT_REDIRECT_RE.search(r.stderr):
                 raise SkillInstallError(
                     "il repository risponde con un redirect (rinominato o spostato?): usa l'URL attuale")
             raise SkillInstallError(f"git clone fallito: {r.stderr.strip()[:200]}")
