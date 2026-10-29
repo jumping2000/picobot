@@ -45,17 +45,18 @@ Tutte le opzioni sono descritte in [Configurazione](configuration.md).
 ## 2. Preparazione delle cartelle
 
 ```bash
-mkdir -p data workspace skills && sudo chown -R 1000 data workspace
+mkdir -p data workspace skills && sudo chown -R 1000 data workspace skills
 ```
 
-Il container gira con l'utente `picobot` (UID 1000), che deve poter scrivere in `data/` e `workspace/`.
+Il container gira con l'utente `picobot` (UID 1000), che deve poter scrivere in `data/`, `workspace/` e `skills/`
+(quest'ultima serve per installare le skill da chat).
 
 | Cartella host | Container | Modo | Contenuto |
 |---|---|---|---|
 | `./data` | `/app/data` | rw | DB SQLite, stato Telegram, outbox, inbox |
 | `./workspace` | `/app/workspace` | rw | Script e file generati dagli agenti |
 | `./config` | `/app/config` | ro | `mcp_config.json` |
-| `./skills` | `/app/skills` | ro | Skill installate (ricarica a caldo) |
+| `./skills` | `/app/skills` | rw | Skill installate (ricarica a caldo; installabili da chat) |
 | `./certs` | `/app/certs` | ro | Certificati TLS opzionali (commentato nel compose) |
 
 ## 3. (Opzionale) Installazione delle skill
@@ -68,7 +69,7 @@ uv run picobot skills add /percorso/skills/pptx
 uv run picobot skills add /percorso/skills/xlsx
 ```
 
-Vedi [Skill](skills.md).
+Vedi [Skill](skills.md). Con `ADMIN_USER_IDS` in `.env` puoi installarle anche da Telegram (`/skill_add`).
 
 > [!TIP]
 > **Messaggi vocali (opzionale):** `mkdir -p models && sudo chown -R 1000 models`, imposta

@@ -32,15 +32,22 @@ def test_dockerfile_order_and_hardening():
     idx = [d.index(m) for m in order]
     assert idx == sorted(idx), dict(zip(order, idx))
     assert "/uvx" in d and "NODE_PATH" in d and "libreoffice" not in d.lower()
-    assert "chown -R picobot /app" not in d and "chown picobot /app/data /app/workspace" in d
-    assert d.index("chown picobot /app/data /app/workspace") < d.index("USER picobot")
+    chown = "chown picobot /app/data /app/workspace /app/skills"
+    assert "chown -R picobot /app" not in d and chown in d
+    assert d.index(chown) < d.index("USER picobot")
+    base_apt = next(l for l in d.splitlines() if "apt-get install" in l)
+    assert "git" in base_apt.split()
 
 
 def test_compose_env_ignores():
-    compose = read("compose-build.yaml")
-    assert "./skills:/app/skills:ro" in compose and "./config:/app/config:ro" in compose
+    for name in ("compose.yaml", "compose-build.yaml"):
+        compose = read(name)
+        assert "./skills:/app/skills" in compose and "./skills:/app/skills:ro" not in compose, name
+        assert "./config:/app/config:ro" in compose, name
+        assert "chown -R 1000 data workspace skills" in compose, name
     assert "skills/" in read(".gitignore") and "skills" in read(".dockerignore").split()
     env = read(".env.example")
+    assert "ADMIN_USER_IDS=" in env
     for k in ("ENABLE_SKILLS", "SKILLS_DIR", "CODE_NODE_MEM_MB", "CODE_MAX_RUNS", "MAX_OUTPUT_MB",
               "MAX_OUTPUT_FILES", "OUTPUT_EXTENSIONS", "OUTBOX_TTL_H", "STT_URL", "STT_TIMEOUT_S", "MAX_VOICE_S"):
         assert k in env, k

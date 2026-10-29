@@ -4,8 +4,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PYTHONUNBUFFERED=1 \
     NODE_PATH=/usr/local/lib/node_modules
 
-# base: node/npm (server MCP via npx, script delle skill), curl (healthcheck)
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm curl \
+# base: node/npm (server MCP via npx, script delle skill), curl (healthcheck), git (skill da chat)
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm curl git \
     && rm -rf /var/lib/apt/lists/*
 
 # uv per le dipendenze Python, uvx per i server MCP scritti in Python
@@ -35,10 +35,10 @@ COPY src/ ./src/
 # --inexact: non rimuovere le librerie delle skill installate da deps/pip.txt (non sono nel lock)
 RUN uv sync --no-dev --inexact
 
-# utente non-root. src/, .venv e skills/ restano di root (il codice generato non puo' modificarli);
-# scrivibili solo data/ (DB, stato) e workspace/ (file dell'agente)
+# utente non-root. src/ e .venv restano di root (il codice generato non puo' modificarli);
+# scrivibili solo data/ (DB, stato), workspace/ (file dell'agente) e skills/ (installazione da chat)
 RUN useradd -m -u 1000 picobot && mkdir -p /app/data /app/workspace /app/skills \
-    && chown picobot /app/data /app/workspace
+    && chown picobot /app/data /app/workspace /app/skills
 USER picobot
 ENV PATH="/app/.venv/bin:$PATH" DATA_DIR=/app/data WORKSPACE_DIR=/app/workspace SKILLS_DIR=/app/skills API_HOST=0.0.0.0
 

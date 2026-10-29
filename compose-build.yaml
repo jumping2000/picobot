@@ -10,9 +10,9 @@ services:
       - ./data:/app/data            # DB SQLite, stato Telegram
       - ./workspace:/app/workspace  # file e script dell'agente (unico posto dove gira il codice generato)
       - ./config:/app/config:ro
-      - ./skills:/app/skills:ro     # skill: aggiungi/cancella cartelle qui (o `picobot skills add`), nessun riavvio
+      - ./skills:/app/skills        # skill: da chat (/skill_add, solo admin), cartelle qui o `picobot skills add`; nessun riavvio
       # - ./certs:/app/certs:ro      # se usi HTTPS diretto (API_SSL_CERTFILE=/app/certs/cert.pem ...)
-    # prima volta: mkdir -p data workspace skills && sudo chown -R 1000 data workspace
+    # prima volta: mkdir -p data workspace skills && sudo chown -R 1000 data workspace skills
     # nuove librerie per una skill: modifica deps/*.txt, poi docker compose build && docker compose up -d
     # CLI:  docker compose exec -it picobot python -m picobot cli
 

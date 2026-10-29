@@ -4,6 +4,25 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Admins can install and remove skills from Telegram and the CLI chat. `/skill_add <link>` takes an `https://` URL
+  (a `.zip` URL is downloaded, any other URL is cloned as a git repository); on Telegram a `.zip` attachment with
+  caption `/skill_add` works too, and the CLI chat also accepts a local path. `/skill_remove <name>` removes a
+  skill. If the skill is already installed the bot asks before replacing it. The new `ADMIN_USER_IDS` key (comma
+  separated Telegram ids, in `.env`) says who is an admin: empty means the commands are off, and
+  `ALLOW_ALL_USERS=true` makes nobody an admin. Hosts on local or private networks are refused, git does not follow
+  redirects from chat, and every install and removal is logged with user, channel, source and outcome.
+
+### Changed
+
+- `./skills` is now mounted read-write in both compose files and the image contains `git`. Existing installs must
+  run `sudo chown -R 1000 skills` once on the host; the container user (UID 1000) cannot write to it otherwise,
+  and the chat commands answer with that hint. `git clone` in `picobot skills add` now has a 120 s timeout and never
+  asks for credentials.
+
 ## [0.7.4] - 2026-10-29
 
 ### Fixed

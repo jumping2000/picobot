@@ -27,7 +27,7 @@ I bottoni di conferma su Telegram li può premere solo l'utente che ha fatto la 
 | Ambiente ripulito | Solo `PATH`, `HOME`, `PYTHONIOENCODING` (e `NODE_PATH`): **nessuna chiave API o token** |
 | Limiti di risorse | CPU 60 s, memoria 768 MB (Python) / `CODE_NODE_MEM_MB` (Node), dimensione file massima 2×`MAX_OUTPUT_MB`, timeout `CODE_TIMEOUT_S` |
 | Output troncato | `CODE_MAX_OUTPUT` caratteri restituiti all'agente |
-| Codice in sola lettura | Nel container `src/`, il venv e `skills/` sono di root e non modificabili dal codice generato |
+| Codice in sola lettura | Nel container `src/` e il venv sono di root e non modificabili dal codice generato (`skills/`: vedi sotto) |
 | Script delle skill | Mai eseguiti direttamente (`get_skill_script` è rimosso) |
 
 ## File
@@ -46,7 +46,27 @@ I bottoni di conferma su Telegram li può premere solo l'utente che ha fatto la 
 
 La CLI di amministrazione installa in modo atomico (copia in `.tmp-<id>` e rename) e rifiuta zip con percorsi
 assoluti, componenti `..` o symlink, symlink nelle cartelle, nomi non validi e skill oltre 50 MB (controllo prima
-dell'estrazione).
+dell'estrazione). Gli stessi controlli valgono per `/skill_add` da chat. Le skill sono istruzioni che il
+ComplexTeam segue per tutti gli utenti: installarne una equivale a cambiare il comportamento del bot.
+
+Limiti dell'installazione da chat:
+
+- **solo gli amministratori** (`ADMIN_USER_IDS`); con la chiave vuota i comandi sono spenti, anche con
+  `ALLOW_ALL_USERS=true`. Nella chat CLI sono sempre permessi (chi la apre ha già una shell nel container);
+- **solo `https://`**: `http://`, `file://`, `ssh://` e `git@` sono rifiutati. Da Telegram mai percorsi locali;
+- **niente rete locale:** l'host dell'URL passa dallo stesso controllo di `/riassumi <link>` prima di qualsiasi
+  richiesta. Per lo zip il controllo si ripete a ogni redirect; per git vale sull'host iniziale, e da chat git gira
+  con i redirect HTTP disattivati e il solo protocollo https, così un URL pubblico che rimanda verso la rete interna
+  non passa;
+- **limiti:** zip scaricato al massimo 50 MB con timeout complessivo di 120 s, allegato Telegram al massimo
+  `MAX_UPLOAD_MB`, `git clone` con timeout di 120 s e senza richiesta di credenziali;
+- i file scaricati vanno in una cartella temporanea e vengono sempre cancellati;
+- ogni installazione e rimozione finisce nel log (INFO) con utente, canale, sorgente senza credenziali ed esito.
+
+> [!NOTE]
+> `./skills` è montata in lettura e scrittura, quindi **anche il codice generato dal bot potrebbe scriverci**.
+> Il codice gira solo dopo la tua conferma a ogni esecuzione e già oggi può scrivere in `data/` (database
+> compreso). Se non usi l'installazione da chat, puoi rimettere `:ro` al mount di `./skills` nel compose.
 
 ## Privacy
 
@@ -70,6 +90,7 @@ dell'estrazione).
 ## Checklist di hardening
 
 - [ ] Tieni `TELEGRAM_ALLOWED_USER_IDS` al minimo e `ALLOW_ALL_USERS=false`.
+- [ ] Metti in `ADMIN_USER_IDS` solo chi può cambiare le skill, oppure lascia la chiave vuota.
 - [ ] Usa token API lunghi e casuali, uno per client.
 - [ ] Lascia `API_BIND=127.0.0.1`, oppure abilita TLS (`API_SSL_CERTFILE`/`API_SSL_KEYFILE`) o un reverse proxy.
 - [ ] Non fare mai commit di `.env` (è in `.gitignore`).

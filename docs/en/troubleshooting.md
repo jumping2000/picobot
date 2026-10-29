@@ -15,6 +15,7 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 | `API_TOKENS non configurato: API disattivata.` (warning) | API without tokens | Set `API_TOKENS` or ignore |
 | `API esposta senza TLS...` (warning) | API on a non-local address without certificates | Set `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
 | `PermissionError` on `/app/data` or `/app/workspace` | Host folders not writable by UID 1000 | `sudo chown -R 1000 data workspace` |
+| `Non posso scrivere nella cartella delle skill...` (from `/skill_add` or `/skill_remove`) | `./skills` not writable by UID 1000, or the mount is still `:ro` in the compose file | `sudo chown -R 1000 skills`; if the compose file still has `:ro`, remove it and run `docker compose up -d` again |
 
 ## Telegram
 
@@ -48,6 +49,8 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 | `Skill '<name>' ignorata: ...` | Run `uv run picobot skills validate`; folder name must equal `name` in `SKILL.md` |
 | A new skill is not seen | It is reloaded at the next request; check that it is in `./skills` on the host |
 | `skill '<name>' gia' installata: usa --force` | Add `--force` to replace it |
+| `Solo un amministratore può installare o rimuovere skill.` | Put your id in `ADMIN_USER_IDS` (`.env`) and restart; with the key empty the commands are off |
+| `il repository risponde con un redirect...` | From chat, git does not follow HTTP redirects: use the repository's current URL (for example `github.com` without `www.`) |
 | `MCP: server '<name>' non disponibile, salto` | Check command/URL; try it by hand inside the container; restart after changes |
 | `MCP: config non valida` | Invalid JSON in `config/mcp_config.json` |
 

@@ -33,13 +33,13 @@ Regole di validazione:
 - il nome della cartella deve essere uguale a `name` e rispettare `^[a-z0-9-]{1,64}$`;
 - `description` non deve essere vuota;
 - le cartelle che iniziano con `.` o `_` sono ignorate;
-- la CLI di amministrazione rifiuta anche symlink e skill oltre 50 MB.
+- la CLI di amministrazione (e i comandi da chat) rifiutano anche symlink e skill oltre 50 MB.
 
 Le cartelle non valide vengono saltate e registrate nel log (`Skill '<nome>' ignorata: <motivo>`).
 
 ## Installare e rimuovere
 
-**A mano:** copia la cartella in `./skills/` (montata in sola lettura su `/app/skills`); cancellala per
+**A mano:** copia la cartella in `./skills/` (montata su `/app/skills`); cancellala per
 disinstallare. Il bot vede la modifica alla **richiesta successiva, senza riavvio**.
 
 **CLI di amministrazione** (sull'host; fa tutti i controlli e installa in modo atomico):
@@ -59,7 +59,50 @@ Cartella di default: `SKILLS_DIR` se esiste, altrimenti `./skills`. La sorgente 
 in un'unica sottocartella.
 
 > [!NOTE]
-> Le skill non si installano da chat né da API. Su Telegram e nella CLI `/skills` si limita a elencarle.
+> Le skill non si installano dall'API. Da Telegram e dalla chat CLI vedi la sezione seguente.
+
+## Da Telegram e dalla chat CLI
+
+| Canale | Comando | Sorgente |
+|---|---|---|
+| Telegram | `/skill_add <url>` | URL `https://` che finisce in `.zip` (prima di `?` e `#`, maiuscole comprese): zip scaricato. Ogni altro URL `https://`: repository git |
+| Telegram | allegato `.zip` con didascalia `/skill_add` | lo zip allegato (al massimo `MAX_UPLOAD_MB`) |
+| Chat CLI | `/skill_add <percorso o url>` | percorso locale (cartella o `.zip`), oppure un URL come sopra |
+| Entrambi | `/skill_remove <nome>` | — |
+
+- **Solo gli amministratori.** Su Telegram serve l'id in `ADMIN_USER_IDS` (in `.env`, vedi
+  [Configurazione](configuration.md)); con la chiave vuota i comandi sono spenti, e `ALLOW_ALL_USERS=true` non rende
+  admin nessuno. Gli altri utenti ricevono un rifiuto. Nella chat CLI i comandi sono sempre permessi: chi apre la
+  CLI ha già una shell nel container.
+- **Percorsi locali solo dalla CLI.** Da Telegram sono accettati solo URL o allegati, e solo `https://`.
+- **Esito.** Il bot risponde con nome e descrizione della skill, le dipendenze dichiarate (`requirements.txt`,
+  `package.json`, `apt.txt`) e un avviso se contiene `scripts/`. La skill è attiva dalla richiesta successiva.
+- **Skill già presente.** Il bot chiede se sostituirla: bottoni Sì/No su Telegram, `[y/N]` nella CLI. Senza risposta
+  entro `CONFIRM_TIMEOUT_S` non sostituisce nulla.
+- **Dipendenze.** Da chat il bot le **segnala** ma non le installa: sull'host lancia
+  `uv run picobot skills deps --write` e ricostruisci l'immagine (vedi [Dipendenze](#dipendenze-punti-di-estensione)).
+- **Log.** Ogni installazione e rimozione, riuscita o fallita, finisce nel log a livello INFO con utente, canale,
+  sorgente (senza credenziali né query) ed esito.
+
+Limiti:
+
+- niente link a una sottocartella di un repository (`github.com/<org>/<repo>/tree/<ramo>/<percorso>`) né repository
+  con più skill: `SKILL.md` deve stare alla radice o in un'unica sottocartella;
+- niente repository privati né credenziali git (il clone non chiede mai username o password);
+- da chat git non segue i redirect HTTP: un URL che risponde con un redirect (per esempio `www.github.com` al posto
+  di `github.com`) fallisce e il bot chiede l'URL attuale. Un repository GitHub rinominato o trasferito si clona
+  comunque;
+- zip scaricato al massimo 50 MB, con timeout complessivo di 120 s; `git clone` con timeout di 120 s;
+- gli host in rete locale o privata sono rifiutati (vedi [Sicurezza](security.md#installazione-delle-skill)).
+
+Se il bot risponde che non può scrivere nella cartella delle skill, sull'host: `sudo chown -R 1000 skills`.
+
+> [!IMPORTANT]
+> **Aggiornando da una versione precedente**, `./skills` era montata in sola lettura. Ora il compose la monta in
+> lettura e scrittura e l'utente del container (UID 1000) deve poterci scrivere: `sudo chown -R 1000 skills`.
+> Se il tuo utente sull'host ha UID 1000 (il primo utente di una tipica installazione Linux), copiare cartelle in
+> `./skills` e usare `picobot skills add` continuano a funzionare come prima; con un altro UID servono `sudo`
+> oppure i comandi da chat. Docker Desktop su Mac e Windows non è interessato.
 
 ## Come le usano gli agenti
 

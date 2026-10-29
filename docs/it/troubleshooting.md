@@ -14,6 +14,7 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 | `API_TOKENS non configurato: API disattivata.` (avviso) | API senza token | Imposta `API_TOKENS` o ignora |
 | `API esposta senza TLS...` (avviso) | API su indirizzo non locale senza certificati | Imposta `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
 | `PermissionError` su `/app/data` o `/app/workspace` | Cartelle dell'host non scrivibili da UID 1000 | `sudo chown -R 1000 data workspace` |
+| `Non posso scrivere nella cartella delle skill...` (da `/skill_add` o `/skill_remove`) | `./skills` non scrivibile da UID 1000, o mount rimasto `:ro` nel compose | `sudo chown -R 1000 skills`; se il compose ha ancora `:ro`, toglilo e rilancia `docker compose up -d` |
 
 ## Telegram
 
@@ -47,6 +48,8 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 | `Skill '<nome>' ignorata: ...` | Lancia `uv run picobot skills validate`; il nome della cartella deve essere uguale a `name` in `SKILL.md` |
 | Una nuova skill non viene vista | Si ricarica alla richiesta successiva; controlla che sia in `./skills` sull'host |
 | `skill '<nome>' gia' installata: usa --force` | Aggiungi `--force` per sostituirla |
+| `Solo un amministratore può installare o rimuovere skill.` | Metti il tuo id in `ADMIN_USER_IDS` (`.env`) e riavvia; con la chiave vuota i comandi sono spenti |
+| `il repository risponde con un redirect...` | Da chat git non segue i redirect HTTP: usa l'URL attuale del repository (per esempio `github.com` senza `www.`) |
 | `MCP: server '<nome>' non disponibile, salto` | Controlla comando/URL; provalo a mano nel container; riavvia dopo le modifiche |
 | `MCP: config non valida` | JSON non valido in `config/mcp_config.json` |
 

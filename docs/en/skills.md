@@ -33,13 +33,13 @@ Validation rules:
 - the folder name must equal `name` and match `^[a-z0-9-]{1,64}$`;
 - `description` must be non-empty;
 - folders starting with `.` or `_` are ignored;
-- the admin CLI also rejects symlinks and skills larger than 50 MB.
+- the admin CLI (and the chat commands) also reject symlinks and skills larger than 50 MB.
 
 Invalid folders are skipped and logged (`Skill '<name>' ignorata: <reason>`).
 
 ## Installing and removing
 
-**Manual:** copy the folder into `./skills/` (mounted read-only at `/app/skills`); delete it to uninstall.
+**Manual:** copy the folder into `./skills/` (mounted at `/app/skills`); delete it to uninstall.
 The bot picks up the change at the **next request, without restart**.
 
 **Admin CLI** (on the host; checks everything and installs atomically):
@@ -59,7 +59,52 @@ Default folder: `SKILLS_DIR` if it exists, otherwise `./skills`. The source may 
 a single subfolder.
 
 > [!NOTE]
-> Skills cannot be installed from chat or from the API. On Telegram and in the CLI, `/skills` only lists them.
+> Skills cannot be installed from the API. For Telegram and the CLI chat see the next section.
+
+## From Telegram and the CLI chat
+
+| Channel | Command | Source |
+|---|---|---|
+| Telegram | `/skill_add <url>` | `https://` URL ending in `.zip` (before `?` and `#`, case-insensitive): downloaded zip. Any other `https://` URL: git repository |
+| Telegram | `.zip` attachment with caption `/skill_add` | the attached zip (at most `MAX_UPLOAD_MB`) |
+| CLI chat | `/skill_add <path or url>` | local path (folder or `.zip`), or a URL as above |
+| Both | `/skill_remove <name>` | — |
+
+- **Admins only.** On Telegram your id must be in `ADMIN_USER_IDS` (in `.env`, see
+  [Configuration](configuration.md)); with the key empty the commands are off, and `ALLOW_ALL_USERS=true` makes
+  nobody an admin. Other users are refused. In the CLI chat the commands are always allowed: whoever opens the CLI
+  already has a shell in the container.
+- **Local paths only from the CLI.** Telegram accepts only URLs or attachments, and only `https://`.
+- **Result.** The bot replies with the skill's name and description, the declared dependencies
+  (`requirements.txt`, `package.json`, `apt.txt`) and a warning if it contains `scripts/`. The skill is active from
+  the next request.
+- **Skill already present.** The bot asks whether to replace it: Yes/No buttons on Telegram, `[y/N]` in the CLI. No
+  answer within `CONFIRM_TIMEOUT_S` replaces nothing.
+- **Dependencies.** From chat the bot **reports** them but does not install them: on the host run
+  `uv run picobot skills deps --write` and rebuild the image (see
+  [Dependencies](#dependencies-extension-points)).
+- **Log.** Every install and removal, successful or failed, is logged at INFO level with user, channel, source
+  (credentials and query stripped) and outcome.
+
+Limits:
+
+- no links to a subfolder of a repository (`github.com/<org>/<repo>/tree/<branch>/<path>`) and no repositories with
+  several skills: `SKILL.md` must be at the root or in a single subfolder;
+- no private repositories or git credentials (the clone never asks for a username or password);
+- from chat, git does not follow HTTP redirects: a URL that answers with a redirect (for example `www.github.com`
+  instead of `github.com`) fails and the bot asks for the current URL. A renamed or transferred GitHub repository
+  still clones fine;
+- downloaded zip at most 50 MB, with an overall 120 s timeout; `git clone` with a 120 s timeout;
+- hosts on local or private networks are rejected (see [Security](security.md#skill-installation)).
+
+If the bot says it cannot write to the skills folder, run on the host: `sudo chown -R 1000 skills`.
+
+> [!IMPORTANT]
+> **When upgrading from an earlier version**, `./skills` used to be mounted read-only. The compose file now mounts it
+> read-write, and the container user (UID 1000) must be able to write to it: `sudo chown -R 1000 skills`.
+> If your host user has UID 1000 (the first user of a typical Linux install), copying folders into `./skills` and
+> using `picobot skills add` keep working as before; with another UID you need `sudo`, or the chat commands. Docker
+> Desktop on Mac and Windows is not affected.
 
 ## How agents use them
 

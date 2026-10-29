@@ -22,6 +22,7 @@ Source of truth: [`src/picobot/config.py`](../../src/picobot/config.py). Boolean
 | `TELEGRAM_BOT_TOKEN` | — | Bot token. Empty = Telegram disabled |
 | `TELEGRAM_ALLOWED_USER_IDS` | — | Comma-separated numeric IDs. Empty = **nobody** (the bot refuses to start) |
 | `ALLOW_ALL_USERS` | `false` | Authorizes every Telegram user. Avoid on a public bot |
+| `ADMIN_USER_IDS` | — | Comma-separated numeric ids allowed to install/remove skills from chat (`/skill_add`, `/skill_remove`). Empty = commands off; `ALLOW_ALL_USERS=true` makes nobody an admin |
 
 ## REST API
 

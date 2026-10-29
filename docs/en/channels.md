@@ -21,7 +21,9 @@ Available on Telegram and in the CLI.
 | `/schedule <cron> \| <request>` | Create a recurring task, e.g. `/schedule 0 8 * * 1-5 \| AAPL and MSFT quotes` |
 | `/schedules` | List your scheduled tasks |
 | `/unschedule <id>` | Delete a task |
-| `/skills` | Installed skills (read-only) |
+| `/skills` | Installed skills |
+| `/skill_add <link>` | Install a skill from an `https://` URL (zip or git repository); admins only. On Telegram also a `.zip` attachment with caption `/skill_add`; in the CLI also a local path. See [skills.md](skills.md#from-telegram-and-the-cli-chat) |
+| `/skill_remove <name>` | Remove a skill; admins only |
 | `/trace` | Path of your last request: teams, agents, tools and results (with `TRACE_ENABLED=true`) |
 
 CLI only:
