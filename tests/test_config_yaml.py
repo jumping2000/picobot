@@ -150,3 +150,17 @@ def test_blocks_cover_all_fields():
 def test_init_kwargs_beat_yaml(yaml_cfg):
     yaml_cfg("memory:\n  history_runs: 10\n")
     assert Settings(history_runs=2).history_runs == 2
+
+
+def test_cli_exits_with_message(tmp_path):
+    """Un config.yaml sbagliato blocca l'avvio con un messaggio, senza traceback."""
+    import os
+    import subprocess
+    import sys
+
+    (tmp_path / "config").mkdir()
+    (tmp_path / "config" / "config.yaml").write_text("memory:\n  histroy_runs: 1\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, "-m", "picobot", "skills", "list"], cwd=tmp_path,
+                       capture_output=True, text=True, env={**os.environ})
+    assert r.returncode != 0
+    assert "memory.histroy_runs" in r.stderr and "Traceback" not in r.stderr

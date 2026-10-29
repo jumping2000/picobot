@@ -3,13 +3,20 @@ import asyncio
 import logging
 import sys
 
-from .config import get_settings
+from .config import ConfigError, Settings, get_settings
+
+
+def _settings() -> Settings:
+    try:
+        return get_settings()
+    except ConfigError as e:   # config.yaml sbagliato: messaggio, non traceback
+        sys.exit(f"Configurazione non valida: {e}")
 
 
 def main() -> None:
     if sys.argv[1:2] == ["skills"]:   # amministrazione skill: non serve una chiave LLM
         from .skills_cli import main_skills
-        sys.exit(main_skills(sys.argv[2:], get_settings()))
+        sys.exit(main_skills(sys.argv[2:], _settings()))
     p = argparse.ArgumentParser(prog="picobot")
     sub = p.add_subparsers(dest="cmd", required=True)
     sv = sub.add_parser("serve", help="Telegram + API + scheduler")
@@ -24,7 +31,7 @@ def main() -> None:
     for noisy in ("httpx", "httpx2", "httpcore", "apscheduler"):
         logging.getLogger(noisy).setLevel(logging.WARNING)   # il token Telegram e' nell'URL
 
-    s = get_settings()
+    s = _settings()
     if not s.api_key:
         sys.exit("OPENROUTER_API_KEY (o OPENAI_API_KEY) non configurata.")
 
