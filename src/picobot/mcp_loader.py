@@ -6,30 +6,15 @@ I segreti restano in .env: nel JSON si scrivono come ${NOME} (valore da .env o d
 import json
 import logging
 import os
-import re
 import shlex
 from pathlib import Path
 
 from agno.tools.mcp import MCPTools
 from dotenv import dotenv_values
 
+from .config import expand_vars as _expand
+
 logger = logging.getLogger(__name__)
-_VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
-
-
-def _expand(value, env: dict):
-    """Sostituisce ${NOME} in tutte le stringhe della config di un server."""
-    if isinstance(value, str):
-        def sub(m: re.Match) -> str:
-            if env.get(m.group(1)) is None:
-                raise ValueError(f"variabile d'ambiente {m.group(1)} non definita")
-            return env[m.group(1)]
-        return _VAR.sub(sub, value)
-    if isinstance(value, list):
-        return [_expand(v, env) for v in value]
-    if isinstance(value, dict):
-        return {k: _expand(v, env) for k, v in value.items()}
-    return value
 
 
 async def load_mcp_tools(path: Path) -> list[MCPTools]:

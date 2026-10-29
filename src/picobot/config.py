@@ -1,9 +1,117 @@
-"""Configurazione centralizzata (env / .env) validata con pydantic-settings."""
+"""Configurazione centralizzata validata con pydantic-settings.
+
+Precedenza, dal piu' forte: argomenti di Settings(...), ambiente, .env, config/config.yaml (a blocchi), default.
+"""
+import logging
+import os
+import re
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+import yaml
+from dotenv import dotenv_values
+from pydantic import Field, TypeAdapter, ValidationError
+from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
+
+logger = logging.getLogger(__name__)
+
+CONFIG_FILE = Path("config/config.yaml")   # relativo alla cartella di lavoro (/app nel container)
+
+# solo in .env: nello YAML sono un errore
+ENV_ONLY = frozenset({
+    "openrouter_api_key", "openai_api_key", "openrouter_base_url", "llm_model_id", "llm_strong_model_id",
+    "telegram_bot_token", "telegram_allowed_user_ids", "api_tokens", "cli_user_id", "admin_user_ids",
+})
+
+BLOCKS: dict[str, tuple[str, ...]] = {
+    "telegram": ("allow_all_users",),
+    "paths": ("data_dir", "workspace_dir", "mcp_config_path"),
+    "memory": ("history_runs", "enable_memory", "enable_learning", "enable_session_summaries", "enable_critic",
+               "team_max_iterations"),
+    "web": ("region",),
+    "code": ("code_timeout_s", "code_max_output", "confirm_timeout_s", "code_node_mem_mb", "code_max_runs",
+             "node_path"),
+    "outputs": ("max_output_mb", "max_output_files", "output_extensions", "outbox_ttl_h"),
+    "trace": ("trace_enabled", "trace_max_mb"),
+    "skills": ("enable_skills", "skills_dir", "skills_list_max", "skills_router_hint_max"),
+    "documents": ("max_upload_mb", "doc_chunk_chars", "doc_max_chars"),
+    "voice": ("stt_url", "stt_timeout_s", "max_voice_s"),
+    "scheduler": ("timezone", "schedule_min_interval_min", "max_schedules_per_user"),
+    "api": ("api_enabled", "api_host", "api_port", "api_ssl_certfile", "api_ssl_keyfile"),
+}
+
+
+class ConfigError(ValueError):
+    """config.yaml sbagliato: il bot non parte."""
+
+
+_VAR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+def expand_vars(value, env: dict):
+    """Sostituisce ${NOME} in tutte le stringhe (config dei server MCP e config.yaml)."""
+    if isinstance(value, str):
+        def sub(m: re.Match) -> str:
+            if env.get(m.group(1)) is None:
+                raise ValueError(f"variabile d'ambiente {m.group(1)} non definita")
+            return env[m.group(1)]
+        return _VAR.sub(sub, value)
+    if isinstance(value, list):
+        return [expand_vars(v, env) for v in value]
+    if isinstance(value, dict):
+        return {k: expand_vars(v, env) for k, v in value.items()}
+    return value
+
+
+class YamlBlocksSource(PydanticBaseSettingsSource):
+    """Appiattisce i blocchi di config.yaml nei campi di Settings, con errori che nominano blocco.chiave."""
+
+    def get_field_value(self, field, field_name):
+        return None, field_name, False
+
+    def __call__(self) -> dict[str, Any]:
+        path = CONFIG_FILE
+        if not path.exists():
+            return {}
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))   # -sig: file salvati su Windows con BOM
+        except yaml.YAMLError as e:
+            raise ConfigError(f"{path}: YAML non valido: {e}") from None
+        if data is None:
+            return {}
+        if not isinstance(data, dict):
+            raise ConfigError(f"{path}: la radice deve contenere blocchi (telegram:, memory:, ...)")
+        env = {**{k: v for k, v in dotenv_values(".env").items() if v is not None}, **os.environ}
+        defined = {k.lower() for k in env}   # pydantic-settings non distingue le maiuscole
+        owner = {f: b for b, fields in BLOCKS.items() for f in fields}
+        out: dict[str, Any] = {}
+        for block, keys in data.items():
+            if block not in BLOCKS:
+                raise ConfigError(f"{path}: {block}: blocco sconosciuto")
+            if keys is None:   # blocco con tutte le chiavi commentate
+                continue
+            if not isinstance(keys, dict):
+                raise ConfigError(f"{path}: {block}: deve contenere chiavi")
+            for key, value in keys.items():
+                where = f"{path}: {block}.{key}"
+                if key in ENV_ONLY:
+                    raise ConfigError(f"{where}: va in .env come {key.upper()}")
+                if key not in BLOCKS[block]:
+                    raise ConfigError(f"{where}: chiave del blocco '{owner[key]}'" if key in owner
+                                      else f"{where}: chiave sconosciuta")
+                try:
+                    value = expand_vars(value, env)
+                except ValueError as e:
+                    raise ConfigError(f"{where}: {e}") from None
+                try:
+                    TypeAdapter(self.settings_cls.model_fields[key].annotation).validate_python(value)
+                except ValidationError as e:
+                    raise ConfigError(f"{where}: {e.errors()[0]['msg']}") from None
+                if key in defined:
+                    logger.warning("%s (ambiente/.env) prevale su %s.%s (%s)", key.upper(), block, key, path)
+                out[key] = value
+        return out
 
 
 class Settings(BaseSettings):
@@ -86,6 +194,11 @@ class Settings(BaseSettings):
     api_ssl_certfile: str = ""   # opzionale: HTTPS diretto (uvicorn), senza reverse proxy
     api_ssl_keyfile: str = ""
     api_tokens: str = ""   # CSV "token:user_id" (user_id = id Telegram per condividere la memoria)
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings,
+                                   file_secret_settings):
+        return init_settings, env_settings, dotenv_settings, YamlBlocksSource(settings_cls), file_secret_settings
 
     @property
     def api_key(self) -> str:
