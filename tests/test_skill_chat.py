@@ -3,6 +3,8 @@ import asyncio
 import errno
 import io
 import logging
+import shutil
+import subprocess
 import zipfile
 from pathlib import Path
 
@@ -277,4 +279,32 @@ def test_cli_local_paths_reach_install(svc, net, monkeypatch, source):
 
     monkeypatch.setattr(svc, "install_skill", spy)
     assert "sorgente non trovata" in run_add(svc, source, allow_local=True)
-    assert calls == [Path(source)]
+    assert calls == [Path(source).resolve()] and calls[0].is_absolute()
+
+
+@pytest.mark.parametrize("source", ["./--upload-pack=x y.git", ".//-c x=y r.git", "./host:o/r.git",
+                                    ".\\--upload-pack=x.git"])
+def test_cli_dot_slash_bypass(svc, net, monkeypatch, source):  # R10: Path toglie "./"
+    seen, cmds = [], []
+    orig_install = svc.install_skill
+
+    async def spy(path, *, force):
+        seen.append(path)
+        return await orig_install(path, force=force)
+
+    def fake_run(cmd, **kw):
+        cmds.append(cmd)
+        return subprocess.CompletedProcess(cmd, 128, "", "fatal: x")
+
+    monkeypatch.setattr(svc, "install_skill", spy)
+    monkeypatch.setattr(shutil, "which", lambda _: "git")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    text = run_add(svc, source, allow_local=True)
+    assert len(seen) == 1 and seen[0].is_absolute() and not str(seen[0]).startswith("-")
+    assert net["events"] == []
+    # il percorso finisce in .git: arriva a git, ma assoluto e dopo "--"
+    assert "git clone fallito" in text and len(cmds) == 1
+    cmd = cmds[0]
+    src = cmd[cmd.index("--") + 1]
+    assert src == str(seen[0]) and Path(src).is_absolute() and not src.startswith("-")
+    assert cmd.index("clone") < cmd.index("--")

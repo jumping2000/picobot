@@ -68,7 +68,8 @@ def _fetch(source: str, work: Path, *, strict_git: bool = False) -> Path:
                   "-c", "protocol.https.allow=always"] if strict_git else [])
         env = {**os.environ, "GIT_TERMINAL_PROMPT": "0"}
         try:
-            r = subprocess.run(["git", *flags, "clone", "--depth", "1", "--quiet", source, str(work / "repo")],
+            # "--": la sorgente non viene mai letta come opzione di git (--upload-pack=...)
+            r = subprocess.run(["git", *flags, "clone", "--depth", "1", "--quiet", "--", source, str(work / "repo")],
                                capture_output=True, text=True, env=env, timeout=GIT_TIMEOUT_S)
         except subprocess.TimeoutExpired as e:
             raise SkillInstallError(

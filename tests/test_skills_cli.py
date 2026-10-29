@@ -213,6 +213,19 @@ def test_git_strict_flags(monkeypatch, tmp_path, d):
     assert c["env"]["GIT_TERMINAL_PROMPT"] == "0" and c["timeout"] == 120
 
 
+@pytest.mark.parametrize("strict", [True, False])
+def test_git_clone_double_dash_before_source(monkeypatch, tmp_path, d, strict):
+    calls = []
+    _fake_git(monkeypatch, calls)
+    with pytest.raises(SkillInstallError):
+        install("https://h/r.git", d, strict_git=strict)
+    cmd = calls[-1]["cmd"]
+    i = cmd.index("--")
+    assert cmd[i + 1] == "https://h/r.git" and len(cmd) == i + 3
+    assert cmd.index("clone") < i
+    assert all(cmd.index(x) < cmd.index("clone") for x in cmd if x == "-c")
+
+
 def test_git_redirect_message(monkeypatch, tmp_path, d):
     _fake_git(
         monkeypatch, [], stderr="fatal: unable to update url base from redirection"

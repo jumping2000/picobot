@@ -146,7 +146,8 @@ class PicoBotService:
             # git li leggerebbe come opzione (--upload-pack=...) o come host ssh (host:org/repo.git)
             raise skills_cli.SkillInstallError("Solo link https:// o percorsi locali")
         else:
-            yield Path(source).expanduser()
+            # assoluto: Path toglie "./" iniziale, e "./--opz" o "./host:r.git" tornerebbero opzione o ssh per git
+            yield await asyncio.to_thread(lambda: Path(source).expanduser().resolve())
             return
         tmp = Path(await asyncio.to_thread(tempfile.mkdtemp, prefix="picobot-skill-"))
         try:
