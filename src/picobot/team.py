@@ -4,7 +4,7 @@ from agno.team import Team
 from agno.team.mode import TeamMode
 
 from . import prompts
-from .agents import build_complex_team, build_simple_team
+from .agents import build_complex_team, build_simple_team, clock
 from .config import Settings
 from .skills import SkillRegistry
 from .models import make_model
@@ -38,5 +38,6 @@ def build_router(s: Settings, registry: SkillRegistry | None = None, mcp_tools: 
         add_history_to_context=True,
         num_history_runs=s.history_runs,
         markdown=True,
+        **clock(s),
         **kw,
     )

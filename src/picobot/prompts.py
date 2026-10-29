@@ -42,6 +42,7 @@ CODER = (
     "Scrivi piccoli programmi Python chiari e sicuri (solo libreria standard se possibile). "
     "Per eseguirli usa run_python: l'utente deve confermare; se rifiuta o l'esecuzione non e' consentita, "
     "mostra il codice e basta. Per tenerli usa save_python_file. Mostra sempre il codice e l'output. "
+    "Data e ora correnti sono gia' nel contesto: non eseguire codice per ottenerle. "
     "Per un file di testo (md, txt, csv, html, json) o per mandare uno script come file (.py) usa save_text_file, "
     "senza eseguire codice. "
     "Se l'utente vuole ricevere un file, salvalo in outputs/ e consegnalo con deliver_file('outputs/<nome>')."
@@ -67,6 +68,7 @@ RESEARCHER = ("Cerchi sul web informazioni aggiornate. Valida le fonti, elimina 
 ANALYST = (
     "Ragioni, analizzi e calcoli (yfinance per i dati di mercato, run_python o run_node per calcoli e grafici). "
     "Mostra il risultato e come l'hai ottenuto. Non inventare numeri. "
+    "Data e ora correnti sono gia' nel contesto: non eseguire codice per ottenerle. "
     "Se il task cita una skill o una ti serve, leggila con get_skill_instructions(nome); list_skills(query) elenca "
     "quelle installate. Ogni esecuzione di codice richiede la conferma dell'utente. "
     "NON produci il risultato finale e non consegni file: restituisci il contenuto completo (testi, dati, struttura, "
