@@ -161,6 +161,75 @@ def test_overall_time_limit(monkeypatch):     # un server che manda un byte ogni
         asyncio.run(web.fetch_article("https://blog.example/a", transport=httpx.MockTransport(slow)))
 
 
+def fetch_file(url, handler, max_bytes=1024, peer="93.184.215.14"):
+    def with_peer(req):
+        r = handler(req)
+        if peer:
+            r.extensions["network_stream"] = PeerStream(peer)
+        return r
+    return asyncio.run(web.fetch_bytes(url, max_bytes=max_bytes, transport=httpx.MockTransport(with_peer)))
+
+
+def test_fetch_bytes_returns_body():
+    body = b"PK\x03\x04 contenuto dello zip"
+    got = fetch_file("https://example.org/s.zip",
+                     lambda r: httpx.Response(200, content=body, headers={"content-type": "application/zip"}))
+    assert got == body
+
+
+def test_fetch_bytes_too_big():
+    with pytest.raises(DocumentError, match="File troppo grande"):
+        fetch_file("https://example.org/s.zip", lambda r: httpx.Response(200, content=b"x" * 11), max_bytes=10)
+
+
+def test_fetch_bytes_http_error_talks_about_the_file():
+    with pytest.raises(DocumentError, match="scaricare il file.*404"):
+        fetch_file("https://example.org/s.zip", lambda r: httpx.Response(404))
+
+
+def test_fetch_bytes_overall_time_limit(monkeypatch):
+    monkeypatch.setattr(web, "FILE_TIMEOUT_S", 0.2)
+
+    async def slow(req):
+        await asyncio.sleep(5)
+        return httpx.Response(200, content=b"x")
+    with pytest.raises(DocumentError, match="il file"):
+        asyncio.run(web.fetch_bytes("https://example.org/s.zip", max_bytes=10, transport=httpx.MockTransport(slow)))
+
+
+@pytest.mark.parametrize("url", ["https://localhost/x.zip", "https://intranet.local/x.zip"])
+def test_fetch_bytes_private_refused(url):
+    seen = []
+    with pytest.raises(DocumentError, match="non consentito"):
+        fetch_file(url, lambda r: seen.append(r) or httpx.Response(200, content=b"x"))
+    assert seen == []
+
+
+def test_fetch_bytes_redirect_to_private_refused():
+    seen = []
+
+    def h(req):
+        seen.append(str(req.url))
+        return httpx.Response(302, headers={"location": "https://intranet.local/x.zip"})
+    with pytest.raises(DocumentError, match="non consentito"):
+        fetch_file("https://pubblico.example/x.zip", h)
+    assert seen == ["https://pubblico.example/x.zip"]
+
+
+def test_fetch_bytes_peer_on_private_ip_refused():     # DNS rebinding: il nome sembrava pubblico
+    with pytest.raises(DocumentError, match="non consentito"):
+        fetch_file("https://example.org/s.zip", lambda r: httpx.Response(200, content=b"x"), peer="10.0.0.9")
+
+
+def test_check_public_url():
+    asyncio.run(web.check_public_url("https://example.org/r.git"))
+    for url in ("https://localhost/r.git", "https://192.168.1.10/r.git"):
+        with pytest.raises(DocumentError, match="non consentito"):
+            asyncio.run(web.check_public_url(url))
+    with pytest.raises(DocumentError, match="Link non valido"):
+        asyncio.run(web.check_public_url("git@github.com:o/r.git"))
+
+
 def test_charset_declared_only_in_meta_tag():
     page = ARTICLE.replace("<head>", '<head><meta charset="windows-1252">').replace(
         "first idea", "first idea, perché la città cambia")
