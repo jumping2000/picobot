@@ -120,7 +120,10 @@ async def _download(target: httpx.URL, transport: httpx.AsyncBaseTransport | Non
                     if not _via_proxy(target) and not _landed_on_public_ip(r):   # prima di leggere qualsiasi cosa
                         raise DocumentError("Indirizzo non consentito (rete locale o privata).")
                     if r.is_redirect and r.headers.get("location"):
-                        target = target.join(r.headers["location"])
+                        try:
+                            target = target.join(r.headers["location"])
+                        except (httpx.InvalidURL, UnicodeError):   # Location malformata: non e' un HTTPError
+                            raise DocumentError("Link non valido (redirect).") from None
                         continue
                     if r.status_code >= 400:
                         raise DocumentError(f"Impossibile scaricare {what} (HTTP {r.status_code}).")

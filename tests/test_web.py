@@ -216,6 +216,16 @@ def test_fetch_bytes_redirect_to_private_refused():
     assert seen == ["https://pubblico.example/x.zip"]
 
 
+@pytest.mark.parametrize("location", ["http://[::1/x", "https://a.b:abc/x"])
+def test_malformed_redirect_location_is_a_document_error(location):
+    def h(req):
+        return httpx.Response(302, headers={"location": location})
+    with pytest.raises(DocumentError, match="Link non valido|Impossibile scaricare"):
+        fetch_file("https://example.org/s.zip", h)
+    with pytest.raises(DocumentError, match="Link non valido|Impossibile scaricare"):
+        fetch("https://blog.example/a", h)
+
+
 def test_fetch_bytes_peer_on_private_ip_refused():     # DNS rebinding: il nome sembrava pubblico
     with pytest.raises(DocumentError, match="non consentito"):
         fetch_file("https://example.org/s.zip", lambda r: httpx.Response(200, content=b"x"), peer="10.0.0.9")
