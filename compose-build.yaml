@@ -5,7 +5,7 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "${API_BIND:-127.0.0.1}:8000:8000"   # API_BIND=0.0.0.0 per esporla (abilita TLS: vedi .env)
+      - "${API_BIND:-127.0.0.1}:8000:8000"   # API_BIND=0.0.0.0 per esporla (abilita TLS: blocco api di config/config.yaml)
     volumes:
       - ./data:/app/data            # DB SQLite, stato Telegram
       - ./workspace:/app/workspace  # file e script dell'agente (unico posto dove gira il codice generato)
@@ -17,7 +17,7 @@ services:
     # CLI:  docker compose exec -it picobot python -m picobot cli
 
   # Trascrizione dei messaggi vocali (opzionale): parte solo con il profilo "stt".
-  # prima volta: mkdir -p models && sudo chown -R 1000 models; in .env STT_URL=http://stt:8000
+  # prima volta: mkdir -p models && sudo chown -R 1000 models; in config/config.yaml voice.stt_url: http://stt:8000
   # avvio:       docker compose --profile stt up -d --build
   stt:
     build: ./stt

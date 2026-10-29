@@ -65,13 +65,13 @@ Nothing reaches the router when the transcript is missing or unreliable.
 
 ## Configuration
 
-PicoBot (`.env`):
+PicoBot (`voice` block of `config/config.yaml`; the variable names still work in `.env`):
 
-| Variable | Default | Description |
-|---|---|---|
-| `STT_URL` | *(empty = off)* | e.g. `http://stt:8000` |
-| `STT_TIMEOUT_S` | `180` | Max wait for a transcript |
-| `MAX_VOICE_S` | `300` | Max duration, checked before downloading |
+| Key | Variable | Default | Description |
+|---|---|---|---|
+| `voice.stt_url` | `STT_URL` | *(empty = off)* | e.g. `http://stt:8000` |
+| `voice.stt_timeout_s` | `STT_TIMEOUT_S` | `180` | Max wait for a transcript |
+| `voice.max_voice_s` | `MAX_VOICE_S` | `300` | Max duration, checked before downloading |
 
 `stt` container (set them in `.env`; the compose file passes them to the container):
 

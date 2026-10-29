@@ -65,13 +65,13 @@ Al router non arriva nulla se la trascrizione manca o non è affidabile.
 
 ## Configurazione
 
-PicoBot (`.env`):
+PicoBot (blocco `voice` di `config/config.yaml`; i nomi delle variabili valgono ancora in `.env`):
 
-| Variabile | Default | Descrizione |
-|---|---|---|
-| `STT_URL` | *(vuoto = spento)* | es. `http://stt:8000` |
-| `STT_TIMEOUT_S` | `180` | Attesa massima della trascrizione |
-| `MAX_VOICE_S` | `300` | Durata massima, controllata prima del download |
+| Chiave | Variabile | Default | Descrizione |
+|---|---|---|---|
+| `voice.stt_url` | `STT_URL` | *(vuoto = spento)* | es. `http://stt:8000` |
+| `voice.stt_timeout_s` | `STT_TIMEOUT_S` | `180` | Attesa massima della trascrizione |
+| `voice.max_voice_s` | `MAX_VOICE_S` | `300` | Durata massima, controllata prima del download |
 
 Container `stt` (impostale in `.env`; il compose le passa al container):
 

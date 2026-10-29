@@ -5,6 +5,7 @@ Precedenza, dal piu' forte: argomenti di Settings(...), ambiente, .env, config/c
 import logging
 import os
 import re
+from collections.abc import Hashable
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,21 @@ def expand_vars(value, env: dict):
     return value
 
 
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Come safe_load, ma un blocco o una chiave ripetuti sono un errore (PyYAML terrebbe l'ultimo in silenzio)."""
+
+    def construct_mapping(self, node, deep=False):
+        seen = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, Hashable):   # lo segnala gia' SafeLoader
+                continue
+            if key in seen:
+                raise yaml.constructor.ConstructorError(None, None, f"chiave ripetuta: {key}", key_node.start_mark)
+            seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
 class YamlBlocksSource(PydanticBaseSettingsSource):
     """Appiattisce i blocchi di config.yaml nei campi di Settings, con errori che nominano blocco.chiave."""
 
@@ -75,7 +91,11 @@ class YamlBlocksSource(PydanticBaseSettingsSource):
         if not path.exists():
             return {}
         try:
-            data = yaml.safe_load(path.read_text(encoding="utf-8-sig"))   # -sig: file salvati su Windows con BOM
+            text = path.read_text(encoding="utf-8-sig")   # -sig: file salvati su Windows con BOM
+        except (OSError, UnicodeDecodeError) as e:      # es. salvato in ANSI con un accento
+            raise ConfigError(f"{path}: file illeggibile (serve UTF-8): {e}") from None
+        try:
+            data = yaml.load(text, Loader=_UniqueKeyLoader)
         except yaml.YAMLError as e:
             raise ConfigError(f"{path}: YAML non valido: {e}") from None
         if data is None:

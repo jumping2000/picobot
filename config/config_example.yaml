@@ -1,5 +1,6 @@
 # Configurazione di PicoBot: copia questo file in config/config.yaml e cambia solo cio' che ti serve.
 # Le chiavi qui sotto hanno i default del codice: copiarlo cosi' com'e' non cambia il comportamento.
+# Le chiavi commentate le fissa il Dockerfile: servono solo fuori da Docker (togli il # per cambiarle).
 #
 # - .env e le variabili d'ambiente vincono su questo file: se HISTORY_RUNS e' in .env, memory.history_runs qui
 #   non ha effetto (il log lo segnala). Per spostare un parametro qui, togli la riga da .env.
@@ -12,8 +13,8 @@ telegram:
   allow_all_users: false            # true = chiunque puo' usare il bot (sconsigliato); non rende admin nessuno
 
 paths:
-  data_dir: /app/data               # DB, stato Telegram (NON visibile al codice generato). Nell'immagine Docker la fissa il Dockerfile (/app/data): qui non ha effetto
-  workspace_dir: /app/workspace     # file di lavoro dell'agente. Nell'immagine Docker la fissa il Dockerfile (/app/workspace): qui non ha effetto
+  # data_dir: /app/data             # DB, stato Telegram (NON visibile al codice generato). Nell'immagine Docker la fissa il Dockerfile (/app/data): qui non ha effetto
+  # workspace_dir: /app/workspace   # file di lavoro dell'agente. Nell'immagine Docker la fissa il Dockerfile (/app/workspace): qui non ha effetto
   mcp_config_path: /app/config/mcp_config.json
 
 memory:                             # sessione, memoria e costi
@@ -33,7 +34,7 @@ code:                               # codice generato
   confirm_timeout_s: 120            # secondi per confermare un'esecuzione o una sostituzione
   code_node_mem_mb: 1536            # pptxgenjs va in abort sotto 1 GB
   code_max_runs: 6                  # esecuzioni approvate per richiesta
-  node_path: ""                     # NODE_PATH per gli script Node. Nell'immagine Docker la fissa il Dockerfile (/usr/local/lib/node_modules): qui non ha effetto
+  # node_path: ""                   # NODE_PATH per gli script Node. Nell'immagine Docker la fissa il Dockerfile (/usr/local/lib/node_modules): qui non ha effetto
 
 outputs:                            # file in uscita
   max_output_mb: 20
@@ -47,7 +48,7 @@ trace:
 
 skills:                             # skill del ComplexTeam
   enable_skills: true
-  skills_dir: /app/skills           # sull'host la CLI usa ./skills. Nell'immagine Docker la fissa il Dockerfile (/app/skills): qui non ha effetto
+  # skills_dir: /app/skills         # sull'host la CLI usa ./skills. Nell'immagine Docker la fissa il Dockerfile (/app/skills): qui non ha effetto
   skills_list_max: 50
   skills_router_hint_max: 15
 
@@ -70,7 +71,7 @@ scheduler:
 
 api:
   api_enabled: true
-  api_host: 127.0.0.1               # nell'immagine Docker la fissa il Dockerfile (0.0.0.0): qui non ha effetto
+  # api_host: 127.0.0.1             # nell'immagine Docker la fissa il Dockerfile (0.0.0.0): qui non ha effetto
   api_port: 8000
   # HTTPS diretto (senza reverse proxy). Senza TLS il token viaggia in chiaro se esponi l'API.
   # Cert di prova: openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 365 -subj "/CN=host"

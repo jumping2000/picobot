@@ -182,7 +182,11 @@ def test_example_matches_defaults(monkeypatch, tmp_path):
     s = Settings()
     assert {f: getattr(s, f) for f in fields} == {f: Settings.model_fields[f].default for f in fields}
     data = yaml.safe_load(example.read_text(encoding="utf-8"))
-    assert {k for block in data.values() for k in block} == set(fields)
+    assert {k for block in data.values() for k in block} == set(fields) - DOCKER_FIXED
+    assert all(f"# {k}:" in example.read_text(encoding="utf-8") for k in DOCKER_FIXED)   # commentate, con la nota
+
+
+DOCKER_FIXED = {"data_dir", "workspace_dir", "skills_dir", "api_host", "node_path"}   # ENV del Dockerfile
 
 
 def test_env_example_only_env_keys():
@@ -190,3 +194,44 @@ def test_env_example_only_env_keys():
     active = [l.split("=", 1)[0] for l in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
               if re.match(r"^[A-Z_]+=", l)]
     assert active and [k for k in active if k.lower() not in ENV_ONLY] == []
+
+
+def test_undecodable_file_is_config_error(yaml_cfg, tmp_path):
+    """Un config.yaml salvato in ANSI (cp1252) con un accento: errore che nomina il file, non traceback."""
+    yaml_cfg("web:\n  region: us-en\n")
+    (tmp_path / "config.yaml").write_bytes("# perché\nweb:\n  region: us-en\n".encode("cp1252"))
+    with pytest.raises(ConfigError, match="config.yaml"):
+        Settings()
+
+
+def test_duplicate_block_or_key_is_config_error(yaml_cfg):
+    yaml_cfg("memory:\n  enable_critic: false\nmemory:\n  history_runs: 9\n")
+    with pytest.raises(ConfigError, match="memory"):
+        Settings()
+    yaml_cfg("memory:\n  history_runs: 9\n  history_runs: 10\n")
+    with pytest.raises(ConfigError, match="history_runs"):
+        Settings()
+
+
+def test_example_in_docker_gives_no_warnings(monkeypatch, tmp_path, caplog):
+    """Nel container il Dockerfile fissa percorsi, API_HOST e NODE_PATH: copiare l'esempio non deve dare avvisi."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(picobot.config, "CONFIG_FILE", ROOT / "config" / "config_example.yaml")
+    monkeypatch.setenv("DATA_DIR", "/app/data")
+    monkeypatch.setenv("WORKSPACE_DIR", "/app/workspace")
+    monkeypatch.setenv("SKILLS_DIR", "/app/skills")
+    monkeypatch.setenv("API_HOST", "0.0.0.0")
+    monkeypatch.setenv("NODE_PATH", "/usr/local/lib/node_modules")
+    for f in [f for fs in BLOCKS.values() for f in fs]:
+        if f.upper() not in ("DATA_DIR", "WORKSPACE_DIR", "SKILLS_DIR", "API_HOST", "NODE_PATH"):
+            monkeypatch.delenv(f.upper(), raising=False)
+    with caplog.at_level(logging.WARNING, logger="picobot.config"):
+        Settings()
+    assert "prevale" not in caplog.text
+
+
+def test_python_tags_rejected(yaml_cfg):
+    """Il loader resta sicuro: niente oggetti Python dal file."""
+    yaml_cfg("web:\n  region: !!python/object/apply:os.getcwd []\n")
+    with pytest.raises(ConfigError, match="YAML non valido"):
+        Settings()
