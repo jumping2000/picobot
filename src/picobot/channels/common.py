@@ -1,7 +1,22 @@
-"""Logica condivisa dai canali (testo help, parsing /schedule, split messaggi)."""
+"""Logica condivisa dai canali (testo help, parsing /schedule, split messaggi, skill da chat)."""
+import asyncio
+import errno
+import logging
+from collections.abc import Awaitable, Callable
+
+from .. import skills_cli
 from ..config import Settings
 from ..scheduler import format_schedules  # noqa: F401  (re-export per i canali)
+from ..skills import SkillInfo
 from ..trace import format_trace, last_trace
+
+logger = logging.getLogger(__name__)
+
+SKILL_ADMIN_ONLY = "Solo un amministratore può installare o rimuovere skill."
+SKILL_ADMIN_OFF = SKILL_ADMIN_ONLY + " Comandi disattivati: imposta ADMIN_USER_IDS in .env."
+SKILL_DIR_READONLY = ("Non posso scrivere nella cartella delle skill. Sull'host: sudo chown -R 1000 skills e, "
+                      "se serve, togli :ro dal mount di ./skills nel compose.")
+_READONLY_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS}
 
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
@@ -62,3 +77,63 @@ def format_memory_report(r) -> str:
     if r.entities:
         parts.append("Entita':\n" + "\n".join(f"- {n} ({t}): {d}" if d else f"- {n} ({t})" for n, t, d in r.entities))
     return "\n\n".join(parts) if parts else "Non ho memorie su di te."
+
+
+def skill_installed_text(info: SkillInfo, deps: dict[str, list[str]]) -> str:
+    """Esito di /skill_add: stesso contenuto di skills_cli._print_info, adattato alla chat."""
+    lines = [f"Installata: {info.name}", info.description, f"File: {info.files}"]
+    if any(deps.values()):
+        lines.append("Dipendenze dichiarate: sull'host aggiungile con `picobot skills deps --write` "
+                     "e ricostruisci l'immagine.")
+        lines += [f"- {kind}: {', '.join(deps[kind])}" for kind in skills_cli.KINDS if deps[kind]]
+    if info.has_scripts:
+        lines.append("Attenzione: contiene scripts/. Il bot non li esegue direttamente: l'Analyst puo' usarli "
+                     "come riferimento e ogni esecuzione di codice richiede la tua conferma.")
+    return "\n".join(lines)
+
+
+def _skill_error_text(e: Exception, generic: str) -> str:
+    # permessi della cartella: diretti o come causa di una SkillInstallError
+    if any(isinstance(x, OSError) and x.errno in _READONLY_ERRNOS for x in (e, e.__cause__)):
+        return SKILL_DIR_READONLY
+    if isinstance(e, skills_cli.SkillInstallError):
+        return str(e)
+    logger.exception(generic)
+    return generic
+
+
+async def add_skill_flow(service, source: str, *, allow_local: bool, ask: Callable[[str], Awaitable[bool]],
+                         user: str, channel: str) -> str:
+    """Installa una skill da chat (solo admin: lo controlla il canale). Ritorna sempre il testo, non solleva."""
+    try:
+        async with service.fetched_skill(source, allow_local=allow_local) as path:
+            try:
+                info = await service.install_skill(path, force=False)
+            except skills_cli.SkillExistsError as e:
+                existing = e.name
+                # stessa copia locale per il secondo tentativo: niente doppio download
+                ok = await ask(f"La skill '{existing}' è già installata. Sostituirla?")
+                info = await service.install_skill(path, force=True) if ok else None
+        if info is None:
+            text, outcome = f"Skill '{existing}' non sostituita.", f"non sostituita {existing}"
+        else:
+            deps = await asyncio.to_thread(skills_cli._skill_deps, service.s.skills_dir / info.name)
+            text, outcome = skill_installed_text(info, deps), f"installata {info.name}"
+    except Exception as e:  # noqa: BLE001  il canale riceve sempre un testo
+        text = _skill_error_text(e, "Installazione fallita.")
+        outcome = f"errore: {text}"
+    logger.info("skill_add utente=%s canale=%s sorgente=%s esito=%s", user, channel, source, outcome)
+    return text
+
+
+async def remove_skill_flow(service, name: str, *, user: str, channel: str) -> str:
+    """Rimuove una skill da chat (solo admin: lo controlla il canale). Ritorna sempre il testo, non solleva."""
+    name = name.strip()
+    try:
+        await service.remove_skill(name)
+        text, outcome = f"Rimossa: {name}", "rimossa"
+    except Exception as e:  # noqa: BLE001
+        text = _skill_error_text(e, "Rimozione fallita.")
+        outcome = f"errore: {text}"
+    logger.info("skill_remove utente=%s canale=%s nome=%s esito=%s", user, channel, name, outcome)
+    return text

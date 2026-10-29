@@ -1,9 +1,15 @@
 """Facciata async verso router, workflow documenti e scheduler: i canali non toccano Agno."""
+import asyncio
 import dataclasses
 import logging
+import shutil
+import tempfile
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 import time
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from agno.models.message import Message
 from agno.run.base import RunStatus
@@ -12,8 +18,10 @@ from agno.session import TeamSession
 from agno.team import Team
 from agno.workflow import Workflow
 
+from . import skills_cli, web
 from .config import Settings
 from .context import Reply, RunCtx, reset_ctx, set_ctx
+from .documents import DocumentError
 from .mcp_loader import close_mcp_tools, load_mcp_tools
 from .scheduler import Scheduler
 from .prompts import router_instructions
@@ -116,6 +124,46 @@ class PicoBotService:
     def skill_info(self) -> list[SkillInfo]:
         self.registry.refresh()
         return self.registry.info()
+
+    @asynccontextmanager
+    async def fetched_skill(self, source: str, *, allow_local: bool) -> AsyncIterator[Path]:
+        """Sorgente di una skill da chat -> percorso locale (cartella o .zip). La cartella temporanea sparisce sempre.
+
+        Solo https:// (zip scaricato o repository git); percorsi locali solo con allow_local (chat CLI).
+        """
+        source = source.strip()
+        low = source.lower()
+        if "://" in source or low.startswith("git@"):
+            if not low.startswith("https://"):
+                raise skills_cli.SkillInstallError("Solo link https://")
+        elif not allow_local:
+            raise skills_cli.SkillInstallError(
+                "Da Telegram manda un link https:// o allega uno .zip con didascalia /skill_add")
+        else:
+            yield Path(source).expanduser()
+            return
+        tmp = Path(await asyncio.to_thread(tempfile.mkdtemp, prefix="picobot-skill-"))
+        try:
+            try:
+                if urlsplit(source).path.lower().endswith(".zip"):
+                    data = await web.fetch_bytes(source, max_bytes=skills_cli.MAX_SKILL_BYTES)
+                    path = tmp / "skill.zip"
+                    await asyncio.to_thread(path.write_bytes, data)
+                else:
+                    await web.check_public_url(source)   # host pubblico prima di qualsiasi richiesta di git
+                    url = "https://" + source[len("https://"):]   # _fetch riconosce solo lo schema minuscolo
+                    path = await asyncio.to_thread(skills_cli._fetch, url, tmp, strict_git=True)
+            except DocumentError as e:
+                raise skills_cli.SkillInstallError(str(e)) from e
+            yield path
+        finally:
+            await asyncio.to_thread(shutil.rmtree, tmp, ignore_errors=True)
+
+    async def install_skill(self, path: Path, *, force: bool) -> SkillInfo:
+        return await asyncio.to_thread(skills_cli.install, str(path), self.s.skills_dir, force)
+
+    async def remove_skill(self, name: str) -> None:
+        await asyncio.to_thread(skills_cli.remove, name, self.s.skills_dir)
 
     async def _ask_text(self, text: str, *, user_id: str, session_id: str, ctx: RunCtx | None = None) -> str:
         """Solo testo: usata dallo scheduler (gli schedule non producono file)."""

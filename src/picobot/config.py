@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_allowed_user_ids: str = ""   # CSV; vuoto = nessuno (fail-closed)
     allow_all_users: bool = False
+    admin_user_ids: str = ""              # CSV; vuoto = /skill_add e /skill_remove spenti (fail-closed)
 
     # --- LLM ---
     openrouter_api_key: str = Field(default="", validation_alias="OPENROUTER_API_KEY")
@@ -93,6 +94,10 @@ class Settings(BaseSettings):
     @property
     def allowed_ids(self) -> set[int]:
         return {int(x) for x in self.telegram_allowed_user_ids.split(",") if x.strip()}
+
+    @property
+    def admin_ids(self) -> set[int]:
+        return {int(x) for x in self.admin_user_ids.split(",") if x.strip()}
 
     @property
     def database_file(self) -> Path:
