@@ -4,6 +4,21 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.7.4] - 2026-10-29
+
+### Fixed
+
+- Finance and Analyst no longer guess the Yahoo symbols of market indices. Before, "how is Piazza Affari doing"
+  tried `^FTMIE` and `FTSE.MI` (both not found) one after another. Their instructions now list the symbols of the
+  main indices (FTSE MIB is `FTSEMIB.MI`), the exchange suffixes for non-US stocks, and tell them to say so when a
+  ticker is not found instead of trying others.
+- Web searches no longer fail at random with "No results found". Before, each search asked several engines at
+  once, Wikipedia and Grokipedia always first and the others in random order, and most of them answer without
+  results; whether it worked depended on DuckDuckGo being picked in time. Now Web and Researcher ask one engine at
+  a time and move to the next only when the previous one finds nothing: DuckDuckGo, Yahoo, Startpage, Mojeek for
+  the web; DuckDuckGo, Bing, Yahoo for news. When none finds anything the agent gets a message instead of an
+  error. Brave (always rate limited) and the two encyclopedias are no longer used.
+
 ## [0.7.3] - 2026-10-29
 
 ### Fixed

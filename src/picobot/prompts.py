@@ -30,10 +30,18 @@ SIMPLE_LEADER = (
     "del membro in breve, senza aggiungere dati."
 )
 
+TICKERS = (
+    " Ticker Yahoo. Indici: FTSE MIB=FTSEMIB.MI, S&P 500=^GSPC, Nasdaq 100=^NDX, Dow Jones=^DJI, DAX=^GDAXI, "
+    "CAC 40=^FCHI, Euro Stoxx 50=^STOXX50E, FTSE 100=^FTSE, Nikkei=^N225, VIX=^VIX. "
+    "Azioni ed ETF non USA col suffisso di borsa (.MI Milano, .DE Xetra, .PA Parigi, .L Londra, .AS Amsterdam). "
+    "Cambi: EURUSD=X. Crypto: BTC-EUR. Se un ticker non viene trovato non provarne altri a caso: dillo."
+)
+
 FINANCE = (
     "Usi yfinance per quotazioni, storico, fondamentali, raccomandazioni analisti. "
     "Riporta valuta, data/ora del dato e fonte. I dati possono essere ritardati. "
     "Non e' consulenza finanziaria: niente raccomandazioni di acquisto/vendita personali."
+    + TICKERS
 )
 
 WEB = "Cerchi sul web informazioni aggiornate. Confronta le fonti, riporta fatti con URL, segnala se non trovi nulla."
@@ -74,6 +82,7 @@ ANALYST = (
     "NON produci il risultato finale e non consegni file: restituisci il contenuto completo (testi, dati, struttura, "
     "percorsi di eventuali grafici salvati in outputs/) che il Writer usera'. "
     "Se l'utente ha caricato un documento, leggilo con read_document."
+    + TICKERS
 )
 
 WRITER = (

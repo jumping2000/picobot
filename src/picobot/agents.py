@@ -2,7 +2,6 @@
 from agno.agent import Agent
 from agno.team import Team
 from agno.team.mode import TeamMode
-from agno.tools.websearch import WebSearchTools
 from agno.tools.yfinance import YFinanceTools
 
 from . import prompts
@@ -13,6 +12,7 @@ from .storage import make_learning_view
 from .tools.documents import make_read_tools
 from .tools.files import make_file_tools, make_text_tools
 from .tools.sandbox import make_code_tools, make_node_tools
+from .tools.websearch import make_web_tools
 
 
 def _yf() -> YFinanceTools:
@@ -23,11 +23,6 @@ def _yf() -> YFinanceTools:
         enable_analyst_recommendations=True,
         enable_company_news=True,
     )
-
-
-def _web(s: Settings) -> WebSearchTools:
-    # "auto": ddgs ruota tra piu' motori, cosi' un blocco di DuckDuckGo (403/202) non azzera la ricerca
-    return WebSearchTools(backend="auto", region=s.region)
 
 
 def clock(s: Settings) -> dict:
@@ -53,7 +48,7 @@ def build_web(s: Settings) -> Agent:
     return Agent(
         name="Web",
         role="Cerca informazioni e notizie aggiornate sul web.",
-        model=make_model(s), tools=[_web(s)], instructions=[prompts.WEB], **clock(s),
+        model=make_model(s), tools=make_web_tools(s), instructions=[prompts.WEB], **clock(s),
     )
 
 
@@ -88,7 +83,7 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
     read = make_read_tools(s)
     members = [
         Agent(name="Researcher", role="Ricerca web approfondita con fonti.", model=strong(),
-              tools=[_web(s), *mcp], skills=skills, instructions=[prompts.RESEARCHER], **clock(s)),
+              tools=[*make_web_tools(s), *mcp], skills=skills, instructions=[prompts.RESEARCHER], **clock(s)),
         Agent(name="Analyst", role="Ragiona, analizza e calcola (dati di mercato, codice, grafici); passa il materiale al Writer.",
               model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *read, *mcp],
               skills=skills, instructions=[prompts.ANALYST], **clock(s)),

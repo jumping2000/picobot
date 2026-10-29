@@ -104,6 +104,27 @@ def test_every_agent_and_team_knows_current_date(s):
     assert all("non eseguire codice per ottenerle" in p for p in (prompts.CODER, prompts.ANALYST))
 
 
+def test_yfinance_agents_know_index_tickers(s):
+    """Senza elenco il modello inventa i simboli degli indici (^FTMIE, FTSE.MI -> 404)."""
+    from agno.tools.yfinance import YFinanceTools
+
+    r = build_router(s, SkillRegistry(s), doc_flow=build_doc_workflow(s))
+    yf = [n for n in _tree(r) if any(isinstance(t, YFinanceTools) for t in n.tools or [])]
+    assert [n.name for n in yf] == ["Finance", "Analyst"]
+    assert all("FTSE MIB=FTSEMIB.MI" in " ".join(n.instructions) for n in yf)
+
+
+def test_web_agents_search_one_engine_at_a_time(s):
+    """Web e Researcher usano la ricerca a cascata, non WebSearchTools (motori in parallelo, ordine casuale)."""
+    from agno.tools.websearch import WebSearchTools
+
+    r = build_router(s, SkillRegistry(s), doc_flow=build_doc_workflow(s))
+    web = [n for n in _tree(r) if "web_search" in names(n)]
+    assert [n.name for n in web] == ["Web", "Researcher"]
+    assert all("search_news" in names(n) for n in web)
+    assert not [n.name for n in _tree(r) if any(isinstance(t, WebSearchTools) for t in n.tools or [])]
+
+
 def test_every_model_call_sees_todays_date(svc):
     ask(svc, "cerca le notizie di oggi su Stellantis", "dt")
     today = datetime.now(ZoneInfo(svc.s.timezone)).strftime("%Y-%m-%d")
