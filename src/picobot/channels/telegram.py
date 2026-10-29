@@ -22,10 +22,16 @@ from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..stt import SttError, transcribe
 from ..web import is_url
-from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, split_text, trace_text
+from .common import (
+    HELP, SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY, add_skill_flow, format_memory_report, format_schedules,
+    parse_schedule_args, remove_skill_flow, split_text, trace_text,
+)
 
 logger = logging.getLogger(__name__)
 _RIASSUMI_USAGE = "Uso: /riassumi <link> [istruzioni], oppure rispondi a un documento con /riassumi (o usalo come didascalia)."
+
+_SKILL_ADD_USAGE = ("Uso: /skill_add <link https:// di uno .zip o di un repository git>, "
+                    "oppure allega uno .zip con didascalia /skill_add.")
 
 # estensione del file audio scaricato quando manca il nome (mimetypes da' ".oga" per audio/ogg, niente per wav)
 _AUDIO_EXT = {"audio/ogg": ".ogg", "audio/opus": ".ogg", "audio/mpeg": ".mp3", "audio/mp4": ".m4a",
@@ -61,6 +67,19 @@ class TelegramGateway:
         if not ok:
             logger.warning("Accesso negato: user_id=%s", user.id)
         return ok
+
+    def is_admin(self, update: Update) -> bool:
+        """Autorizzato e in ADMIN_USER_IDS (con ALLOW_ALL_USERS=true e lista vuota nessuno e' admin)."""
+        return self.authorized(update) and update.effective_user.id in self.s.admin_ids
+
+    async def _skill_gate(self, update: Update) -> bool:
+        """True se l'utente puo' gestire le skill; altrimenti risponde (agli autorizzati) e ritorna False."""
+        if not self.authorized(update):
+            return False
+        if self.is_admin(update):
+            return True
+        await update.message.reply_text(SKILL_ADMIN_ONLY if self.s.admin_ids else SKILL_ADMIN_OFF)
+        return False
 
     @staticmethod
     def session_id(ctx: ContextTypes.DEFAULT_TYPE, chat_id: int) -> str:
@@ -171,6 +190,51 @@ class TelegramGateway:
         info = self.service.skill_info()
         text = "\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata."
         await update.message.reply_text(text)
+
+    async def _skill_add(self, update, ctx, source: str, allow_local: bool) -> None:
+        chat_id, uid = update.effective_chat.id, update.effective_user.id
+        text = await self._with_typing(ctx, chat_id, add_skill_flow(
+            self.service, source, allow_local=allow_local, user=str(uid), channel="telegram",
+            ask=lambda q: self.ask_yes_no(ctx.bot, chat_id, uid, q)))
+        await send_safe(update, text)   # il testo ha backtick: Markdown, con ripiego su testo semplice
+
+    async def on_skill_add(self, update, ctx):
+        if not await self._skill_gate(update):
+            return
+        source = " ".join(ctx.args or []).strip()
+        if not source:
+            return await update.message.reply_text(_SKILL_ADD_USAGE)
+        await self._skill_add(update, ctx, source, allow_local=False)   # da Telegram mai percorsi locali
+
+    async def on_skill_remove(self, update, ctx):
+        if not await self._skill_gate(update):
+            return
+        name = " ".join(ctx.args or []).strip()
+        if not name:
+            return await update.message.reply_text("Uso: /skill_remove <nome>")
+        await update.message.reply_text(await remove_skill_flow(
+            self.service, name, user=str(update.effective_user.id), channel="telegram"))
+
+    async def _skill_from_attachment(self, update, ctx, doc) -> None:
+        """Zip allegato con didascalia /skill_add: scaricato in inbox, installato, cancellato sempre."""
+        if not await self._skill_gate(update):
+            return
+        if Path(doc.file_name or "").suffix.lower() != ".zip":
+            return await update.message.reply_text(_SKILL_ADD_USAGE)
+        if (doc.file_size or 0) > self.s.max_upload_mb * 1024 * 1024:
+            return await update.message.reply_text(f"File troppo grande (max {self.s.max_upload_mb} MB).")
+        inbox = self.s.data_dir / "inbox"
+        inbox.mkdir(parents=True, exist_ok=True)
+        path = inbox / f"{uuid.uuid4().hex}.zip"
+        try:
+            try:
+                await (await doc.get_file()).download_to_drive(custom_path=path)
+            except Exception:
+                logger.exception("Download dello zip della skill fallito")
+                return await update.message.reply_text("Impossibile scaricare il file, riprova.")
+            await self._skill_add(update, ctx, str(path), allow_local=True)   # lo zip e' quello scaricato dal bot
+        finally:
+            path.unlink(missing_ok=True)
 
     async def on_schedules(self, update, ctx):
         if self.authorized(update):
@@ -344,6 +408,9 @@ class TelegramGateway:
         if not self.authorized(update) or not update.message or not update.message.document:
             return
         doc, caption = update.message.document, (update.message.caption or "").strip()
+        words = caption.lower().split(maxsplit=1)
+        if words and words[0].partition("@")[0] == "/skill_add":   # anche /skill_add@NomeBot
+            return await self._skill_from_attachment(update, ctx, doc)
         if (getattr(doc, "mime_type", None) or "").startswith("audio/"):   # file audio inviato come documento
             return await self._transcribe_and_ask(update, ctx, doc, caption)
         if caption.lower().startswith("/riassumi"):           # richiamo esplicito del workflow
@@ -384,6 +451,8 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("schedule", gw.on_schedule))
     app.add_handler(CommandHandler("schedules", gw.on_schedules))
     app.add_handler(CommandHandler("skills", gw.on_skills))
+    app.add_handler(CommandHandler("skill_add", gw.on_skill_add))
+    app.add_handler(CommandHandler("skill_remove", gw.on_skill_remove))
     app.add_handler(CommandHandler("simple", gw.on_simple))
     app.add_handler(CommandHandler("complex", gw.on_complex))
     app.add_handler(CommandHandler("riassumi", gw.on_riassumi))

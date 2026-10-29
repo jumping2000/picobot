@@ -9,7 +9,9 @@ from ..documents import DocumentError
 from ..scheduler import ScheduleError
 from ..service import PicoBotService
 from ..web import is_url
-from .common import HELP, format_memory_report, format_schedules, parse_schedule_args, trace_text
+from .common import (
+    HELP, add_skill_flow, format_memory_report, format_schedules, parse_schedule_args, remove_skill_flow, trace_text,
+)
 
 CLI_HELP = (HELP
             .replace("Invia un messaggio vocale o un file audio: lo trascrivo e lo eseguo come un messaggio scritto.\n", "")
@@ -17,6 +19,9 @@ CLI_HELP = (HELP
                      "/file <percorso> [richiesta] - usa un documento (decide il router: riassunto o altro)")
             .replace("/riassumi [istruzioni] - riassunto diretto: come didascalia di un documento o in risposta a un documento",
                      "/riassumi <percorso> [istruzioni] - riassunto diretto di un documento")
+            .replace("/skill_add <link> | /skill_remove <nome> - installa o rimuove una skill "
+                     "(solo amministratori; o allega uno .zip con didascalia /skill_add)",
+                     "/skill_add <percorso o link> | /skill_remove <nome> - installa o rimuove una skill")
             + "\n/quit - esci")
 
 
@@ -34,13 +39,16 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
     uid = s.cli_user_id
     session = f"cli-{uuid.uuid4().hex[:8]}"
 
-    async def confirm(code: str, language: str) -> bool:
-        print(f"\n--- Codice da eseguire ({language}) ---\n{code}\n--------------------------")
+    async def ask_yes_no(question: str) -> bool:   # timeout o EOF = no
         try:
-            ans = await asyncio.wait_for(_ainput("Eseguire? [y/N] "), timeout=s.confirm_timeout_s)
+            ans = await asyncio.wait_for(_ainput(f"{question} [y/N] "), timeout=s.confirm_timeout_s)
         except (asyncio.TimeoutError, EOFError):
             return False
         return ans.strip().lower() in {"y", "yes", "s", "si"}
+
+    async def confirm(code: str, language: str) -> bool:
+        print(f"\n--- Codice da eseguire ({language}) ---\n{code}\n--------------------------")
+        return await ask_yes_no("Eseguire?")
 
     ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm)
     print(f"PicoBot CLI (utente '{uid}'). /help per i comandi.")
@@ -64,6 +72,17 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/skills":
                 info = service.skill_info()
                 print("\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata.")
+            elif cmd == "/skill_add":
+                if not arg.strip():
+                    print("Uso: /skill_add <cartella, .zip o link https://>")
+                    continue
+                print(await add_skill_flow(service, arg.strip(), allow_local=True, ask=ask_yes_no, user=uid,
+                                           channel="cli"))
+            elif cmd == "/skill_remove":
+                if not arg.strip():
+                    print("Uso: /skill_remove <nome>")
+                    continue
+                print(await remove_skill_flow(service, arg.strip(), user=uid, channel="cli"))
             elif cmd == "/memory":
                 print(format_memory_report(await service.memory_report(uid)))
             elif cmd == "/forget":

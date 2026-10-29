@@ -1,5 +1,6 @@
 """Canali: API (auth, endpoint), Telegram (auth, bottoni di conferma, documenti), CLI."""
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace as NS
 from unittest.mock import AsyncMock, MagicMock
 
@@ -496,6 +497,7 @@ def test_help_lists_new_commands():
     assert all(c in HELP for c in ("/simple", "/complex", "/riassumi"))
     assert all(c in CLI_HELP for c in ("/simple", "/complex", "/riassumi <percorso>", "/file <percorso>"))
     assert "/riassumi <link>" in HELP and "/riassumi <link>" in CLI_HELP   # pagine web su tutti i canali
+    assert "/skill_add" in HELP and "/skill_remove" in HELP and "/skill_add" in CLI_HELP and "/skill_remove" in CLI_HELP
 
 
 # ---------------- /memory e /forget completi (v0.5) ----------------
@@ -831,3 +833,148 @@ def test_api_summarize_url(fake_page, tmp_path):
         assert both.status_code == 422
         assert (await c.post("/v1/summarize", headers=A, data={"url": "ftp://x/y"})).status_code == 422
     with_api(t)
+
+
+# ---------------- /skill_add e /skill_remove (chat) ----------------
+def _skill_upd(replies, uid=1, **kw):
+    upd = _doc_update(replies, **kw)
+    upd.effective_user = NS(id=uid)
+    return upd
+
+
+def _args(*a):
+    c = _ctx(); c.args = list(a)
+    return c
+
+
+@pytest.fixture
+def flows(monkeypatch):
+    """add_skill_flow / remove_skill_flow finti nel gateway: registrano le chiamate."""
+    from picobot.channels import telegram as tg
+    calls = []
+    async def add(service, source, **kw):
+        kw["exists"] = Path(source).exists()
+        calls.append(("add", source, kw)); return "ADD-FATTO"
+    async def rem(service, name, **kw):
+        calls.append(("remove", name, kw)); return "REM-FATTO"
+    monkeypatch.setattr(tg, "add_skill_flow", add)
+    monkeypatch.setattr(tg, "remove_skill_flow", rem)
+    return calls
+
+
+def test_telegram_skill_add_permissions(flows):
+    from picobot.channels.common import SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY
+    def run(gw, uid, *args):
+        out = []
+        asyncio.run(gw.on_skill_add(_skill_upd(out, uid=uid, name=None, text="/skill_add"), _args(*args)))
+        return out
+    assert run(make_gw(admin_user_ids="1"), 3) == []                                  # non autorizzato: silenzio
+    assert run(make_gw(admin_user_ids=""), 1, "https://h/s.zip") == [SKILL_ADMIN_OFF]
+    assert run(make_gw(admin_user_ids="1"), 2, "https://h/s.zip") == [SKILL_ADMIN_ONLY]
+    assert run(make_gw(allow_all_users=True, admin_user_ids=""), 5, "https://h/s.zip") == [SKILL_ADMIN_OFF]
+    assert flows == []
+    assert run(make_gw(admin_user_ids="1"), 1, "https://h/s.zip") == ["ADD-FATTO"]
+    (name, source, kw), = flows
+    assert source == "https://h/s.zip" and kw["allow_local"] is False and kw["channel"] == "telegram" and kw["user"] == "1"
+    assert callable(kw["ask"])
+
+
+def test_telegram_skill_add_usage(flows):
+    out = []
+    asyncio.run(make_gw(admin_user_ids="1").on_skill_add(_skill_upd(out, name=None, text="/skill_add"), _args()))
+    assert len(out) == 1 and "/skill_add" in out[0] and ".zip" in out[0] and flows == []
+
+
+def test_telegram_skill_zip_attachment(flows, tmp_path):
+    from picobot.channels.common import SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY
+    async def t(caption, gw=None, name="s.zip", uid=1):
+        gw = gw or make_gw(admin_user_ids="1", data_dir=tmp_path / "data"); out = []
+        await gw.on_document(_skill_upd(out, uid=uid, name=name, caption=caption), _ctx())
+        return gw, out
+    gw, out = asyncio.run(t("/skill_add"))
+    (_, source, kw), = flows
+    assert out == ["ADD-FATTO"] and source.startswith(str(gw.s.data_dir / "inbox")) and source.endswith(".zip")
+    assert kw["allow_local"] is True and kw["exists"] is True and kw["channel"] == "telegram"
+    assert not Path(source).exists() and not list((gw.s.data_dir / "inbox").glob("*"))    # file cancellato
+    flows.clear()
+    _, out = asyncio.run(t("/skill_add@PicoBot"))
+    assert out == ["ADD-FATTO"] and len(flows) == 1
+    flows.clear()
+    _, out = asyncio.run(t(None))                                  # senza didascalia: come oggi
+    assert "Formato non supportato" in out[0] and flows == []
+    for admins, expected in (("", SKILL_ADMIN_OFF), ("1", SKILL_ADMIN_ONLY)):   # utente 2 non admin: niente download
+        gw = make_gw(admin_user_ids=admins, data_dir=tmp_path / "d2")
+        _, out = asyncio.run(t("/skill_add", gw=gw, uid=2))
+        assert out == [expected] and not (gw.s.data_dir / "inbox").exists()
+    assert flows == []
+
+
+def test_telegram_skill_caption_non_zip(flows, tmp_path):
+    async def t():
+        s = Settings(telegram_allowed_user_ids="1", admin_user_ids="1", data_dir=tmp_path / "data")
+        gw = TelegramGateway(s, PicoBotService(s)); await gw.service.start(); out = []
+        fake_llm.LOG.clear()
+        await gw.on_document(_skill_upd(out, name="a.pdf", caption="/skill_add"), _ctx())
+        return out
+    out = asyncio.run(t())
+    assert len(out) == 1 and ".zip" in out[0] and fake_llm.LOG == [] and flows == []
+
+
+def test_telegram_skill_zip_too_big(flows, tmp_path):
+    gw = make_gw(admin_user_ids="1", data_dir=tmp_path / "data"); out = []
+    upd = _skill_upd(out, name="s.zip", caption="/skill_add")
+    upd.message.document.file_size = gw.s.max_upload_mb * 1024 * 1024 + 1
+    asyncio.run(gw.on_document(upd, _ctx()))
+    assert "File troppo grande" in out[0] and flows == [] and not (gw.s.data_dir / "inbox").exists()
+
+
+def test_telegram_skill_remove(flows):
+    from picobot.channels.common import SKILL_ADMIN_ONLY
+    def run(uid, *args):
+        out = []
+        asyncio.run(make_gw(admin_user_ids="1").on_skill_remove(_skill_upd(out, uid=uid, name=None, text="/skill_remove"), _args(*args)))
+        return out
+    assert run(2, "docx") == [SKILL_ADMIN_ONLY] and flows == []
+    assert "/skill_remove" in run(1)[0] and flows == []
+    assert run(1, "docx") == ["REM-FATTO"]
+    (name, arg, kw), = flows
+    assert name == "remove" and arg == "docx" and kw == {"user": "1", "channel": "telegram"}
+
+
+def test_cli_skill_commands(monkeypatch, capsys, tmp_path):
+    src = tmp_path / "src" / "docx"
+    src.mkdir(parents=True)
+    (src / "SKILL.md").write_text("---\nname: docx\ndescription: Crea documenti Word\n---\n")
+    inputs = iter([f"/skill_add {src}", "/skills", "/skill_remove docx", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(skills_dir=tmp_path / "skills"); svc = PicoBotService(s); await svc.start()
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    out = capsys.readouterr().out
+    assert out.index("Installata: docx") < out.index("docx: Crea documenti Word") < out.index("Rimossa: docx")
+    assert not (tmp_path / "skills" / "docx").exists()
+
+
+def test_cli_skill_replace_asks_and_timeout_is_no(monkeypatch, capsys, tmp_path):
+    src = tmp_path / "src" / "docx"
+    src.mkdir(parents=True)
+    (src / "SKILL.md").write_text("---\nname: docx\ndescription: Nuova\n---\n")
+    root = tmp_path / "skills" / "docx"
+    root.mkdir(parents=True)
+    (root / "SKILL.md").write_text("---\nname: docx\ndescription: Vecchia\n---\n")
+    prompts = []
+    async def fake_input(prompt):
+        prompts.append(prompt)
+        if prompt.startswith(">"):
+            return next(lines)
+        raise EOFError
+    lines = iter([f"/skill_add {src}", "/quit"])
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(skills_dir=tmp_path / "skills"); svc = PicoBotService(s); await svc.start()
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    assert any("Sostituirla?" in p and p.endswith("[y/N] ") for p in prompts)
+    assert "non sostituita" in capsys.readouterr().out and "Vecchia" in (root / "SKILL.md").read_text()
