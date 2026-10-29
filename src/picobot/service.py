@@ -2,6 +2,7 @@
 import asyncio
 import dataclasses
 import logging
+import re
 import shutil
 import tempfile
 from collections.abc import AsyncIterator
@@ -36,6 +37,8 @@ logger = logging.getLogger(__name__)
 
 
 TARGETS = {"auto": None, "simple": "SimpleTeam", "complex": "ComplexTeam"}
+_SCP_LIKE = re.compile(r"^[^/\\]+:")          # sintassi scp di git (host:org/repo): ssh
+_WIN_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")   # C:\cartella, C:/cartella
 _PROFILE_META = {"user_id", "agent_id", "team_id", "created_at", "updated_at"}
 
 
@@ -139,6 +142,9 @@ class PicoBotService:
         elif not allow_local:
             raise skills_cli.SkillInstallError(
                 "Da Telegram manda un link https:// o allega uno .zip con didascalia /skill_add")
+        elif source.startswith("-") or (_SCP_LIKE.match(source) and not _WIN_DRIVE.match(source)):
+            # git li leggerebbe come opzione (--upload-pack=...) o come host ssh (host:org/repo.git)
+            raise skills_cli.SkillInstallError("Solo link https:// o percorsi locali")
         else:
             yield Path(source).expanduser()
             return

@@ -2,7 +2,9 @@
 import asyncio
 import errno
 import logging
+import re
 from collections.abc import Awaitable, Callable
+from urllib.parse import urlsplit
 
 from .. import skills_cli
 from ..config import Settings
@@ -17,6 +19,25 @@ SKILL_ADMIN_OFF = SKILL_ADMIN_ONLY + " Comandi disattivati: imposta ADMIN_USER_I
 SKILL_DIR_READONLY = ("Non posso scrivere nella cartella delle skill. Sull'host: sudo chown -R 1000 skills e, "
                       "se serve, togli :ro dal mount di ./skills nel compose.")
 _READONLY_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS}
+_LOG_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
+_LOG_USERINFO = re.compile(r"(?<=://)[^/?#@\s]+@")
+
+
+def _log_safe(text: str) -> str:
+    """Per il log: niente credenziali negli URL e caratteri di controllo visibili (niente righe di log false)."""
+    return _LOG_CTRL.sub(lambda m: m.group().encode("unicode_escape").decode("ascii"), _LOG_USERINFO.sub("", text))
+
+
+def _log_source(source: str) -> str:
+    """Sorgente per il log: di un URL solo schema://host[:porta]/percorso (niente utente, query e frammento)."""
+    s = source.strip()
+    if "://" in s:
+        try:
+            p = urlsplit(s)
+            s = f"{p.scheme}://{p.netloc.rpartition('@')[2]}{p.path}"
+        except ValueError:   # URL malformato (es. IPv6 non chiuso): si tagliano comunque query e frammento
+            s = re.split(r"[?#]", s, maxsplit=1)[0]
+    return _log_safe(s)
 
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
@@ -122,7 +143,8 @@ async def add_skill_flow(service, source: str, *, allow_local: bool, ask: Callab
     except Exception as e:  # noqa: BLE001  il canale riceve sempre un testo
         text = _skill_error_text(e, "Installazione fallita.")
         outcome = f"errore: {text}"
-    logger.info("skill_add utente=%s canale=%s sorgente=%s esito=%s", user, channel, source, outcome)
+    logger.info("skill_add utente=%s canale=%s sorgente=%s esito=%s", _log_safe(str(user)), channel,
+                _log_source(source), _log_safe(outcome))
     return text
 
 
@@ -135,5 +157,6 @@ async def remove_skill_flow(service, name: str, *, user: str, channel: str) -> s
     except Exception as e:  # noqa: BLE001
         text = _skill_error_text(e, "Rimozione fallita.")
         outcome = f"errore: {text}"
-    logger.info("skill_remove utente=%s canale=%s nome=%s esito=%s", user, channel, name, outcome)
+    logger.info("skill_remove utente=%s canale=%s nome=%s esito=%s", _log_safe(str(user)), channel,
+                _log_safe(name), _log_safe(outcome))
     return text

@@ -4,6 +4,7 @@ import errno
 import io
 import logging
 import zipfile
+from pathlib import Path
 
 import pytest
 
@@ -227,3 +228,53 @@ def test_remove_flow(svc, net, tmp_path, caplog):  # Review Focus 5
     lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith("skill_remove")]
     assert len(lines) == 3 and "utente=alice" in lines[0] and "canale=telegram" in lines[0]
     assert "esito=rimossa" in lines[0] and "esito=errore" in lines[1]
+
+
+def add_log_lines(caplog):
+    return [r.getMessage() for r in caplog.records if r.getMessage().startswith("skill_add")]
+
+
+def test_log_source_redacted(svc, net, git, caplog):  # R6
+    with caplog.at_level(logging.INFO):
+        run_add(svc, "https://user:TOKEN@github.com/o/r.git")
+        run_add(svc, "https://h.example:8443/s.zip?X-Amz-Signature=SEGRETO#frag")
+    text = "\n".join(add_log_lines(caplog))
+    assert "TOKEN" not in text and "user" not in text.replace("utente", "")
+    assert "SEGRETO" not in text and "frag" not in text
+    assert "sorgente=https://github.com/o/r.git " in text and "sorgente=https://h.example:8443/s.zip " in text
+    assert kinds(net, "git")[0][1] == "https://user:TOKEN@github.com/o/r.git"   # a git arriva intero
+
+
+def test_log_no_forged_lines(svc, net, caplog, monkeypatch):  # R9
+    with caplog.at_level(logging.INFO):
+        run_add(svc, "/tmp/x\nskill_add utente=admin esito=installata", allow_local=True)
+        asyncio.run(remove_skill_flow(svc, "a\r\nskill_remove finto", user="alice", channel="cli"))
+    lines = [r.getMessage() for r in caplog.records if r.getMessage().startswith(("skill_add", "skill_remove"))]
+    assert len(lines) == 2 and all("\n" not in m and "\r" not in m for m in lines)
+    assert "\\n" in lines[0] and "\\r\\n" in lines[1]
+
+
+@pytest.mark.parametrize("source", ["host:o/r.git", "git@h:o/r.git", "--upload-pack=x y.git", "-c x=y r.git"])
+def test_cli_rejects_ssh_and_options(svc, net, git, monkeypatch, source):  # R8
+    calls = []
+
+    async def spy(path, *, force):
+        calls.append(path)
+
+    monkeypatch.setattr(svc, "install_skill", spy)
+    assert "Solo link https://" in run_add(svc, source, allow_local=True)
+    assert net["events"] == [] and calls == []
+    assert not svc.s.skills_dir.exists()
+
+
+@pytest.mark.parametrize("source", ["C:\\x\\skill", "C:/x/skill", "rel/dir:x"])
+def test_cli_local_paths_reach_install(svc, net, monkeypatch, source):
+    calls = []
+
+    async def spy(path, *, force):
+        calls.append(path)
+        raise SkillInstallError("sorgente non trovata: x")
+
+    monkeypatch.setattr(svc, "install_skill", spy)
+    assert "sorgente non trovata" in run_add(svc, source, allow_local=True)
+    assert calls == [Path(source)]
