@@ -77,7 +77,8 @@ def _fetch(source: str, work: Path, *, strict_git: bool = False) -> Path:
         if r.returncode != 0:
             if strict_git and _GIT_REDIRECT_RE.search(r.stderr):
                 raise SkillInstallError(
-                    "il repository risponde con un redirect (rinominato o spostato?): usa l'URL attuale")
+                    "il repository risponde con un redirect (rinominato o spostato?): "
+                    "usa l'URL attuale (con .git alla fine)")
             raise SkillInstallError(f"git clone fallito: {r.stderr.strip()[:200]}")
         shutil.rmtree(work / "repo" / ".git", ignore_errors=True)
         return work / "repo"

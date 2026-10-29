@@ -233,6 +233,7 @@ def test_git_redirect_message(monkeypatch, tmp_path, d):
     with pytest.raises(SkillInstallError) as ei:
         install("https://h/r.git", d, strict_git=True)
     assert "redirect" in str(ei.value) and "URL attuale" in str(ei.value)
+    assert "con .git alla fine" in str(ei.value)   # GitLab risponde 301 a un URL senza .git
 
 
 E301 = "fatal: unable to access 'https://www.github.com/psf/requests.git/': The requested URL returned error: 301"

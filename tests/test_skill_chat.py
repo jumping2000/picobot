@@ -308,3 +308,44 @@ def test_cli_dot_slash_bypass(svc, net, monkeypatch, source):  # R10: Path togli
     src = cmd[cmd.index("--") + 1]
     assert src == str(seen[0]) and Path(src).is_absolute() and not src.startswith("-")
     assert cmd.index("clone") < cmd.index("--")
+
+
+def test_malformed_url_is_invalid_link(svc, net, git, caplog):   # R13: urlsplit solleva ValueError
+    with caplog.at_level(logging.INFO):
+        text = run_add(svc, "https://[::1/r.git")
+    assert text == "Link non valido."
+    assert net["events"] == []   # ne' download, ne' controllo host, ne' git
+    assert not svc.s.skills_dir.exists() or not any(svc.s.skills_dir.iterdir())
+    assert "Traceback" not in caplog.text
+
+
+def test_log_outcome_query_stripped(svc, net, caplog, monkeypatch):   # R13: la query nell'esito (stderr di git)
+    def fake_fetch(source, work, *, strict_git=False):
+        raise SkillInstallError("git clone fallito: unable to access 'https://u:TOK@h/r.git/?token=SEGRETO#frag': 404")
+
+    monkeypatch.setattr(skills_cli, "_fetch", fake_fetch)
+    with caplog.at_level(logging.INFO):
+        text = run_add(svc, "https://h/r.git")
+    assert "SEGRETO" in text   # all'admin in chat l'errore resta intero
+    (line,) = add_log_lines(caplog)
+    assert "SEGRETO" not in line and "frag" not in line and "TOK" not in line
+    assert "'https://h/r.git/'" in line and "404" in line
+
+
+def test_log_label_replaces_source(svc, net, caplog, tmp_path):   # R13: allegato Telegram -> nome originale nel log
+    z = tmp_path / "ab12.zip"
+    z.write_bytes(zipbytes("docx"))
+    with caplog.at_level(logging.INFO):
+        asyncio.run(add_skill_flow(svc, str(z), allow_local=True, ask=None, user="1", channel="telegram",
+                                   label="mia-skill.zip"))
+    (line,) = add_log_lines(caplog)
+    assert "sorgente=mia-skill.zip " in line and "ab12" not in line and "esito=installata docx" in line
+
+
+def test_admin_ids_invalid_fails_at_startup(monkeypatch):   # R13: come allowed_ids, subito e non nel gestore Telegram
+    from picobot import __main__ as entry
+    monkeypatch.setattr("sys.argv", ["picobot", "serve"])
+    monkeypatch.setattr(entry, "get_settings", lambda: Settings(telegram_bot_token="t", admin_user_ids="123 456"))
+    with pytest.raises(SystemExit) as ei:
+        entry.main()
+    assert "ADMIN_USER_IDS" in str(ei.value)

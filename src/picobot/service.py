@@ -149,10 +149,14 @@ class PicoBotService:
             # assoluto: Path toglie "./" iniziale, e "./--opz" o "./host:r.git" tornerebbero opzione o ssh per git
             yield await asyncio.to_thread(lambda: Path(source).expanduser().resolve())
             return
+        try:
+            is_zip = urlsplit(source).path.lower().endswith(".zip")
+        except ValueError as e:   # es. "https://[::1/r.git": IPv6 non chiuso
+            raise skills_cli.SkillInstallError("Link non valido.") from e
         tmp = Path(await asyncio.to_thread(tempfile.mkdtemp, prefix="picobot-skill-"))
         try:
             try:
-                if urlsplit(source).path.lower().endswith(".zip"):
+                if is_zip:
                     data = await web.fetch_bytes(source, max_bytes=skills_cli.MAX_SKILL_BYTES)
                     path = tmp / "skill.zip"
                     await asyncio.to_thread(path.write_bytes, data)

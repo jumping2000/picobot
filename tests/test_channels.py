@@ -497,7 +497,8 @@ def test_help_lists_new_commands():
     assert all(c in HELP for c in ("/simple", "/complex", "/riassumi"))
     assert all(c in CLI_HELP for c in ("/simple", "/complex", "/riassumi <percorso>", "/file <percorso>"))
     assert "/riassumi <link>" in HELP and "/riassumi <link>" in CLI_HELP   # pagine web su tutti i canali
-    assert "/skill_add" in HELP and "/skill_remove" in HELP and "/skill_add" in CLI_HELP and "/skill_remove" in CLI_HELP
+    assert "/skill_add" in HELP and "/skill_remove" in HELP and "/skill_remove" in CLI_HELP
+    assert "/skill_add <percorso o link>" in CLI_HELP and "allega uno .zip" not in CLI_HELP   # allegati: solo Telegram
 
 
 # ---------------- /memory e /forget completi (v0.5) ----------------
@@ -894,7 +895,7 @@ def test_telegram_skill_zip_attachment(flows, tmp_path):
     gw, out = asyncio.run(t("/skill_add"))
     (_, source, kw), = flows
     assert out == ["ADD-FATTO"] and source.startswith(str(gw.s.data_dir / "inbox")) and source.endswith(".zip")
-    assert kw["allow_local"] is True and kw["exists"] is True and kw["channel"] == "telegram"
+    assert kw["allow_local"] is True and kw["exists"] is True and kw["channel"] == "telegram" and kw["label"] == "s.zip"
     assert not Path(source).exists() and not list((gw.s.data_dir / "inbox").glob("*"))    # file cancellato
     flows.clear()
     _, out = asyncio.run(t("/skill_add@PicoBot"))

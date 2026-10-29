@@ -21,6 +21,7 @@ SKILL_DIR_READONLY = ("Non posso scrivere nella cartella delle skill. Sull'host:
 _READONLY_ERRNOS = {errno.EACCES, errno.EPERM, errno.EROFS}
 _LOG_CTRL = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028\u2029]")
 _LOG_USERINFO = re.compile(r"(?<=://)[^/?#@\s]+@")
+_LOG_URL = re.compile(r"[a-z][a-z0-9+.-]*://[^\s'\"<>]+", re.I)
 
 
 def _log_safe(text: str) -> str:
@@ -28,16 +29,26 @@ def _log_safe(text: str) -> str:
     return _LOG_CTRL.sub(lambda m: m.group().encode("unicode_escape").decode("ascii"), _LOG_USERINFO.sub("", text))
 
 
+def _bare_url(url: str) -> str:
+    """Di un URL solo schema://host[:porta]/percorso (niente utente, query e frammento)."""
+    try:
+        p = urlsplit(url)
+        return f"{p.scheme}://{p.netloc.rpartition('@')[2]}{p.path}"
+    except ValueError:   # URL malformato (es. IPv6 non chiuso): si tagliano comunque query e frammento
+        return re.split(r"[?#]", url, maxsplit=1)[0]
+
+
 def _log_source(source: str) -> str:
     """Sorgente per il log: di un URL solo schema://host[:porta]/percorso (niente utente, query e frammento)."""
     s = source.strip()
     if "://" in s:
-        try:
-            p = urlsplit(s)
-            s = f"{p.scheme}://{p.netloc.rpartition('@')[2]}{p.path}"
-        except ValueError:   # URL malformato (es. IPv6 non chiuso): si tagliano comunque query e frammento
-            s = re.split(r"[?#]", s, maxsplit=1)[0]
+        s = _bare_url(s)
     return _log_safe(s)
+
+
+def _log_outcome(outcome: str) -> str:
+    """Esito per il log: gli URL citati (per esempio nello stderr di git) senza utente, query e frammento."""
+    return _log_safe(_LOG_URL.sub(lambda m: _bare_url(m.group()), outcome))
 
 HELP = (
     "Scrivimi una richiesta (domande, quotazioni, ricerche web, programmi Python, documenti Word/PowerPoint/Excel).\n"
@@ -126,8 +137,11 @@ def _skill_error_text(e: Exception, generic: str) -> str:
 
 
 async def add_skill_flow(service, source: str, *, allow_local: bool, ask: Callable[[str], Awaitable[bool]],
-                         user: str, channel: str) -> str:
-    """Installa una skill da chat (solo admin: lo controlla il canale). Ritorna sempre il testo, non solleva."""
+                         user: str, channel: str, label: str | None = None) -> str:
+    """Installa una skill da chat (solo admin: lo controlla il canale). Ritorna sempre il testo, non solleva.
+
+    label: nome da mostrare nel log al posto della sorgente (es. il nome originale di uno zip allegato).
+    """
     try:
         async with service.fetched_skill(source, allow_local=allow_local) as path:
             try:
@@ -146,7 +160,7 @@ async def add_skill_flow(service, source: str, *, allow_local: bool, ask: Callab
         text = _skill_error_text(e, "Installazione fallita.")
         outcome = f"errore: {text}"
     logger.info("skill_add utente=%s canale=%s sorgente=%s esito=%s", _log_safe(str(user)), channel,
-                _log_source(source), _log_safe(outcome))
+                _log_safe(label) if label else _log_source(source), _log_outcome(outcome))
     return text
 
 

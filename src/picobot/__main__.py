@@ -38,6 +38,11 @@ def main() -> None:
     use_api = not args.no_api and s.api_enabled
     if use_tg and not s.allowed_ids and not s.allow_all_users:
         sys.exit("TELEGRAM_ALLOWED_USER_IDS vuoto: nessuno sarebbe autorizzato (o ALLOW_ALL_USERS=true).")
+    if use_tg:
+        try:
+            s.admin_ids
+        except ValueError:
+            sys.exit("ADMIN_USER_IDS non valido: elenco di id numerici separati da virgole (es. 123,456).")
     if use_api and not s.token_map:
         logging.warning("API_TOKENS non configurato: API disattivata.")
         use_api = False

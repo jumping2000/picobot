@@ -191,10 +191,10 @@ class TelegramGateway:
         text = "\n".join(f"{i.name}: {i.description[:120]}" for i in info) if info else "Nessuna skill installata."
         await update.message.reply_text(text)
 
-    async def _skill_add(self, update, ctx, source: str, allow_local: bool) -> None:
+    async def _skill_add(self, update, ctx, source: str, allow_local: bool, label: str | None = None) -> None:
         chat_id, uid = update.effective_chat.id, update.effective_user.id
         text = await self._with_typing(ctx, chat_id, add_skill_flow(
-            self.service, source, allow_local=allow_local, user=str(uid), channel="telegram",
+            self.service, source, allow_local=allow_local, user=str(uid), channel="telegram", label=label,
             ask=lambda q: self.ask_yes_no(ctx.bot, chat_id, uid, q)))
         await send_safe(update, text)   # il testo ha backtick: Markdown, con ripiego su testo semplice
 
@@ -232,7 +232,8 @@ class TelegramGateway:
             except Exception:
                 logger.exception("Download dello zip della skill fallito")
                 return await update.message.reply_text("Impossibile scaricare il file, riprova.")
-            await self._skill_add(update, ctx, str(path), allow_local=True)   # lo zip e' quello scaricato dal bot
+            await self._skill_add(update, ctx, str(path), allow_local=True,   # lo zip e' quello scaricato dal bot
+                                  label=doc.file_name)   # nel log il nome originale, non il percorso in inbox
         finally:
             path.unlink(missing_ok=True)
 
