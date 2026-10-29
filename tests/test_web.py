@@ -217,12 +217,12 @@ def test_fetch_bytes_redirect_to_private_refused():
 
 
 @pytest.mark.parametrize("location", ["http://[::1/x", "https://a.b:abc/x"])
-def test_malformed_redirect_location_is_a_document_error(location):
+def test_malformed_redirect_location_is_a_document_error(location):   # e' httpx stesso a rifiutare la Location
     def h(req):
         return httpx.Response(302, headers={"location": location})
-    with pytest.raises(DocumentError, match="Link non valido|Impossibile scaricare"):
+    with pytest.raises(DocumentError, match="Impossibile scaricare"):
         fetch_file("https://example.org/s.zip", h)
-    with pytest.raises(DocumentError, match="Link non valido|Impossibile scaricare"):
+    with pytest.raises(DocumentError, match="Impossibile scaricare"):
         fetch("https://blog.example/a", h)
 
 
