@@ -71,8 +71,8 @@ a single subfolder.
 | Both | `/skill_remove <name>` | — |
 
 - **Admins only.** On Telegram your id must be in `ADMIN_USER_IDS` (in `.env`, see
-  [Configuration](configuration.md)); with the key empty the commands are off, and `ALLOW_ALL_USERS=true` makes
-  nobody an admin. Other users are refused. In the CLI chat the commands are always allowed: whoever opens the CLI
+  [Configuration](configuration.md)); with the key empty the commands are off for everyone, and
+  `ALLOW_ALL_USERS=true` alone makes nobody an admin. Other users are refused. In the CLI chat the commands are always allowed: whoever opens the CLI
   already has a shell in the container.
 - **Local paths only from the CLI.** Telegram accepts only URLs or attachments, and only `https://`.
 - **Result.** The bot replies with the skill's name and description, the declared dependencies

@@ -43,8 +43,9 @@ Confirmation buttons on Telegram can only be pressed by the user who made the re
 ## Skill installation
 
 The admin CLI installs atomically (copy to `.tmp-<id>` and rename) and rejects zips with absolute paths, `..`
-components or symlinks, symlinks in folders, invalid names and skills larger than 50 MB (checked before extraction). The same checks apply to `/skill_add` from chat. Skills are instructions that the
-ComplexTeam follows for every user: installing one is equivalent to changing the bot's behavior.
+components or symlinks, symlinks in folders, invalid names and skills larger than 50 MB (checked before
+extraction). The same checks apply to `/skill_add` from chat. Skills are instructions that the ComplexTeam follows
+for every user: installing one is equivalent to changing the bot's behavior.
 
 Limits of installing from chat:
 

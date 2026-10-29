@@ -23,7 +23,7 @@ accettano `true`/`false`.
 | `TELEGRAM_BOT_TOKEN` | — | Token del bot. Vuoto = Telegram disattivato |
 | `TELEGRAM_ALLOWED_USER_IDS` | — | Id numerici separati da virgola. Vuoto = **nessuno** (il bot non parte) |
 | `ALLOW_ALL_USERS` | `false` | Autorizza ogni utente Telegram. Da evitare su un bot pubblico |
-| `ADMIN_USER_IDS` | — | Id numerici separati da virgola che possono installare/rimuovere skill da chat (`/skill_add`, `/skill_remove`). Vuoto = comandi spenti; `ALLOW_ALL_USERS=true` non rende admin nessuno |
+| `ADMIN_USER_IDS` | — | Id numerici separati da virgola che possono installare/rimuovere skill da chat (`/skill_add`, `/skill_remove`). Vuoto = comandi spenti per tutti; `ALLOW_ALL_USERS=true` da solo non rende admin nessuno |
 
 ## API REST
 

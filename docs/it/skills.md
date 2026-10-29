@@ -71,8 +71,8 @@ in un'unica sottocartella.
 | Entrambi | `/skill_remove <nome>` | — |
 
 - **Solo gli amministratori.** Su Telegram serve l'id in `ADMIN_USER_IDS` (in `.env`, vedi
-  [Configurazione](configuration.md)); con la chiave vuota i comandi sono spenti, e `ALLOW_ALL_USERS=true` non rende
-  admin nessuno. Gli altri utenti ricevono un rifiuto. Nella chat CLI i comandi sono sempre permessi: chi apre la
+  [Configurazione](configuration.md)); con la chiave vuota i comandi sono spenti per tutti, e `ALLOW_ALL_USERS=true`
+  da solo non rende admin nessuno. Gli altri utenti ricevono un rifiuto. Nella chat CLI i comandi sono sempre permessi: chi apre la
   CLI ha già una shell nel container.
 - **Percorsi locali solo dalla CLI.** Da Telegram sono accettati solo URL o allegati, e solo `https://`.
 - **Esito.** Il bot risponde con nome e descrizione della skill, le dipendenze dichiarate (`requirements.txt`,

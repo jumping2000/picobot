@@ -12,9 +12,9 @@ All notable changes to PicoBot are listed here. The format follows
   (a `.zip` URL is downloaded, any other URL is cloned as a git repository); on Telegram a `.zip` attachment with
   caption `/skill_add` works too, and the CLI chat also accepts a local path. `/skill_remove <name>` removes a
   skill. If the skill is already installed the bot asks before replacing it. The new `ADMIN_USER_IDS` key (comma
-  separated Telegram ids, in `.env`) says who is an admin: empty means the commands are off, and
-  `ALLOW_ALL_USERS=true` makes nobody an admin. Hosts on local or private networks are refused, git does not follow
-  redirects from chat, and every install and removal is logged with user, channel, source and outcome.
+  separated Telegram ids, in `.env`) says who is an admin: empty means the commands are off for everyone, and
+  `ALLOW_ALL_USERS=true` alone makes nobody an admin. Hosts on local or private networks are refused, git does not
+  follow redirects from chat, and every install and removal is logged with user, channel, source and outcome.
 
 ### Changed
 
