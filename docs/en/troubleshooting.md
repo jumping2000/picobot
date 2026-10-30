@@ -14,6 +14,10 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 | `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN e/o API_TOKENS.` | Neither Telegram nor API configured | Configure at least one |
 | `API_TOKENS non configurato: API disattivata.` (warning) | API without tokens | Set `API_TOKENS` or ignore |
 | `API esposta senza TLS...` (warning) | API on a non-local address without certificates | Set `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
+| `Configurazione non valida: config/config.yaml: <block>.<key>: ...` | Unknown key or key in the wrong block, invalid value, undefined `${NAME}`, key reserved for `.env`, repeated key, non-UTF-8 file | Fix the key it names (compare with `config/config_example.yaml`), then `docker compose restart` |
+| `<KEY> (ambiente/.env) prevale su <block>.<key> (config/config.yaml)` (warning) | The same setting is both in `.env` and in the YAML: `.env` wins | Remove the line from `.env`, then `docker compose up -d` (`restart` does not re-read `.env`) |
+| `ADMIN_USER_IDS non valido: ...` | `ADMIN_USER_IDS` is not a comma-separated list of numeric ids | Fix it in `.env`, then `docker compose up -d` |
+| The `stt` container does not start, or stays `Exited (0)` | The `stt` profile is not active, or the container was created by the other compose file | `COMPOSE_PROFILES=stt` in `.env` (or `--profile stt`), then `docker compose up -d`; with `compose-build.yaml` always add `-f compose-build.yaml` |
 | `PermissionError` on `/app/data` or `/app/workspace` | Host folders not writable by UID 1000 | `sudo chown -R 1000 data workspace` |
 | `Non posso scrivere nella cartella delle skill...` (from `/skill_add` or `/skill_remove`) | `./skills` not writable by UID 1000, or the mount is still `:ro` in the compose file | `sudo chown -R 1000 skills`; if the compose file still has `:ro`, remove it and run `docker compose up -d` again |
 

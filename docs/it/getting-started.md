@@ -40,6 +40,13 @@ API_TOKENS=<token-lungo-casuale>:123456789
 > Genera un token con `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
 > Usa il tuo id Telegram come `user_id` dell'API (e come `CLI_USER_ID`) per **condividere memoria e profilo tra i canali**.
 
+Chiavi e segreti restano in `.env`; tutte le altre impostazioni vanno in `config/config.yaml` (facoltativo: senza
+il file valgono i default):
+
+```bash
+cp config/config_example.yaml config/config.yaml
+```
+
 Tutte le opzioni sono descritte in [Configurazione](configuration.md).
 
 ## 2. Preparazione delle cartelle
@@ -55,7 +62,7 @@ Il container gira con l'utente `picobot` (UID 1000), che deve poter scrivere in 
 |---|---|---|---|
 | `./data` | `/app/data` | rw | DB SQLite, stato Telegram, outbox, inbox |
 | `./workspace` | `/app/workspace` | rw | Script e file generati dagli agenti |
-| `./config` | `/app/config` | ro | `mcp_config.json` |
+| `./config` | `/app/config` | ro | `config.yaml`, `mcp_config.json` |
 | `./skills` | `/app/skills` | rw | Skill installate (ricarica a caldo; installabili da chat) |
 | `./certs` | `/app/certs` | ro | Certificati TLS opzionali (commentato nel compose) |
 
@@ -73,14 +80,13 @@ Vedi [Skill](skills.md). Con `ADMIN_USER_IDS` in `.env` puoi installarle anche d
 
 > [!TIP]
 > **Messaggi vocali (opzionale):** `mkdir -p models && sudo chown -R 1000 models`, imposta
-> `voice.stt_url: http://stt:8000` in `config/config.yaml` e avvia con `docker compose --profile stt up -d --build`. Vedi
-> [Messaggi vocali](voice.md).
+> `voice.stt_url: http://stt:8000` in `config/config.yaml` e aggiungi `COMPOSE_PROFILES=stt` a `.env` (oppure
+> `--profile stt` a ogni comando `docker compose`). Vedi [Messaggi vocali](voice.md).
 
 ## 4. Avvio
 
 ```bash
-
-
+docker compose up -d                # immagini pronte; build locale: docker compose -f compose-build.yaml up -d --build
 docker compose logs -f picobot      # atteso "PicoBot pronto (modello=..., strong=..., mcp=N)."
 ```
 
@@ -107,28 +113,31 @@ curl -X POST localhost:8000/v1/chat -H "Authorization: Bearer $TOKEN" \
 
 Documentazione OpenAPI interattiva: `http://localhost:8000/docs`.
 
-## Immagine pronta
+## Immagini pronte o build locale
 
-Ogni release su GitHub pubblica un'immagine multi-architettura (linux/amd64, linux/arm64) su GitHub Container
+Il repository ha due file compose, con gli stessi servizi, cartelle e volumi:
+
+| File | Immagini | Comando |
+|---|---|---|
+| `compose.yaml` (predefinito) | `ghcr.io/jumping2000/picobot` e `picobot-stt`, già pronte | `docker compose up -d` |
+| `compose-build.yaml` | costruite in locale da `Dockerfile` e `stt/` | `docker compose -f compose-build.yaml up -d --build` |
+
+In entrambi il servizio `stt` (trascrizione dei vocali) parte solo con il profilo `stt`: `--profile stt`, oppure
+`COMPOSE_PROFILES=stt` in `.env`. Con `compose-build.yaml` ogni comando `docker compose` vuole
+`-f compose-build.yaml`; senza, agisce su `compose.yaml`.
+
+Ogni release su GitHub pubblica immagini multi-architettura (linux/amd64, linux/arm64) su GitHub Container
 Registry:
 
 | Tag | Significato |
 |---|---|
 | `latest` | Ultima release stabile |
-| `0.6.0`, `0.6` | Una versione precisa / l'ultima patch di una versione minore |
+| `0.8.0`, `0.8` | Una versione precisa / l'ultima patch di una versione minore |
 | `sha-<commit>` | Commit esatto |
 
-In `docker-compose.yaml` sostituisci `build: .` con:
-
-```yaml
-    image: ghcr.io/jumping2000/picobot:latest
-```
-
-poi `docker compose pull && docker compose up -d`. Cartelle, `.env` e volumi restano gli stessi.
-
 > [!NOTE]
-> L'immagine contiene già le librerie elencate in `deps/` (quelle delle skill di esempio `docx`, `pptx`, `xlsx`).
-> Se una skill richiede altre librerie, devi costruire la tua immagine (`build: .`).
+> L'immagine pronta contiene già le librerie elencate in `deps/` (quelle delle skill di esempio `docx`, `pptx`,
+> `xlsx`). Se una skill richiede altre librerie, aggiungile in `deps/` e usa `compose-build.yaml`.
 
 ## Esecuzione senza Docker
 
@@ -145,8 +154,8 @@ uv run picobot serve          # oppure: uv run picobot cli
 ## Aggiornamento
 
 ```bash
-git pull
-docker compose build && docker compose up -d
+docker compose pull && docker compose up -d                          # compose.yaml
+git pull && docker compose -f compose-build.yaml up -d --build       # compose-build.yaml
 ```
 
 I dati in `data/` (sessioni, memorie, schedule) vengono conservati.

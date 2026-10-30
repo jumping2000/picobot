@@ -170,7 +170,7 @@ ROOT = __import__("pathlib").Path(__file__).resolve().parents[1]
 
 
 def test_example_matches_defaults(monkeypatch, tmp_path):
-    """Copiare config_example.yaml in config.yaml non cambia nulla: chiavi attive con i default del codice."""
+    """config_example.yaml ha i default del codice, tranne voice.stt_url che accende i vocali (servizio stt)."""
     import yaml
 
     example = ROOT / "config" / "config_example.yaml"
@@ -180,7 +180,8 @@ def test_example_matches_defaults(monkeypatch, tmp_path):
     for f in fields:
         monkeypatch.delenv(f.upper(), raising=False)
     s = Settings()
-    assert {f: getattr(s, f) for f in fields} == {f: Settings.model_fields[f].default for f in fields}
+    expected = {f: Settings.model_fields[f].default for f in fields} | {"stt_url": "http://stt:8000"}
+    assert {f: getattr(s, f) for f in fields} == expected
     data = yaml.safe_load(example.read_text(encoding="utf-8"))
     assert {k for block in data.values() for k in block} == set(fields) - DOCKER_FIXED
     assert all(f"# {k}:" in example.read_text(encoding="utf-8") for k in DOCKER_FIXED)   # commentate, con la nota

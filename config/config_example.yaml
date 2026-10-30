@@ -1,5 +1,6 @@
 # Configurazione di PicoBot: copia questo file in config/config.yaml e cambia solo cio' che ti serve.
-# Le chiavi qui sotto hanno i default del codice: copiarlo cosi' com'e' non cambia il comportamento.
+# Le chiavi qui sotto hanno i default del codice, tranne voice.stt_url che accende i messaggi vocali (serve il
+# servizio stt: COMPOSE_PROFILES=stt in .env).
 # Le chiavi commentate le fissa il Dockerfile: servono solo fuori da Docker (togli il # per cambiarle).
 #
 # - .env e le variabili d'ambiente vincono su questo file: se HISTORY_RUNS e' in .env, memory.history_runs qui
@@ -59,8 +60,8 @@ documents:
 
 voice:                              # messaggi vocali (STT)
   # Servizio di trascrizione del profilo compose "stt": mkdir -p models && sudo chown -R 1000 models,
-  # poi docker compose --profile stt up -d --build.
-  stt_url: ""                       # es. http://stt:8000 (servizio del profilo compose "stt"); vuoto = vocali spenti
+  # COMPOSE_PROFILES=stt in .env, poi docker compose up -d. Senza il servizio stt lascia stt_url vuoto.
+  stt_url: http://stt:8000           # es. http://stt:8000 (servizio del profilo compose "stt"); vuoto = vocali spenti
   stt_timeout_s: 180
   max_voice_s: 300                  # durata massima di un vocale (secondi), controllata prima del download
 

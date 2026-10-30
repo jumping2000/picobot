@@ -7,8 +7,9 @@ PicoBot legge le impostazioni da due file. Fonte di verità: [`src/picobot/confi
 - **`.env`**: chiavi e segreti, cioè le [chiavi elencate sotto](#chiavi-in-env). Solo lì: nello YAML sono un errore.
 - **`config/config.yaml`**: tutto il resto, diviso in blocchi (`memory:`, `web:`, `code:`, …). Si parte da
   [`config/config_example.yaml`](../../config/config_example.yaml): `cp config/config_example.yaml config/config.yaml`,
-  poi cambia solo ciò che ti serve. Il file di esempio ha i default del codice, quindi copiarlo non cambia nulla;
-  le chiavi fissate dal Dockerfile (vedi sotto) vi sono commentate.
+  poi cambia solo ciò che ti serve. Il file di esempio ha i default del codice, tranne `voice.stt_url`
+  (`http://stt:8000`), che accende i messaggi vocali: se non usi il servizio `stt`, lascialo vuoto. Le chiavi
+  fissate dal Dockerfile (vedi sotto) vi sono commentate.
   Senza `config.yaml` valgono i default, come nelle versioni precedenti.
 
 **Precedenza**, dal più forte: variabili d'ambiente, `.env`, `config/config.yaml`, default. I nomi delle variabili

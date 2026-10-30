@@ -43,14 +43,14 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
  |- risponde da solo a conversazione e domande generali ...... 1 chiamata LLM
  |- summarize_document -> workflow DocSummary (documento caricato, modello economico)
  |- SimpleTeam (modello economico; profilo in sola lettura)
- |    |- Web       ricerca web (DDGS: Bing, Brave, Google, DuckDuckGo…)
+ |    |- Web       ricerca web e notizie (DDGS, un motore alla volta)
  |    |- Finance   yfinance (vede i titoli seguiti)
  |    '- Coder     programmi Python (con conferma), file di testo, consegna file
  '- ComplexTeam (modello FORTE per tutti i membri; skill e MCP; profilo in sola lettura)
       |- Researcher  ricerca web approfondita
       |- Analyst     ragiona, analizza, calcola (anche con codice); passa il materiale al Writer
       |- Writer      scrive e produce il risultato finale (testo; Word/PowerPoint/Excel con codice) e lo consegna
-      '- Critic      rivede la bozza (opzionale, ENABLE_CRITIC)
+      '- Critic      rivede la bozza (opzionale, memory.enable_critic)
 ```
 
 ### Tool per agente
@@ -58,15 +58,28 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
 | Agente | Tool |
 |---|---|
 | Router | `summarize_document`, memoria (`add_memory`…), `update_profile`, `remember_about` |
-| Web | DDGS (più motori: Bing, Brave, Google, DuckDuckGo…) |
+| Web | `web_search`, `search_news` (DDGS a cascata, vedi sotto) |
 | Finance | yfinance (prezzo, info società, storico, raccomandazioni analisti, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
-| Researcher | DDGS, MCP, skill |
+| Researcher | `web_search`, `search_news`, MCP, skill |
 | Analyst | yfinance, `save_python_file`, `run_python`, `run_node`, `read_document`, MCP, skill — **niente** `deliver_file` |
 | Writer | `save_text_file`, `save_python_file`, `run_python`, `run_node`, `deliver_file`, `read_document`, MCP, skill |
 | Critic | MCP, skill (niente codice) |
 
 L'Analyst non può consegnare file per scelta: prepara il contenuto, il Writer produce e consegna il risultato.
+
+### Data e ora, ricerca web, ticker
+
+- **Data e ora correnti.** Il router e ogni team e agente ricevono nel prompt di sistema la data e l'ora correnti,
+  nel fuso `scheduler.timezone` (qualche token per chiamata). Così "le notizie di oggi" cercano davvero oggi e non
+  intorno alla data di addestramento del modello; Coder e Analyst non eseguono codice per sapere che giorno è.
+- **Ricerca web a cascata** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web e Researcher
+  interrogano un motore alla volta e passano al successivo solo se quello prima non trova nulla: per il web
+  DuckDuckGo, Yahoo, Startpage, Mojeek; per le notizie DuckDuckGo, Bing, Yahoo. Se nessuno trova nulla l'agente
+  riceve un messaggio, non un errore. La regione dei risultati è `web.region`.
+- **Ticker Yahoo.** Finance e Analyst hanno nelle istruzioni i simboli dei principali indici (FTSE MIB =
+  `FTSEMIB.MI`, S&P 500 = `^GSPC`, DAX = `^GDAXI`…), i suffissi di borsa (`.MI`, `.DE`, `.PA`, `.L`, `.AS`) e la
+  regola di non provare simboli a caso quando uno non viene trovato.
 
 ### Regole di instradamento
 
@@ -123,15 +136,19 @@ L'estrazione del testo è deterministica (nessun LLM). I PDF scansionati senza l
 | Modulo | Ruolo |
 |---|---|
 | `__main__.py` | Punto d'ingresso (`picobot serve`, `cli`, `skills`) e controlli all'avvio |
+| `config.py` | Impostazioni: `.env`, ambiente e `config/config.yaml` a blocchi, con i controlli dello YAML |
 | `runner.py` | Avvia canali, server API e scheduler; arresto ordinato |
 | `service.py` | Facciata: `ask`, `summarize`, `memory_report`, `forget` |
 | `team.py` | Costruzione del router |
 | `agents.py` | SimpleTeam, ComplexTeam e i loro membri |
 | `prompts.py` | Tutte le istruzioni degli agenti (solo testo) |
 | `storage.py` | DB SQLite, memory manager, LearningMachine (profilo + entità) |
-| `skills.py`, `skills_cli.py` | Registro delle skill con ricarica a caldo; CLI di amministrazione |
+| `skills.py`, `skills_cli.py` | Registro delle skill con ricarica a caldo; CLI di amministrazione e installazione (anche da chat) |
 | `mcp_loader.py` | Connessioni MCP |
 | `scheduler.py` | Task cron (APScheduler + SQLite) |
 | `documents.py`, `workflows/doc_summary.py` | Estrazione del testo e workflow dei riassunti |
+| `web.py` | Download di pagine e file con i controlli anti rete locale (`/riassumi <link>`, `/skill_add`) |
+| `trace.py`, `stt.py` | Traccia delle richieste (`/trace`); client del servizio di trascrizione |
 | `tools/sandbox.py`, `tools/files.py`, `tools/documents.py` | Esecuzione codice, consegna file, tool sui documenti |
+| `tools/websearch.py`, `tools/schedule.py` | Ricerca web a cascata; task programmati chiesti a parole |
 | `channels/telegram.py`, `cli.py`, `api.py`, `common.py` | Canali e funzioni condivise |

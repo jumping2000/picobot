@@ -4,7 +4,7 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.8.0] - 2026-10-30
 
 ### Added
 
@@ -17,7 +17,8 @@ All notable changes to PicoBot are listed here. The format follows
   follow redirects from chat, and every install and removal is logged with user, channel, source and outcome.
 - Settings can live in `config/config.yaml`, split into blocks (`memory:`, `web:`, `code:`, …) whose keys have the
   same names as before. Copy `config/config_example.yaml`, which lists every key with its default and a comment, and
-  change only what you need. Secrets stay in `.env` and can be referenced as `${NAME}`. An unknown key, a key in the
+  change only what you need. The example sets `voice.stt_url` to `http://stt:8000`, so voice messages are on: leave
+  it empty if you do not run the `stt` service. Secrets stay in `.env` and can be referenced as `${NAME}`. An unknown key, a key in the
   wrong block, a wrong value or a key reserved for `.env` stops the startup with a message naming `block.key`.
 
 ### Changed
@@ -30,6 +31,11 @@ All notable changes to PicoBot are listed here. The format follows
   `ADMIN_USER_IDS`, `API_TOKENS`, `CLI_USER_ID`). Environment variables keep working and win over `config.yaml`, so
   an existing `.env` behaves as before; to move a setting into the YAML file, remove its line from `.env`. The log
   warns when a key is set in both.
+- In `compose.yaml` the `stt` service now starts only with the `stt` profile, as in `compose-build.yaml`. If you use
+  voice messages, add `COMPOSE_PROFILES=stt` to `.env` (or `--profile stt` to `docker compose`).
+- Documentation: the two compose files (`compose.yaml` with prebuilt images, `compose-build.yaml` for local
+  builds) are now described everywhere, with the current date and time given to the agents, the cascading web
+  search and the ticker hints in the architecture page, and new manual checks for 0.7.x and 0.8.0.
 
 ## [0.7.4] - 2026-10-29
 

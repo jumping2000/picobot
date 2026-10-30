@@ -133,7 +133,7 @@ sample skills: `docx@9.9.0`, `pptxgenjs@4.0.1`, `openpyxl==3.1.5`.
 ```bash
 uv run picobot skills deps            # declared by skills (requirements.txt, package.json, apt.txt) but missing from deps/
 uv run picobot skills deps --write    # append them to deps/*.txt (installs nothing)
-docker compose build && docker compose up -d
+docker compose -f compose-build.yaml up -d --build   # the prebuilt image of compose.yaml does not contain them
 ```
 
 Comparison is by package name, not version.

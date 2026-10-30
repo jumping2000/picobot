@@ -13,12 +13,12 @@ services:
       - ./skills:/app/skills        # skill: da chat (/skill_add, solo admin), cartelle qui o `picobot skills add`; nessun riavvio
       # - ./certs:/app/certs:ro      # se usi HTTPS diretto (API_SSL_CERTFILE=/app/certs/cert.pem ...)
     # prima volta: mkdir -p data workspace skills && sudo chown -R 1000 data workspace skills
-    # nuove librerie per una skill: modifica deps/*.txt, poi docker compose build && docker compose up -d
-    # CLI:  docker compose exec -it picobot python -m picobot cli
+    # nuove librerie per una skill: modifica deps/*.txt, poi docker compose -f compose-build.yaml up -d --build
+    # CLI:  docker compose -f compose-build.yaml exec -it picobot python -m picobot cli
 
   # Trascrizione dei messaggi vocali (opzionale): parte solo con il profilo "stt".
   # prima volta: mkdir -p models && sudo chown -R 1000 models; in config/config.yaml voice.stt_url: http://stt:8000
-  # avvio:       docker compose --profile stt up -d --build
+  # avvio:       docker compose -f compose-build.yaml --profile stt up -d --build   (o COMPOSE_PROFILES=stt in .env)
   stt:
     build: ./stt
     profiles: ["stt"]

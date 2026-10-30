@@ -24,7 +24,7 @@ and files: use your Telegram ID to share them with Telegram. Missing or invalid 
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/health` | `{"status": "ok", "version": "0.6.0"}` — no auth |
+| `GET` | `/health` | `{"status": "ok", "version": "0.8.0"}` — no auth |
 | `POST` | `/v1/chat` | Send a message |
 | `GET` | `/v1/files/{id}` | Download a delivered file (24 h) |
 | `POST` | `/v1/summarize` | Summarize an uploaded document or a web page (form) |

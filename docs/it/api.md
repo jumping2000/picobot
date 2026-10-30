@@ -24,7 +24,7 @@ schedule e file: usa il tuo id Telegram per condividerli con Telegram. Token man
 
 | Metodo | Percorso | Descrizione |
 |---|---|---|
-| `GET` | `/health` | `{"status": "ok", "version": "0.6.0"}` — senza autenticazione |
+| `GET` | `/health` | `{"status": "ok", "version": "0.8.0"}` — senza autenticazione |
 | `POST` | `/v1/chat` | Invia un messaggio |
 | `GET` | `/v1/files/{id}` | Scarica un file consegnato (24 h) |
 | `POST` | `/v1/summarize` | Riassume un documento caricato o una pagina web (form) |

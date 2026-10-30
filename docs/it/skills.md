@@ -132,7 +132,7 @@ delle skill di esempio: `docx@9.9.0`, `pptxgenjs@4.0.1`, `openpyxl==3.1.5`.
 ```bash
 uv run picobot skills deps            # dichiarate dalle skill (requirements.txt, package.json, apt.txt) ma assenti da deps/
 uv run picobot skills deps --write    # le aggiunge a deps/*.txt (non installa nulla)
-docker compose build && docker compose up -d
+docker compose -f compose-build.yaml up -d --build   # l'immagine pronta di compose.yaml non le contiene
 ```
 
 Il confronto avviene per nome del pacchetto, non per versione.

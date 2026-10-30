@@ -44,14 +44,14 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
  |- answers chat and general questions by itself ................ 1 LLM call
  |- summarize_document -> DocSummary workflow (uploaded document, cheap model)
  |- SimpleTeam (cheap model; profile read-only)
- |    |- Web       web search (DDGS: Bing, Brave, Google, DuckDuckGo…)
+ |    |- Web       web and news search (DDGS, one engine at a time)
  |    |- Finance   yfinance (sees the tickers you follow)
  |    '- Coder     Python programs (with confirmation), text files, file delivery
  '- ComplexTeam (STRONG model for every member; skills and MCP; profile read-only)
       |- Researcher  in-depth web research
       |- Analyst     reasons, analyses, computes (also with code); hands material to the Writer
       |- Writer      writes and produces the final result (text; Word/PowerPoint/Excel with code) and delivers it
-      '- Critic      reviews the draft (optional, ENABLE_CRITIC)
+      '- Critic      reviews the draft (optional, memory.enable_critic)
 ```
 
 ### Tools per agent
@@ -59,15 +59,28 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
 | Agent | Tools |
 |---|---|
 | Router | `summarize_document`, memory (`add_memory`…), `update_profile`, `remember_about` |
-| Web | DDGS (several engines: Bing, Brave, Google, DuckDuckGo…) |
+| Web | `web_search`, `search_news` (DDGS in cascade, see below) |
 | Finance | yfinance (price, company info, history, analyst recommendations, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
-| Researcher | DDGS, MCP, skills |
+| Researcher | `web_search`, `search_news`, MCP, skills |
 | Analyst | yfinance, `save_python_file`, `run_python`, `run_node`, `read_document`, MCP, skills — **no** `deliver_file` |
 | Writer | `save_text_file`, `save_python_file`, `run_python`, `run_node`, `deliver_file`, `read_document`, MCP, skills |
 | Critic | MCP, skills (no code) |
 
 The Analyst cannot deliver files on purpose: it prepares the content, the Writer produces and delivers the result.
+
+### Date and time, web search, tickers
+
+- **Current date and time.** The router and every team and agent get the current date and time in their system
+  prompt, in the `scheduler.timezone` time zone (a few tokens per call). So "today's news" really searches today,
+  not around the model's training date; Coder and Analyst do not run code to find out the date.
+- **Cascading web search** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web and Researcher ask
+  one engine at a time and move to the next only when the previous one finds nothing: DuckDuckGo, Yahoo,
+  Startpage, Mojeek for the web; DuckDuckGo, Bing, Yahoo for news. When none finds anything the agent gets a
+  message, not an error. The region of the results is `web.region`.
+- **Yahoo tickers.** Finance and Analyst have in their instructions the symbols of the main indices (FTSE MIB =
+  `FTSEMIB.MI`, S&P 500 = `^GSPC`, DAX = `^GDAXI`…), the exchange suffixes (`.MI`, `.DE`, `.PA`, `.L`, `.AS`) and
+  the rule not to try symbols at random when one is not found.
 
 ### Routing rules
 
@@ -123,15 +136,19 @@ Text extraction is deterministic (no LLM). Scanned PDFs without a text layer are
 | Module | Role |
 |---|---|
 | `__main__.py` | Entry point (`picobot serve`, `cli`, `skills`) and startup checks |
+| `config.py` | Settings: `.env`, environment and block-based `config/config.yaml`, with the YAML checks |
 | `runner.py` | Starts channels, API server and scheduler; graceful shutdown |
 | `service.py` | Facade: `ask`, `summarize`, `memory_report`, `forget` |
 | `team.py` | Router construction |
 | `agents.py` | SimpleTeam, ComplexTeam and their members |
 | `prompts.py` | All agent instructions (text only) |
 | `storage.py` | SQLite DB, memory manager, LearningMachine (profile + entities) |
-| `skills.py`, `skills_cli.py` | Skill registry with hot reload; admin CLI |
+| `skills.py`, `skills_cli.py` | Skill registry with hot reload; admin CLI and installation (also from chat) |
 | `mcp_loader.py` | MCP connections |
 | `scheduler.py` | Cron tasks (APScheduler + SQLite) |
 | `documents.py`, `workflows/doc_summary.py` | Text extraction and summary workflow |
+| `web.py` | Page and file downloads with the local-network checks (`/riassumi <link>`, `/skill_add`) |
+| `trace.py`, `stt.py` | Request trace (`/trace`); transcription service client |
 | `tools/sandbox.py`, `tools/files.py`, `tools/documents.py` | Code execution, file delivery, document tools |
+| `tools/websearch.py`, `tools/schedule.py` | Cascading web search; scheduled tasks requested in plain words |
 | `channels/telegram.py`, `cli.py`, `api.py`, `common.py` | Channels and shared helpers |

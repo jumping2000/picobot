@@ -13,23 +13,26 @@ Telegram ──voice/audio──▶ picobot ──POST /v1/audio/transcriptions�
                             └─▶ router, same as a typed message
 ```
 
-The feature is **off by default**: with `STT_URL` empty PicoBot behaves exactly like v0.5.
+With `voice.stt_url` empty (the code default) PicoBot behaves as if the feature did not exist.
+`config/config_example.yaml` already sets it to `http://stt:8000`: if you copy it, start the `stt` service too.
 
 ## Enabling
 
 ```bash
 mkdir -p models && sudo chown -R 1000 models
 [ -f config/config.yaml ] || cp config/config_example.yaml config/config.yaml
-# in config/config.yaml, voice block:  stt_url: http://stt:8000
-docker compose --profile stt up -d --build
+# config/config.yaml, voice block:  stt_url: http://stt:8000 (already set in the example)
+echo "COMPOSE_PROFILES=stt" >> .env  # start stt on every docker compose up
+docker compose up -d                # with compose-build.yaml: docker compose -f compose-build.yaml up -d --build
 docker compose logs -f stt          # the first start downloads the model from Hugging Face
 ```
 
-- The `stt` service lives in the compose **profile** `stt`: a plain `docker compose up -d` starts only PicoBot.
+- The `stt` service lives in the compose **profile** `stt`, in both `compose.yaml` and `compose-build.yaml`:
+  without `COMPOSE_PROFILES=stt` (or `--profile stt`) `docker compose up -d` starts only PicoBot.
 - The model is cached in `./models`: Internet access is needed only on the first start. The container reports
   *healthy* once the model is loaded.
 - `stt` publishes **no port**: only PicoBot reaches it, on the internal compose network.
-- Prebuilt image: replace `build: ./stt` with `image: ghcr.io/jumping2000/picobot-stt:latest`.
+- `compose.yaml` uses the prebuilt image `ghcr.io/jumping2000/picobot-stt`; `compose-build.yaml` builds it from `stt/`.
 
 ## What you can send
 

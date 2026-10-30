@@ -2,19 +2,19 @@
 
 🇬🇧 English · 🇮🇹 [Italiano](../it/index.md) · ⬅️ [README](../../README.md)
 
-PicoBot v0.5 is a self-hosted, multi-agent personal assistant built on [Agno 3](https://github.com/agno-agi/agno).
+PicoBot v0.8 is a self-hosted, multi-agent personal assistant built on [Agno 3](https://github.com/agno-agi/agno).
 It is reachable through Telegram, an interactive CLI and a REST API, all served by one process.
 
 ## Guides
 
 | Page | What you will find |
 |---|---|
-| [Getting started](getting-started.md) | Requirements, Docker and local installation, first run |
-| [Configuration](configuration.md) | Every environment variable, with its default |
+| [Getting started](getting-started.md) | Requirements, Docker (prebuilt images or local build) and local installation, first run |
+| [Configuration](configuration.md) | `.env` keys and `config/config.yaml` blocks, with precedence and defaults |
 | [Architecture](architecture.md) | Router, teams, workflow, scheduler, data layout, request lifecycle |
 | [Channels](channels.md) | Telegram and CLI: commands, documents, confirmations |
 | [REST API](api.md) | Endpoints, payloads, examples, error codes |
-| [Skills](skills.md) | Agent Skills format, admin CLI, Docker dependencies |
+| [Skills](skills.md) | Agent Skills format, installing from chat (`/skill_add`) and the admin CLI, Docker dependencies |
 | [MCP](mcp.md) | Connecting Model Context Protocol servers |
 | [Voice messages](voice.md) | Telegram voice notes and audio, the `stt` transcription container |
 | [Memory](memory.md) | Memories, structured profile, entities, `/memory` and `/forget` |
@@ -40,4 +40,3 @@ It is reachable through Telegram, an interactive CLI and a REST API, all served 
 
 - [Manual acceptance checklist](manual-qa.md)
 - [Changelog](../../CHANGELOG.md)
-- Design specs and implementation plans (Italian): [`docs/superpowers/`](../superpowers/)

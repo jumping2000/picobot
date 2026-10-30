@@ -6,13 +6,13 @@
 
 🇬🇧 English · 🇮🇹 [Italiano](README_IT.md)
 
-[![Version](https://img.shields.io/badge/version-0.6.0-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.8.0-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
 [![FastAPI](https://img.shields.io/badge/FastAPI-REST%20API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![Telegram](https://img.shields.io/badge/Telegram-bot-26A5E4?logo=telegram&logoColor=white)](https://core.telegram.org/bots)
-[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](docker-compose.yaml)
+[![Docker](https://img.shields.io/badge/Docker-compose-2496ED?logo=docker&logoColor=white)](compose.yaml)
 [![MCP](https://img.shields.io/badge/MCP-supported-8A2BE2)](https://modelcontextprotocol.io/)
 [![LLM](https://img.shields.io/badge/LLM-OpenRouter%20%7C%20OpenAI-412991?logo=openai&logoColor=white)](https://openrouter.ai/)
 [![SQLite](https://img.shields.io/badge/storage-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
@@ -44,9 +44,13 @@ tasks with cron.
 | 📄 **Office documents** | Creates `.docx`, `.pptx`, `.xlsx` files through installable [Agent Skills](docs/en/skills.md) |
 | 🔌 **MCP servers** | Any MCP server (stdio or HTTP) in Claude Desktop format, shared by the ComplexTeam |
 | 🎤 **Voice messages** | Telegram voice notes and audio files transcribed locally (faster-whisper on CPU, Italian and English), then executed like typed text — see [voice](docs/en/voice.md) |
-| 📚 **Document summaries** | PDF, DOCX, TXT, MD, CSV, JSON, LOG; parallel map-reduce above 100,000 characters |
+| 📚 **Summaries** | Documents (PDF, DOCX, TXT, MD, CSV, JSON, LOG; parallel map-reduce above 100,000 characters) and web pages (`/riassumi <link>`) |
+| 🌐 **Up-to-date search** | Agents know today's date and time; web search asks one engine at a time (DuckDuckGo first) and moves on only when it finds nothing |
 | 🧠 **Memory & profile** | Memories, structured profile (language, time zone, format, tickers) and entities, private per user |
-| ⏰ **Scheduler** | Recurring cron tasks; the result goes back to the channel that created them |
+| ⏰ **Scheduler** | Recurring tasks, with cron or in plain words ("every weekday at 8am…"); the result goes back to the channel that created them |
+| 🧩 **Skills from chat** | Admins install and remove skills from Telegram or the CLI (`/skill_add <link>`, a `.zip` attachment, `/skill_remove`) |
+| ⚙️ **YAML configuration** | Secrets in `.env`, everything else in `config/config.yaml`, split into blocks and checked at startup |
+| 🔎 **Request trace** | Optional: `/trace` shows which teams, agents and tools your last request went through |
 | 🛡️ **Human-in-the-loop** | Generated code always runs **after your confirmation**, in a separate, resource-limited process |
 | 💬 **Three channels** | Telegram (confirm buttons), interactive CLI, REST API with bearer tokens and optional TLS |
 
@@ -74,14 +78,17 @@ More details in [docs/en/architecture.md](docs/en/architecture.md).
 
 ```bash
 git clone https://github.com/jumping2000/picobot.git && cd picobot
-cp .env.example .env            # set OPENROUTER_API_KEY, TELEGRAM_* and/or API_TOKENS
+cp .env.example .env            # set OPENROUTER_API_KEY, TELEGRAM_* and/or API_TOKENS (and ADMIN_USER_IDS)
+cp config/config_example.yaml config/config.yaml   # optional: every other setting
 mkdir -p data workspace skills && sudo chown -R 1000 data workspace skills
-docker compose up -d --build
+docker compose up -d            # prebuilt images from ghcr.io (linux/amd64, linux/arm64)
 ```
 
 > [!TIP]
-> Prefer a prebuilt image? Replace `build: .` with `image: ghcr.io/jumping2000/picobot:latest` in
-> `docker-compose.yaml` (linux/amd64 and linux/arm64). See [getting-started](docs/en/getting-started.md#prebuilt-image).
+> Two compose files: `compose.yaml` uses the prebuilt images, `compose-build.yaml` builds them locally (needed when
+> a skill requires extra libraries): `docker compose -f compose-build.yaml up -d --build`. In both, voice
+> transcription (`stt`) starts only with its profile: add `--profile stt`, or `COMPOSE_PROFILES=stt` in `.env`.
+> See [getting-started](docs/en/getting-started.md#prebuilt-image-or-local-build).
 
 - **Telegram**: write to your bot, then `/help`.
 - **CLI**: `docker compose exec -it picobot python -m picobot cli`
@@ -131,6 +138,8 @@ Measured with the simulated model used in the tests:
 - Code runs only after confirmation, at most 6 runs per request, with timeout, CPU/RAM/file-size limits and a
   stripped environment (no API keys).
 - Delivered files can only come from `workspace/outputs/`; Agno telemetry is **off** by default.
+- Skills are installed from chat only by admins (`ADMIN_USER_IDS`, empty = off), only from `https://`, never from
+  local networks. `./skills` is writable by the container, including by confirmed generated code.
 
 Details: [docs/en/security.md](docs/en/security.md).
 
@@ -140,7 +149,7 @@ Details: [docs/en/security.md](docs/en/security.md).
 |---|---|---|
 | Overview | [index](docs/en/index.md) | [indice](docs/it/index.md) |
 | Installation & first run | [getting-started](docs/en/getting-started.md) | [per iniziare](docs/it/getting-started.md) |
-| Configuration (`.env`) | [configuration](docs/en/configuration.md) | [configurazione](docs/it/configuration.md) |
+| Configuration (`.env`, `config.yaml`) | [configuration](docs/en/configuration.md) | [configurazione](docs/it/configuration.md) |
 | Architecture | [architecture](docs/en/architecture.md) | [architettura](docs/it/architecture.md) |
 | Telegram & CLI | [channels](docs/en/channels.md) | [canali](docs/it/channels.md) |
 | REST API | [api](docs/en/api.md) | [api](docs/it/api.md) |
@@ -168,7 +177,7 @@ see [development → CI/CD](docs/en/development.md#cicd).
 [Agno 3](https://github.com/agno-agi/agno) · [python-telegram-bot 21](https://python-telegram-bot.org/) ·
 [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn · [APScheduler 3](https://apscheduler.readthedocs.io/) ·
 SQLite · [yfinance](https://github.com/ranaroussi/yfinance) · [DDGS](https://pypi.org/project/ddgs/) ·
-[MCP](https://modelcontextprotocol.io/) · pypdf · python-docx · [uv](https://docs.astral.sh/uv/)
+[MCP](https://modelcontextprotocol.io/) · pypdf · python-docx · trafilatura · PyYAML · [uv](https://docs.astral.sh/uv/)
 
 ## 📜 License
 

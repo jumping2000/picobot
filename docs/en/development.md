@@ -9,7 +9,8 @@ uv sync --group dev
 ```
 
 Python ≥ 3.11. Main dependencies: `agno>=3.1,<4`, `python-telegram-bot==21.10`, `fastapi`, `uvicorn`,
-`apscheduler>=3.10,<4`, `fastmcp>=4,<5`, `yfinance`, `ddgs`, `pypdf`, `python-docx`
+`apscheduler>=3.10,<4`, `fastmcp>=4,<5`, `yfinance`, `ddgs`, `pypdf`, `python-docx`, `trafilatura`,
+`python-dotenv`, `pyyaml`
 (see [`pyproject.toml`](../../pyproject.toml)).
 
 ## Tests
@@ -47,11 +48,11 @@ picobot/
 ├── src/picobot/          # application package (see architecture.md → Source map)
 ├── tests/                # pytest suite with fake LLM
 ├── stt/                  # transcription service (FastAPI + faster-whisper), own pyproject and tests
-├── config/mcp_config.json
+├── config/               # config.yaml (from config_example.yaml), mcp_config.json
 ├── deps/                 # apt/pip/npm extension points + setup.sh
 ├── docs/                 # this documentation (en/, it/), manual QA, design specs
 ├── .github/workflows/    # CI/CD (test, Docker build, GHCR)
-├── Dockerfile, docker-compose.yaml, .env.example
+├── Dockerfile, compose.yaml, compose-build.yaml, .env.example
 └── pyproject.toml
 ```
 
@@ -91,7 +92,7 @@ Workflow: [`.github/workflows/release_ci-cd.yml`](../../.github/workflows/releas
 | `build-docker` | Release published, manual run | Trivy scan (repo), multi-arch build and push to GHCR, smoke test, Trivy scan (image), SBOM, reports attached to the release |
 | `notify` | Release, manual run | E-mail with the result, **only if** the SMTP secrets are set |
 
-Image: `ghcr.io/jumping2000/picobot`. Tags: version (`0.6.0`), minor (`0.6`), `sha-<commit>`, and `latest` for
+Image: `ghcr.io/jumping2000/picobot`. Tags: version (`0.8.0`), minor (`0.8`), `sha-<commit>`, and `latest` for
 non-prerelease releases.
 The same jobs test, check and publish the transcription image `ghcr.io/jumping2000/picobot-stt` (tests:
 `uv run --directory stt --group dev pytest tests`).
@@ -111,7 +112,7 @@ Keep them aligned: CI refuses to publish if they disagree.
 To release:
 
 1. Update the version in both files and commit to `main`.
-2. Create a GitHub release with tag `v<version>` (e.g. `v0.6.0`).
+2. Create a GitHub release with tag `v<version>` (e.g. `v0.8.0`).
 3. CI publishes the image and attaches `trivy-fs-report.txt`, `trivy-image-report.txt` and `sbom.spdx.json`.
 
 A manual run (*Actions → PicoBot CI/CD Pipeline → Run workflow*) rebuilds and pushes the current version without

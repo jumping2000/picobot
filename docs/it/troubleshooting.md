@@ -13,6 +13,10 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 | `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN e/o API_TOKENS.` | Né Telegram né API configurati | Configurane almeno uno |
 | `API_TOKENS non configurato: API disattivata.` (avviso) | API senza token | Imposta `API_TOKENS` o ignora |
 | `API esposta senza TLS...` (avviso) | API su indirizzo non locale senza certificati | Imposta `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
+| `Configurazione non valida: config/config.yaml: <blocco>.<chiave>: ...` | Chiave sconosciuta o nel blocco sbagliato, valore non valido, `${NOME}` non definito, chiave riservata a `.env`, chiave ripetuta, file non UTF-8 | Correggi la chiave indicata (confronta con `config/config_example.yaml`), poi `docker compose restart` |
+| `<CHIAVE> (ambiente/.env) prevale su <blocco>.<chiave> (config/config.yaml)` (avviso) | La stessa impostazione è sia in `.env` sia nello YAML: vince `.env` | Togli la riga da `.env`, poi `docker compose up -d` (`restart` non rilegge `.env`) |
+| `ADMIN_USER_IDS non valido: ...` | `ADMIN_USER_IDS` non è un elenco di id numerici separati da virgole | Correggilo in `.env`, poi `docker compose up -d` |
+| Il container `stt` non parte, o resta `Exited (0)` | Profilo `stt` non attivo, oppure container creato dall'altro file compose | `COMPOSE_PROFILES=stt` in `.env` (o `--profile stt`), poi `docker compose up -d`; con `compose-build.yaml` aggiungi sempre `-f compose-build.yaml` |
 | `PermissionError` su `/app/data` o `/app/workspace` | Cartelle dell'host non scrivibili da UID 1000 | `sudo chown -R 1000 data workspace` |
 | `Non posso scrivere nella cartella delle skill...` (da `/skill_add` o `/skill_remove`) | `./skills` non scrivibile da UID 1000, o mount rimasto `:ro` nel compose | `sudo chown -R 1000 skills`; se il compose ha ancora `:ro`, toglilo e rilancia `docker compose up -d` |
 
