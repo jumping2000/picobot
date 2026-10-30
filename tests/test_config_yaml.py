@@ -69,8 +69,9 @@ def test_reply_format_from_yaml(yaml_cfg):
 
 def test_reply_format_invalid_names_key(yaml_cfg):
     yaml_cfg("telegram:\n  reply_format: htm\n")
-    with pytest.raises(ConfigError, match=re.escape("telegram.reply_format")):
+    with pytest.raises(ConfigError) as e:
         Settings()
+    assert "telegram.reply_format" in str(e.value) and "markdownv2" in str(e.value)
 
 
 def test_reply_format_env_beats_yaml(yaml_cfg, monkeypatch):
