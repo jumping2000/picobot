@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
+from telegram.error import BadRequest
 
 PARSE_MODE = {"markdown": "Markdown", "markdownv2": "MarkdownV2", "html": "HTML"}
 EMPTY = "(risposta vuota)"
@@ -337,3 +338,12 @@ def render_chunks(md: str, fmt: str, limit: int = 4000) -> list[Chunk]:
     if not units:
         return [Chunk(f.esc(EMPTY), EMPTY)]
     return [Chunk(t, p) for t, p, _ in _pack(units, _join, fits)]
+
+
+async def send_formatted(send, text: str, fmt: str) -> None:
+    """send(testo, **kw) è una coroutine; se Telegram rifiuta la formattazione ripiega sul testo semplice."""
+    for c in render_chunks(text, fmt):
+        try:
+            await send(c.text, parse_mode=PARSE_MODE[fmt])
+        except BadRequest:
+            await send(c.plain)

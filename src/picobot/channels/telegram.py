@@ -8,8 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.constants import ChatAction, ParseMode
-from telegram.error import BadRequest
+from telegram.constants import ChatAction
 from telegram.ext import (
     Application, ApplicationBuilder, CallbackQueryHandler, CommandHandler,
     ContextTypes, MessageHandler, PicklePersistence, filters,
@@ -26,6 +25,7 @@ from .common import (
     HELP, SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY, add_skill_flow, format_memory_report, format_schedules,
     parse_schedule_args, remove_skill_flow, split_text, trace_text,
 )
+from .tg_format import send_formatted
 
 logger = logging.getLogger(__name__)
 _RIASSUMI_USAGE = "Uso: /riassumi <link> [istruzioni], oppure rispondi a un documento con /riassumi (o usalo come didascalia)."
@@ -42,12 +42,15 @@ _STT_MESSAGES = {
 }
 
 
-async def send_safe(update: Update, text: str) -> None:
-    for chunk in split_text(text):
-        try:
-            await update.message.reply_text(chunk, parse_mode=ParseMode.MARKDOWN)
-        except BadRequest:  # Markdown non valido: ripiega su testo semplice
-            await update.message.reply_text(chunk)
+async def send_safe(update: Update, text: str, fmt: str = "markdown") -> None:
+    await send_formatted(update.message.reply_text, text, fmt)
+
+
+def make_notify(bot, fmt: str):
+    """Notifica dei task programmati: stesso formato e stesso ripiego delle risposte."""
+    async def notify(target: str, text: str) -> None:
+        await send_formatted(lambda t, **kw: bot.send_message(int(target), t, **kw), text, fmt)
+    return notify
 
 
 class TelegramGateway:
@@ -120,7 +123,7 @@ class TelegramGateway:
         return await self.ask_yes_no(bot, chat_id, user_id, prompt)
 
     async def send_reply(self, update: Update, reply: Reply) -> None:
-        await send_safe(update, reply.text)
+        await send_safe(update, reply.text, self.s.reply_format)
         for f in reply.files:
             try:
                 with f.path.open("rb") as fh:
@@ -155,7 +158,8 @@ class TelegramGateway:
     async def on_memory(self, update, ctx):
         if not self.authorized(update):
             return
-        await send_safe(update, format_memory_report(await self.service.memory_report(str(update.effective_user.id))))
+        await send_safe(update, format_memory_report(await self.service.memory_report(str(update.effective_user.id))),
+                        self.s.reply_format)
 
     async def on_forget(self, update, ctx):
         if not self.authorized(update):
@@ -196,7 +200,7 @@ class TelegramGateway:
         text = await self._with_typing(ctx, chat_id, add_skill_flow(
             self.service, source, allow_local=allow_local, user=str(uid), channel="telegram", label=label,
             ask=lambda q: self.ask_yes_no(ctx.bot, chat_id, uid, q)))
-        await send_safe(update, text)   # il testo ha backtick: Markdown, con ripiego su testo semplice
+        await send_safe(update, text, self.s.reply_format)   # il testo ha backtick: formattato, con ripiego su testo semplice
 
     async def on_skill_add(self, update, ctx):
         if not await self._skill_gate(update):
@@ -390,7 +394,7 @@ class TelegramGateway:
         async with self._locks[chat_id]:
             try:
                 text = await self._with_typing(ctx, chat_id, summarize(self.session_id(ctx, chat_id)))
-                await send_safe(update, text)
+                await send_safe(update, text, self.s.reply_format)
             except DocumentError as e:
                 await update.message.reply_text(str(e))
             except Exception:

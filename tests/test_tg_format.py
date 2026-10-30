@@ -1,9 +1,11 @@
 """Conversione del Markdown del modello nei tre formati di Telegram (markdown, markdownv2, html)."""
+import asyncio
 import re
 
 import pytest
+from telegram.error import BadRequest
 
-from picobot.channels.tg_format import Chunk, render_chunks
+from picobot.channels.tg_format import Chunk, render_chunks, send_formatted
 
 
 def one(md: str, fmt: str) -> Chunk:
@@ -131,3 +133,12 @@ def test_overlong_word_is_hard_cut(fmt):           # Review Focus 3
     chunks = render_chunks("https://example.com/" + "a.b-" * 2000, fmt)
     assert all(len(c.text) <= 4000 for c in chunks)
     assert "".join(c.plain for c in chunks).count("a.b-") == 2000
+
+
+def test_send_formatted_uses_parse_mode_then_plain():
+    calls = []
+    async def send(text, **kw):
+        calls.append((text, kw.get("parse_mode")))
+        if kw.get("parse_mode"): raise BadRequest("can't parse entities")
+    asyncio.run(send_formatted(send, "**ciao**", "html"))
+    assert calls == [("<b>ciao</b>", "HTML"), ("ciao", None)]

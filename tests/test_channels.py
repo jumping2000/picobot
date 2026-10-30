@@ -12,7 +12,7 @@ import fake_llm
 from picobot.channels import cli as cli_mod
 from picobot.channels.api import create_app
 from picobot.channels.common import HELP, parse_schedule_args, split_text, trace_text
-from picobot.channels.telegram import TelegramGateway, send_safe
+from picobot.channels.telegram import TelegramGateway, make_notify, send_safe
 from picobot.config import Settings
 from picobot.context import OutputFile, Reply
 from picobot.service import PicoBotService
@@ -151,6 +151,29 @@ def test_confirm_buttons_yes_no_wrong_user_timeout():
         assert await task is False
         assert not gw._pending
     asyncio.run(t())
+
+
+def test_telegram_reply_uses_reply_format(tmp_path):
+    s = Settings(telegram_allowed_user_ids="1", reply_format="html"); svc = PicoBotService(s)
+    gw, sent = TelegramGateway(s, svc), []
+    async def reply(text, **kw): sent.append((text, kw.get("parse_mode")))
+    asyncio.run(gw.send_reply(NS(message=NS(reply_text=reply)), Reply(text="| a |\n|---|\n| 1 |")))
+    assert sent == [("<pre>a\n-\n1</pre>", "HTML")]
+
+
+def test_notify_formats_and_targets_chat():
+    bot = NS(send_message=AsyncMock())
+    asyncio.run(make_notify(bot, "markdownv2")("555", "[Schedule #3] x\n\n**fatto**."))
+    bot.send_message.assert_awaited_once_with(555, "\\[Schedule \\#3\\] x\n\n*fatto*\\.", parse_mode="MarkdownV2")
+
+
+def test_notify_falls_back_to_plain():
+    calls = []
+    async def send_message(chat_id, text, **kw):
+        calls.append(kw.get("parse_mode"))
+        if kw.get("parse_mode"): raise BadRequest("can't parse entities")
+    asyncio.run(make_notify(NS(send_message=send_message), "html")("555", "**ok**"))
+    assert calls == ["HTML", None]
 
 
 def test_markdown_fallback_and_split():
