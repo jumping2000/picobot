@@ -1,4 +1,5 @@
 """Markdown del modello nei formati di Telegram: Markdown legacy, MarkdownV2, HTML (più il testo semplice)."""
+import logging
 import re
 from bisect import bisect_right
 from dataclasses import dataclass
@@ -9,6 +10,9 @@ from markdown_it import MarkdownIt
 from markdown_it.tree import SyntaxTreeNode
 from telegram.error import BadRequest
 
+from .common import split_text
+
+log = logging.getLogger(__name__)
 PARSE_MODE = {"markdown": "Markdown", "markdownv2": "MarkdownV2", "html": "HTML"}
 EMPTY = "(risposta vuota)"
 _MD = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])
@@ -115,7 +119,8 @@ class _Legacy(_Plain):
         return self.esc(s) if "`" in s else f"`{s}`"
 
     def link(self, kids, url, bold=False):
-        return self.ent("[", f"]({url})", PLAIN.inline(kids))
+        # il Markdown legacy chiude l'URL alla prima ")": le parentesi dell'URL si codificano
+        return self.ent("[", f"]({url.replace('(', '%28').replace(')', '%29')})", PLAIN.inline(kids))
 
     def pre(self, s, lang):
         return f"```\n{s}\n```"
@@ -329,10 +334,15 @@ def _parts(f, n, fits) -> list[tuple[str, str, str]]:
     return _inline_parts(f, n.children[0].children, (("strong", None),) if n.type == "heading" else (), fits)
 
 
+def _utf16_len(t: str) -> int:
+    """Telegram conta la lunghezza dei messaggi in unità UTF-16, non in punti di codice."""
+    return len(t.encode("utf-16-le")) // 2
+
+
 def render_chunks(md: str, fmt: str, limit: int = 4000) -> list[Chunk]:
     """Il Markdown del modello in pezzi convertiti: i blocchi di primo livello riempiono ogni pezzo fino al limite;
     un blocco più lungo del limite si divide prima in parti valide da sole."""
-    f, fits = _FORMATS[fmt], lambda t: len(t) <= limit
+    f, fits = _FORMATS[fmt], lambda t: _utf16_len(t) <= limit
     # fuori i blocchi senza testo (riga ---, titolo vuoto): il ripiego manderebbe un messaggio vuoto
     units = [u for n in SyntaxTreeNode(_MD.parse(md)).children if PLAIN.block(n).strip() for u in _parts(f, n, fits)]
     if not units:
@@ -342,7 +352,14 @@ def render_chunks(md: str, fmt: str, limit: int = 4000) -> list[Chunk]:
 
 async def send_formatted(send, text: str, fmt: str) -> None:
     """send(testo, **kw) è una coroutine; se Telegram rifiuta la formattazione ripiega sul testo semplice."""
-    for c in render_chunks(text, fmt):
+    try:
+        chunks = render_chunks(text, fmt)
+    except Exception:   # un errore del convertitore non deve far perdere la risposta
+        log.exception("Conversione del messaggio fallita: invio testo semplice")
+        for piece in split_text(text):
+            await send(piece)
+        return
+    for c in chunks:
         try:
             await send(c.text, parse_mode=PARSE_MODE[fmt])
         except BadRequest:

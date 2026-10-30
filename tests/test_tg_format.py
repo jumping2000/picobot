@@ -142,3 +142,38 @@ def test_send_formatted_uses_parse_mode_then_plain():
         if kw.get("parse_mode"): raise BadRequest("can't parse entities")
     asyncio.run(send_formatted(send, "**ciao**", "html"))
     assert calls == [("<b>ciao</b>", "HTML"), ("ciao", None)]
+
+
+def test_legacy_link_url_parentheses_are_percent_encoded():
+    assert one("[Euro](https://it.wikipedia.org/wiki/Euro_(valuta))", "markdown").text == \
+        "[Euro](https://it.wikipedia.org/wiki/Euro_%28valuta%29)"
+
+
+def test_markdownv2_link_url_escapes_closing_parenthesis():
+    assert one("[a](https://x.org/a_(b))", "markdownv2").text == r"[a](https://x.org/a_(b\))"
+
+
+def test_html_attribute_escapes_quotes():   # markdown-it codifica già " negli URL: si prova con la lingua del blocco
+    assert one('```a"b\nx\n```', "html").text == '<pre><code class="language-a&quot;b">x</code></pre>'
+
+
+def utf16(t: str) -> int:
+    return len(t.encode("utf-16-le")) // 2
+
+
+@pytest.mark.parametrize("fmt", FMTS)
+def test_chunks_fit_limit_in_utf16_units(fmt):
+    md = "\n".join(f"- 📈 ENI 14,52€ (+1,3%) 🟢 riga {i}" for i in range(400))
+    chunks = render_chunks(md, fmt)
+    assert len(chunks) > 1
+    assert all(utf16(c.text) <= 4000 for c in chunks)
+
+
+def test_send_formatted_falls_back_to_plain_pieces_if_converter_raises(monkeypatch):
+    from picobot.channels import tg_format
+    def boom(*a, **kw): raise RuntimeError("bug")
+    monkeypatch.setattr(tg_format, "render_chunks", boom)
+    calls = []
+    async def send(text, **kw): calls.append((text, kw))
+    asyncio.run(send_formatted(send, "**ciao**", "html"))
+    assert calls == [("**ciao**", {})]
