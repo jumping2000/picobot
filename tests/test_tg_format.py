@@ -1,4 +1,6 @@
 """Conversione del Markdown del modello nei tre formati di Telegram (markdown, markdownv2, html)."""
+import re
+
 import pytest
 
 from picobot.channels.tg_format import Chunk, render_chunks
@@ -85,3 +87,47 @@ def test_blocks_without_text_are_skipped():
 def test_small_blocks_share_one_message():
     md = "\n\n".join(f"paragrafo {i} " + "x" * 80 for i in range(10))
     assert len(render_chunks(md, "html")) == 1
+
+
+def balanced(text: str, fmt: str) -> bool:
+    """Nessun blocco ``` aperto (markdown, markdownv2); in html tanti tag aperti quanti chiusi."""
+    if fmt == "html":
+        return all(len(re.findall(rf"<{t}[ >]", text)) == text.count(f"</{t}>")
+                   for t in ("pre", "b", "i", "s", "code", "a", "blockquote"))
+    return text.count("```") % 2 == 0
+
+
+FMTS = ("markdown", "markdownv2", "html")
+LONG = {
+    "paragrafo": "parola " * 1500,
+    "elenco": "\n".join(f"{i}. voce numero {i}" for i in range(1, 400)),
+    "tabella": "| a | b |\n|---|---|\n" + "\n".join(f"| riga {i} | {i * 7} |" for i in range(600)),
+    "codice": "```python\n" + "\n".join(f"print({i})  # (riga)" for i in range(600)) + "\n```",
+    "citazione": "\n>\n".join(f"> paragrafo {i} " + "y" * 60 for i in range(120)),
+    "grassetto": "**" + ("lungo " * 1000).strip() + "**",   # niente spazio prima di ** o non è grassetto
+}
+
+
+@pytest.mark.parametrize("fmt", FMTS)
+@pytest.mark.parametrize("kind", LONG)
+def test_long_blocks_split_within_limit(kind, fmt):
+    chunks = render_chunks(LONG[kind], fmt)
+    assert len(chunks) > 1
+    assert all(len(c.text) <= 4000 and balanced(c.text, fmt) for c in chunks)
+
+
+def test_long_table_repeats_header():
+    for c in render_chunks(LONG["tabella"], "html"):
+        assert c.text.startswith("<pre>a" + " " * 9 + "b\n")
+
+
+def test_long_numbered_list_keeps_counting():
+    second = render_chunks(LONG["elenco"], "markdown")[1].plain
+    assert not second.startswith("1. ") and second.split(". ")[0].isdigit()
+
+
+@pytest.mark.parametrize("fmt", FMTS)
+def test_overlong_word_is_hard_cut(fmt):           # Review Focus 3
+    chunks = render_chunks("https://example.com/" + "a.b-" * 2000, fmt)
+    assert all(len(c.text) <= 4000 for c in chunks)
+    assert "".join(c.plain for c in chunks).count("a.b-") == 2000
