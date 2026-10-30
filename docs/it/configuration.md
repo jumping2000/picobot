@@ -65,6 +65,7 @@ Ogni tabella è un blocco. La colonna **Variabile** è il nome della variabile d
 | Chiave | Variabile | Default | Descrizione |
 |---|---|---|---|
 | `telegram.allow_all_users` | `ALLOW_ALL_USERS` | `false` | Autorizza ogni utente Telegram. Da evitare su un bot pubblico |
+| `telegram.reply_format` | `REPLY_FORMAT` | `markdown` | Formato delle risposte su Telegram: `markdown` (semplice), `markdownv2` o `html`. Tabelle in blocco a larghezza fissa in tutti e tre |
 
 ### `paths`
 
