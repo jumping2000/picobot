@@ -255,6 +255,7 @@ def test_router_hint_hot_reload(d, tmp_path):
         fake_llm.LOG.clear()
         await ask("ciao 2")
         assert "docx, pptx" in _system_prompt(fake_llm.LOG[0])
+        assert _system_prompt(fake_llm.LOG[0]).lstrip("- ").startswith("Oggi è ")   # la data resta dopo il refresh
         shutil.rmtree(d / "docx")
         fake_llm.LOG.clear()
         await ask("ciao 3")
