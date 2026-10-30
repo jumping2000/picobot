@@ -6,7 +6,7 @@
 
 🇮🇹 Italiano · 🇬🇧 [English](README.md)
 
-[![Versione](https://img.shields.io/badge/versione-0.8.0-blue)](pyproject.toml)
+[![Versione](https://img.shields.io/badge/versione-0.8.1-blue)](pyproject.toml)
 [![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
