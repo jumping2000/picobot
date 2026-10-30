@@ -65,6 +65,7 @@ Each table is a block. The **Variable** column is the equivalent environment var
 | Key | Variable | Default | Description |
 |---|---|---|---|
 | `telegram.allow_all_users` | `ALLOW_ALL_USERS` | `false` | Authorizes every Telegram user. Avoid on a public bot |
+| `telegram.reply_format` | `REPLY_FORMAT` | `markdown` | Format of replies on Telegram: `markdown` (simple), `markdownv2` or `html`. Fixed-width block tables in all three |
 
 ### `paths`
 

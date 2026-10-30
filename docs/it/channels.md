@@ -45,8 +45,9 @@ Vengono serviti solo gli id in `TELEGRAM_ALLOWED_USER_IDS`; gli altri utenti son
 
 - Ogni chat ha il suo id di sessione, salvato in `data/telegram_state.pkl`; `/new` ne crea uno nuovo.
 - Le richieste della stessa chat vengono elaborate una alla volta; nel frattempo compare "sta scrivendo…".
-- Le risposte lunghe vengono divise in messaggi da 4.000 caratteri. Se Telegram rifiuta il Markdown, si ripiega
-  sul testo semplice.
+- Le risposte sono formattate secondo `telegram.reply_format` (vedi configuration.md); le tabelle diventano un blocco
+  a larghezza fissa. Le risposte lunghe vengono divise in più messaggi senza spezzare la formattazione. Se Telegram
+  rifiuta un messaggio formattato, si ripiega sul testo semplice.
 
 ### Documenti
 

@@ -4,6 +4,12 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `telegram.reply_format` in `config/config.yaml` (`markdown` default, `markdownv2`, `html`) chooses how replies are formatted on Telegram. In every mode the model's Markdown is converted: tables become an aligned fixed-width block, `**bold**` and headings become bold, lists use "•", and long replies are split without breaking a block or a formatting. Scheduled-task messages are formatted too and, like replies, fall back to plain text if Telegram rejects them.
+
 ## [0.8.0] - 2026-10-30
 
 ### Added

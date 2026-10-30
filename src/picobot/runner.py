@@ -22,19 +22,14 @@ async def serve(s: Settings, use_telegram: bool, use_api: bool) -> None:
 
     tg_app = api_server = api_task = None
     if use_telegram:
-        from .channels.common import split_text
-        from .channels.telegram import build_application
+        from .channels.telegram import build_application, make_notify
 
         tg_app, _ = build_application(s, service)
         await tg_app.initialize()
         await tg_app.start()
         await tg_app.updater.start_polling()
 
-        async def notify(target: str, text: str) -> None:
-            for chunk in split_text(text):
-                await tg_app.bot.send_message(int(target), chunk)
-
-        service.scheduler.notifiers["telegram"] = notify
+        service.scheduler.notifiers["telegram"] = make_notify(tg_app.bot, s.reply_format)
         logger.info("Telegram attivo.")
     if use_api:
         import uvicorn

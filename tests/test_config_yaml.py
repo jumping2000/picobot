@@ -8,7 +8,7 @@ import pytest
 import picobot.config
 from picobot.config import BLOCKS, ENV_ONLY, ConfigError, Settings
 
-VARS = ("HISTORY_RUNS", "REGION", "API_PORT", "STT_URL", "STT_HOST", "PORT", "MANCA_XYZ", "history_runs")
+VARS = ("HISTORY_RUNS", "REGION", "API_PORT", "STT_URL", "STT_HOST", "PORT", "MANCA_XYZ", "REPLY_FORMAT", "history_runs")
 
 
 @pytest.fixture
@@ -56,6 +56,28 @@ def test_lowercase_env_beats_yaml_and_warns(yaml_cfg, monkeypatch, caplog):
     with caplog.at_level(logging.WARNING, logger="picobot.config"):
         assert Settings().history_runs == 3
     assert "memory.history_runs" in caplog.text
+
+
+def test_reply_format_default(yaml_cfg):
+    assert Settings().reply_format == "markdown"
+
+
+def test_reply_format_from_yaml(yaml_cfg):
+    yaml_cfg("telegram:\n  reply_format: html\n")
+    assert Settings().reply_format == "html"
+
+
+def test_reply_format_invalid_names_key(yaml_cfg):
+    yaml_cfg("telegram:\n  reply_format: htm\n")
+    with pytest.raises(ConfigError) as e:
+        Settings()
+    assert "telegram.reply_format" in str(e.value) and "markdownv2" in str(e.value)
+
+
+def test_reply_format_env_beats_yaml(yaml_cfg, monkeypatch):
+    yaml_cfg("telegram:\n  reply_format: html\n")
+    monkeypatch.setenv("REPLY_FORMAT", "markdownv2")
+    assert Settings().reply_format == "markdownv2"
 
 
 def test_unknown_key(yaml_cfg):

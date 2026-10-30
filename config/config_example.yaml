@@ -12,6 +12,7 @@
 
 telegram:
   allow_all_users: false            # true = chiunque puo' usare il bot (sconsigliato); non rende admin nessuno
+  reply_format: markdown           # markdown (semplice) | markdownv2 | html: come PicoBot formatta su Telegram
 
 paths:
   # data_dir: /app/data             # DB, stato Telegram (NON visibile al codice generato). Nell'immagine Docker la fissa il Dockerfile (/app/data): qui non ha effetto

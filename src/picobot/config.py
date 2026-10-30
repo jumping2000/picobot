@@ -8,7 +8,7 @@ import re
 from collections.abc import Hashable
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from dotenv import dotenv_values
@@ -26,7 +26,7 @@ ENV_ONLY = frozenset({
 })
 
 BLOCKS: dict[str, tuple[str, ...]] = {
-    "telegram": ("allow_all_users",),
+    "telegram": ("allow_all_users", "reply_format"),
     "paths": ("data_dir", "workspace_dir", "mcp_config_path"),
     "memory": ("history_runs", "enable_memory", "enable_learning", "enable_session_summaries", "enable_critic",
                "team_max_iterations"),
@@ -141,6 +141,8 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_allowed_user_ids: str = ""   # CSV; vuoto = nessuno (fail-closed)
     allow_all_users: bool = False
+    # markdown (semplice) | markdownv2 | html: come PicoBot formatta le risposte su Telegram
+    reply_format: Literal["markdown", "markdownv2", "html"] = "markdown"
     admin_user_ids: str = ""              # CSV; vuoto = /skill_add e /skill_remove spenti (fail-closed)
 
     # --- LLM ---
