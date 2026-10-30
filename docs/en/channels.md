@@ -45,7 +45,9 @@ Only the IDs in `TELEGRAM_ALLOWED_USER_IDS` are served; other users are ignored 
 
 - Each chat has its own session ID, persisted in `data/telegram_state.pkl`; `/new` starts a new one.
 - Requests in the same chat are processed one at a time; a "typing…" indicator is shown meanwhile.
-- Long answers are split into 4,000-character messages. Markdown falls back to plain text if Telegram rejects it.
+- Answers are formatted according to `telegram.reply_format` (see configuration.md); tables become a fixed-width
+  block. Long answers are split into several messages without breaking the formatting. If Telegram rejects a
+  formatted message, it falls back to plain text.
 
 ### Documents
 
