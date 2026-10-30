@@ -70,8 +70,9 @@ L'Analyst non può consegnare file per scelta: prepara il contenuto, il Writer p
 
 ### Data e ora, ricerca web, ticker
 
-- **Data e ora correnti.** Il router e ogni team e agente ricevono nel prompt di sistema la data e l'ora correnti,
-  nel fuso `scheduler.timezone` (qualche token per chiamata). Così "le notizie di oggi" cercano davvero oggi e non
+- **Data e ora correnti.** Il router e ogni team e agente ricevono la data e l'ora correnti come prima istruzione,
+  in italiano e con il giorno della settimana ("Oggi è venerdì 30 ottobre 2026, ore 13:35 (Europe/Rome)…"), nel fuso
+  `scheduler.timezone`, ricalcolate a ogni richiesta (`dated` in [`agents.py`](../../src/picobot/agents.py)). Così "le notizie di oggi" cercano davvero oggi e non
   intorno alla data di addestramento del modello; Coder e Analyst non eseguono codice per sapere che giorno è.
 - **Ricerca web a cascata** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web e Researcher
   interrogano un motore alla volta e passano al successivo solo se quello prima non trova nulla: per il web

@@ -10,6 +10,13 @@ All notable changes to PicoBot are listed here. The format follows
 
 - `telegram.reply_format` in `config/config.yaml` (`markdown` default, `markdownv2`, `html`) chooses how replies are formatted on Telegram. In every mode the model's Markdown is converted: tables become an aligned fixed-width block, `**bold**` and headings become bold, lists use "•", and long replies are split without breaking a block or a formatting. Scheduled-task messages are formatted too and, like replies, fall back to plain text if Telegram rejects them.
 
+### Changed
+
+- The current date and time are now the first instruction of the router and of every team and agent, in Italian
+  with the weekday ("Oggi è venerdì 30 ottobre 2026, ore 13:35 (Europe/Rome)…"). Before, agno appended them in
+  English at the end of the system prompt, which for the teams comes after members, memories and the session
+  summary, so weaker models could miss the date when answering about "today".
+
 ## [0.8.0] - 2026-10-30
 
 ### Added

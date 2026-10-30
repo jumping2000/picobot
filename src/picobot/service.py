@@ -20,6 +20,7 @@ from agno.team import Team
 from agno.workflow import Workflow
 
 from . import skills_cli, web
+from .agents import dated
 from .config import Settings
 from .context import Reply, RunCtx, reset_ctx, set_ctx
 from .documents import DocumentError
@@ -88,7 +89,7 @@ class PicoBotService:
         if target not in TARGETS:
             raise ValueError(f"target non valido: {target!r} (ammessi: {', '.join(sorted(TARGETS))})")
         if self.registry.refresh():   # skill aggiunte/rimosse sull'host: le vedono subito router e ComplexTeam
-            self.team.instructions = router_instructions(self.registry.names(), self.s.skills_router_hint_max)
+            self.team.instructions = dated(self.s, router_instructions(self.registry.names(), self.s.skills_router_hint_max))
         ctx = ctx or RunCtx(user_id=user_id, channel="unknown")
         runner = self.team if target == "auto" else self._member(TARGETS[target])
         # un team richiamato direttamente non usa MAI l'id di sessione del router (non deve sovrascriverla)

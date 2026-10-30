@@ -71,8 +71,9 @@ The Analyst cannot deliver files on purpose: it prepares the content, the Writer
 
 ### Date and time, web search, tickers
 
-- **Current date and time.** The router and every team and agent get the current date and time in their system
-  prompt, in the `scheduler.timezone` time zone (a few tokens per call). So "today's news" really searches today,
+- **Current date and time.** The router and every team and agent get the current date and time as their first
+  instruction, in Italian with the weekday ("Oggi è venerdì 30 ottobre 2026, ore 13:35 (Europe/Rome)…"), in the
+  `scheduler.timezone` time zone, recomputed on every request (`dated` in [`agents.py`](../../src/picobot/agents.py)). So "today's news" really searches today,
   not around the model's training date; Coder and Analyst do not run code to find out the date.
 - **Cascading web search** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web and Researcher ask
   one engine at a time and move to the next only when the previous one finds nothing: DuckDuckGo, Yahoo,

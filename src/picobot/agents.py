@@ -1,4 +1,7 @@
 """Specialisti economici + ComplexTeam (costoso, solo per task complessi)."""
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from agno.agent import Agent
 from agno.team import Team
 from agno.team.mode import TeamMode
@@ -25,10 +28,21 @@ def _yf() -> YFinanceTools:
     )
 
 
-def clock(s: Settings) -> dict:
-    """Data e ora correnti (nel fuso TIMEZONE) nel prompt di sistema: senza, il modello usa la data del suo
-    addestramento e, per sapere che giorno e', esegue codice (con richiesta di conferma all'utente)."""
-    return {"add_datetime_to_context": True, "timezone_identifier": s.timezone}
+GIORNI = ("lunedì", "martedì", "mercoledì", "giovedì", "venerdì", "sabato", "domenica")
+MESI = ("gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre",
+        "novembre", "dicembre")
+
+
+def dated(s: Settings, instructions: list[str]):
+    """Istruzioni con data e ora correnti (nel fuso TIMEZONE) in testa: senza, il modello usa la data del suo
+    addestramento e, per sapere che giorno e', esegue codice (con richiesta di conferma all'utente).
+    Agno richiama la funzione a ogni richiesta; add_datetime_to_context la metterebbe in fondo al prompt dei team,
+    dopo membri, memorie e riassunto, in inglese e senza giorno della settimana."""
+    def build() -> list[str]:
+        now = datetime.now(ZoneInfo(s.timezone))
+        return [f"Oggi è {GIORNI[now.weekday()]} {now.day} {MESI[now.month - 1]} {now.year}, ore {now:%H:%M} "
+                f"({s.timezone}). Usa questa data per 'oggi', 'ieri', 'domani' e nelle ricerche.", *instructions]
+    return build
 
 
 def _view(s: Settings, db) -> dict:
@@ -40,7 +54,7 @@ def build_finance(s: Settings, db=None) -> Agent:
     return Agent(
         name="Finance",
         role="Quotazioni, storico prezzi, fondamentali e news di titoli/ETF/crypto via yfinance.",
-        model=make_model(s), tools=[_yf()], instructions=[prompts.FINANCE], **_view(s, db), **clock(s),
+        model=make_model(s), tools=[_yf()], instructions=dated(s, [prompts.FINANCE]), **_view(s, db),
     )
 
 
@@ -48,7 +62,7 @@ def build_web(s: Settings) -> Agent:
     return Agent(
         name="Web",
         role="Cerca informazioni e notizie aggiornate sul web.",
-        model=make_model(s), tools=make_web_tools(s), instructions=[prompts.WEB], **clock(s),
+        model=make_model(s), tools=make_web_tools(s), instructions=dated(s, [prompts.WEB]),
     )
 
 
@@ -57,7 +71,7 @@ def build_coder(s: Settings) -> Agent:
         name="Coder",
         role="Scrive piccoli programmi Python (eseguiti solo con conferma umana) e file di testo; consegna i file.",
         model=make_model(s), tools=[*make_code_tools(s), *make_text_tools(s), *make_file_tools(s)],
-        instructions=[prompts.CODER], **clock(s),
+        instructions=dated(s, [prompts.CODER]),
     )
 
 
@@ -68,7 +82,7 @@ def build_simple_team(s: Settings, db=None) -> Team:
         role="Compiti rapidi ed economici: quotazioni e dati di mercato, ricerche web, piccoli programmi Python, file di testo.",
         mode=TeamMode.coordinate, model=make_model(s),
         members=[build_web(s), build_finance(s, db), build_coder(s)],
-        instructions=[prompts.SIMPLE_LEADER], **_view(s, db), **clock(s),
+        instructions=dated(s, [prompts.SIMPLE_LEADER]), **_view(s, db),
     )
 
 
@@ -83,23 +97,22 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
     read = make_read_tools(s)
     members = [
         Agent(name="Researcher", role="Ricerca web approfondita con fonti.", model=strong(),
-              tools=[*make_web_tools(s), *mcp], skills=skills, instructions=[prompts.RESEARCHER], **clock(s)),
+              tools=[*make_web_tools(s), *mcp], skills=skills, instructions=dated(s, [prompts.RESEARCHER])),
         Agent(name="Analyst", role="Ragiona, analizza e calcola (dati di mercato, codice, grafici); passa il materiale al Writer.",
               model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *read, *mcp],
-              skills=skills, instructions=[prompts.ANALYST], **clock(s)),
+              skills=skills, instructions=dated(s, [prompts.ANALYST])),
         Agent(name="Writer", role="Scrive, formatta e produce il risultato finale (testo, Word, PowerPoint, Excel) e lo consegna.",
               model=strong(),
               tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s), *read, *mcp],
-              skills=skills, instructions=[prompts.WRITER], **clock(s)),
+              skills=skills, instructions=dated(s, [prompts.WRITER])),
     ]
     if s.enable_critic:
         members.append(Agent(name="Critic", role="Revisiona la bozza: allucinazioni e dati senza fonte.",
-                             model=strong(), tools=[*mcp], skills=skills, instructions=[prompts.CRITIC],
-                             **clock(s)))
+                             model=strong(), tools=[*mcp], skills=skills, instructions=dated(s, [prompts.CRITIC])))
     return Team(
         name="ComplexTeam",
         role=("Task complessi multi-step (ricerca approfondita + analisi + report) e creazione di documenti "
               "Word/PowerPoint/Excel con le skill installate. Costoso: usalo solo se necessario."),
         mode=TeamMode.coordinate, model=strong(), members=members, skills=skills,
-        instructions=[prompts.COMPLEX_LEADER], **_view(s, db), **clock(s),
+        instructions=dated(s, [prompts.COMPLEX_LEADER]), **_view(s, db),
     )
