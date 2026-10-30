@@ -23,6 +23,8 @@ CASES = [  # (markdown del modello, markdown legacy, markdownv2, html, plain)
     ("[sito](https://example.com)", "[sito](https://example.com)", "[sito](https://example.com)",
      '<a href="https://example.com">sito</a>', "sito (https://example.com)"),
     ("# Titolo", "*Titolo*", "*Titolo*", "<b>Titolo</b>", "Titolo"),
+    ("## **Titolo**", "*Titolo*", "*Titolo*", "<b>Titolo</b>", "Titolo"),
+    ("**a **b** c**", "*a b c*", "*a b c*", "<b>a b c</b>", "a b c"),
     ("- a\n- b", "• a\n• b", "• a\n• b", "• a\n• b", "• a\n• b"),
     ("1. a\n2. b", "1. a\n2. b", "1\\. a\n2\\. b", "1. a\n2. b", "1. a\n2. b"),
     ("- a\n  - b", "• a\n  • b", "• a\n  • b", "• a\n  • b", "• a\n  • b"),
@@ -73,6 +75,11 @@ def test_table_cells_lose_markup():
 def test_empty_text():
     [c] = render_chunks("", "markdownv2")
     assert (c.text, c.plain) == ("\\(risposta vuota\\)", "(risposta vuota)")
+
+
+def test_blocks_without_text_are_skipped():
+    assert render_chunks("#", "html") == render_chunks("", "html")
+    assert render_chunks("a\n\n#\n\nb", "html")[0].text == "a\n\nb"
 
 
 def test_small_blocks_share_one_message():

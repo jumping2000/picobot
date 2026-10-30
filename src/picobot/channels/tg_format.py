@@ -31,8 +31,8 @@ class _Plain:
     def code(self, s):
         return s
 
-    def link(self, kids, url):
-        return f"{self.inline(kids)} ({url})"
+    def link(self, kids, url, bold=False):
+        return f"{self.inline(kids, bold)} ({url})"
 
     def pre(self, s, lang):
         return s
@@ -40,14 +40,16 @@ class _Plain:
     def quote(self, s):
         return s
 
-    def wrap(self, kind, kids):
+    def wrap(self, kind, kids, bold=False):
+        if kind == "strong" and bold:   # già in grassetto (titolo o grassetto esterno): niente grassetto annidato
+            return self.inline(kids, True)
         o, c = self.TAGS[kind]
-        return o + self.inline(kids) + c
+        return o + self.inline(kids, bold or kind == "strong") + c
 
-    def inline(self, nodes):
-        return "".join(self.span(n) for n in nodes)
+    def inline(self, nodes, bold=False):
+        return "".join(self.span(n, bold) for n in nodes)
 
-    def span(self, n):
+    def span(self, n, bold=False):
         if n.type == "text":
             return self.esc(n.content)
         if n.type in ("softbreak", "hardbreak"):
@@ -57,8 +59,8 @@ class _Plain:
         if n.type == "image":      # solo il testo alternativo
             return self.esc(PLAIN.inline(n.children))
         if n.type == "link":
-            return self.link(n.children, n.attrs["href"])
-        return self.wrap(n.type, n.children)   # strong, em, s
+            return self.link(n.children, n.attrs["href"], bold)
+        return self.wrap(n.type, n.children, bold)   # strong, em, s
 
     def block(self, n):
         """Testo di un blocco; "" per quelli che non producono niente (riga ---)."""
@@ -104,13 +106,13 @@ class _Legacy(_Plain):
         # dentro un'entità niente escape: un carattere speciale la chiude, si scrive con escape e l'entità riapre
         return "".join(self.esc(p) if i % 2 else p and o + p + c for i, p in enumerate(_LEGACY_SPECIAL.split(s)))
 
-    def wrap(self, kind, kids):
+    def wrap(self, kind, kids, bold=False):
         return self.ent(*self.TAGS[kind], PLAIN.inline(kids))
 
     def code(self, s):
         return self.esc(s) if "`" in s else f"`{s}`"
 
-    def link(self, kids, url):
+    def link(self, kids, url, bold=False):
         return self.ent("[", f"]({url})", PLAIN.inline(kids))
 
     def pre(self, s, lang):
@@ -126,8 +128,8 @@ class _V2(_Plain):
     def code(self, s):
         return f"`{_V2_CODE.sub(r'\\\1', s)}`"
 
-    def link(self, kids, url):
-        return f"[{self.inline(kids)}]({_V2_URL.sub(r'\\\1', url)})"
+    def link(self, kids, url, bold=False):
+        return f"[{self.inline(kids, bold)}]({_V2_URL.sub(r'\\\1', url)})"
 
     def pre(self, s, lang):
         return f"```{lang}\n{_V2_CODE.sub(r'\\\1', s)}\n```"
@@ -148,8 +150,8 @@ class _Html(_Plain):
     def code(self, s):
         return f"<code>{self.esc(s)}</code>"
 
-    def link(self, kids, url):
-        return f'<a href="{self.attr(url)}">{self.inline(kids)}</a>'
+    def link(self, kids, url, bold=False):
+        return f'<a href="{self.attr(url)}">{self.inline(kids, bold)}</a>'
 
     def pre(self, s, lang):
         s = self.esc(s)
@@ -179,7 +181,8 @@ def _render(f: _Plain, n) -> tuple[str, str]:
 def render_chunks(md: str, fmt: str, limit: int = 4000) -> list[Chunk]:
     """Il Markdown del modello in pezzi convertiti: i blocchi di primo livello riempiono ogni pezzo fino al limite."""
     f = _FORMATS[fmt]
-    blocks = [p for n in SyntaxTreeNode(_MD.parse(md)).children if (p := _render(f, n))[0]]
+    # fuori i blocchi senza testo (riga ---, titolo vuoto): il ripiego manderebbe un messaggio vuoto
+    blocks = [p for n in SyntaxTreeNode(_MD.parse(md)).children if (p := _render(f, n))[1].strip()]
     if not blocks:
         return [Chunk(f.esc(EMPTY), EMPTY)]
     chunks = [Chunk(*blocks[0])]
