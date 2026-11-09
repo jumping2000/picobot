@@ -49,12 +49,13 @@ blocchi e chiavi si scrivono in minuscolo, come nelle tabelle.
 | `API_TOKENS` | — | Coppie `token:user_id` separate da virgola. Vuoto = API disattivata |
 | `CLI_USER_ID` | `cli` | Id utente della CLI. Usa il tuo id Telegram per condividere la memoria |
 
-Restano in `.env` anche due variabili che PicoBot non legge da `config.yaml`:
+Restano in `.env` anche tre variabili che PicoBot non legge da `config.yaml`:
 
 | Variabile | Default | Descrizione |
 |---|---|---|
 | `API_BIND` | `127.0.0.1` | **Variabile del compose**: interfaccia dell'host su cui viene pubblicata la porta. `0.0.0.0` la espone |
 | `AGNO_TELEMETRY` | `false` | PicoBot spegne la telemetria di Agno, a meno che tu non la imposti a `true` |
+| `KEENABLE_API_KEY` | *(vuota)* | Facoltativa. La legge `KeenableTools` di Agno; senza, la ricerca Keenable usa l'endpoint pubblico, con limiti di richieste più bassi. Arriva al processo tramite l'`env_file` del compose; fuori da Docker va esportata nella shell |
 
 ## Blocchi di `config/config.yaml`
 
@@ -90,7 +91,7 @@ Ogni tabella è un blocco. La colonna **Variabile** è il nome della variabile d
 
 | Chiave | Variabile | Default | Descrizione |
 |---|---|---|---|
-| `web.region` | `REGION` | `it-it` | Regione dei risultati della ricerca web (es. `us-en`, `uk-en`) |
+| `web.region` | `REGION` | `it-it` | Regione dei risultati della ricerca web (es. `us-en`, `uk-en`); vale per i motori DDGS, non per Keenable |
 
 ### `code` (codice generato)
 

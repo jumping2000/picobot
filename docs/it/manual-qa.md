@@ -47,7 +47,7 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d` (o
 | # | Prova | Atteso | Esito |
 |---|---|---|---|
 | 25 | Telegram: "che giorno è oggi?" | data e ora corrette nel fuso `scheduler.timezone`, senza proporre di eseguire codice | |
-| 26 | Telegram: "notizie di oggi su Piazza Affari" | le query nel log (`primp`) contengono la data di oggi, non una data passata; una richiesta per motore, prima DuckDuckGo | |
+| 26 | Telegram: "notizie di oggi su Piazza Affari" | le query nel log (`primp`) contengono la data di oggi, non una data passata; una richiesta per motore, in ordine di affidabilità (prima DuckDuckGo con il database nuovo); `SELECT engine, COUNT(*), AVG(ok) FROM picobot_search_log GROUP BY engine` su `picobot.db` elenca i tentativi | |
 | 27 | Telegram: "come va il FTSE MIB?" | quotazione da `FTSEMIB.MI` al primo tentativo; nel log nessun 404 di yfinance su simboli inventati | |
 
 **Task a parole e traccia (v0.7.1)**

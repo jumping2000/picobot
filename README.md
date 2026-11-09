@@ -45,7 +45,7 @@ tasks with cron.
 | 🔌 **MCP servers** | Any MCP server (stdio or HTTP) in Claude Desktop format, shared by the ComplexTeam |
 | 🎤 **Voice messages** | Telegram voice notes and audio files transcribed locally (faster-whisper on CPU, Italian and English), then executed like typed text — see [voice](docs/en/voice.md) |
 | 📚 **Summaries** | Documents (PDF, DOCX, TXT, MD, CSV, JSON, LOG; parallel map-reduce above 100,000 characters) and web pages (`/riassumi <link>`) |
-| 🌐 **Up-to-date search** | Agents know today's date and time; web search asks one engine at a time (DuckDuckGo first) and moves on only when it finds nothing |
+| 🌐 **Up-to-date search** | Agents know today's date and time; web search asks one engine at a time (the most reliable first, learned from the last 24 hours) and moves on only when it finds nothing |
 | 🧠 **Memory & profile** | Memories, structured profile (language, time zone, format, tickers) and entities, private per user |
 | ⏰ **Scheduler** | Recurring tasks, with cron or in plain words ("every weekday at 8am…"); the result goes back to the channel that created them |
 | 🧩 **Skills from chat** | Admins install and remove skills from Telegram or the CLI (`/skill_add <link>`, a `.zip` attachment, `/skill_remove`) |

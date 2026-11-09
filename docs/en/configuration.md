@@ -49,12 +49,13 @@ in lowercase, as in the tables.
 | `API_TOKENS` | — | Comma-separated `token:user_id` pairs. Empty = API disabled |
 | `CLI_USER_ID` | `cli` | User ID of the CLI. Set it to your Telegram ID to share memory |
 
-Two variables that PicoBot does not read from `config.yaml` also stay in `.env`:
+Three variables that PicoBot does not read from `config.yaml` also stay in `.env`:
 
 | Variable | Default | Description |
 |---|---|---|
 | `API_BIND` | `127.0.0.1` | **Compose variable**: host interface the port is published on. `0.0.0.0` exposes it |
 | `AGNO_TELEMETRY` | `false` | PicoBot turns Agno telemetry off unless you set it to `true` |
+| `KEENABLE_API_KEY` | *(empty)* | Optional. Read by Agno's `KeenableTools`; without it the Keenable web search uses the public endpoint, with lower rate limits. It reaches the process through the compose `env_file`; when running outside Docker, export it in the shell |
 
 ## Blocks of `config/config.yaml`
 
@@ -90,7 +91,7 @@ Each table is a block. The **Variable** column is the equivalent environment var
 
 | Key | Variable | Default | Description |
 |---|---|---|---|
-| `web.region` | `REGION` | `it-it` | Region of web search results (e.g. `us-en`, `uk-en`) |
+| `web.region` | `REGION` | `it-it` | Region of web search results (e.g. `us-en`, `uk-en`); it applies to the DDGS engines, not to Keenable |
 
 ### `code` (generated code)
 

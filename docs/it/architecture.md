@@ -43,7 +43,7 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
  |- risponde da solo a conversazione e domande generali ...... 1 chiamata LLM
  |- summarize_document -> workflow DocSummary (documento caricato, modello economico)
  |- SimpleTeam (modello economico; profilo in sola lettura)
- |    |- Web       ricerca web e notizie (DDGS, un motore alla volta)
+ |    |- Web       ricerca web e notizie (DDGS + Keenable, un motore alla volta)
  |    |- Finance   yfinance (vede i titoli seguiti)
  |    '- Coder     programmi Python (con conferma), file di testo, consegna file
  '- ComplexTeam (modello FORTE per tutti i membri; skill e MCP; profilo in sola lettura)
@@ -58,7 +58,7 @@ Router (Team coordinate, modello ECONOMICO; sessione, memorie, profilo ed entita
 | Agente | Tool |
 |---|---|
 | Router | `summarize_document`, memoria (`add_memory`…), `update_profile`, `remember_about` |
-| Web | `web_search`, `search_news` (DDGS a cascata, vedi sotto) |
+| Web | `web_search`, `search_news` (DDGS + Keenable a cascata, vedi sotto) |
 | Finance | yfinance (prezzo, info società, storico, raccomandazioni analisti, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
 | Researcher | `web_search`, `search_news`, MCP, skill |
@@ -76,8 +76,14 @@ L'Analyst non può consegnare file per scelta: prepara il contenuto, il Writer p
   intorno alla data di addestramento del modello; Coder e Analyst non eseguono codice per sapere che giorno è.
 - **Ricerca web a cascata** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web e Researcher
   interrogano un motore alla volta e passano al successivo solo se quello prima non trova nulla: per il web
-  DuckDuckGo, Yahoo, Startpage, Mojeek; per le notizie DuckDuckGo, Bing, Yahoo. Se nessuno trova nulla l'agente
-  riceve un messaggio, non un errore. La regione dei risultati è `web.region`.
+  DuckDuckGo, Keenable (`KeenableTools` di Agno), Yahoo, Startpage, Mojeek; per le notizie DuckDuckGo, Bing, Yahoo.
+  Se nessuno trova nulla l'agente riceve un messaggio, non un errore. La regione dei risultati è `web.region`
+  (solo per i motori DDGS). Quell'ordine è solo quello di partenza: prima di ogni ricerca i motori si riordinano per
+  tasso di successo nelle ultime 24 ore (un tentativo riuscito è uno che ha restituito risultati), così un motore
+  che fallisce di continuo scende in fondo invece di costare un timeout a ogni domanda. Un motore senza tentativi
+  nella finestra vale 1.0, quindi dopo un giorno uno caduto viene riprovato. I tentativi restano 7 giorni nella
+  tabella `picobot_search_log` di `picobot.db`; per vedere chi risponde:
+  `SELECT engine, COUNT(*), AVG(ok) FROM picobot_search_log GROUP BY engine`.
 - **Ticker Yahoo.** Finance e Analyst hanno nelle istruzioni i simboli dei principali indici (FTSE MIB =
   `FTSEMIB.MI`, S&P 500 = `^GSPC`, DAX = `^GDAXI`…), i suffissi di borsa (`.MI`, `.DE`, `.PA`, `.L`, `.AS`) e la
   regola di non provare simboli a caso quando uno non viene trovato.
@@ -151,5 +157,5 @@ L'estrazione del testo è deterministica (nessun LLM). I PDF scansionati senza l
 | `web.py` | Download di pagine e file con i controlli anti rete locale (`/riassumi <link>`, `/skill_add`) |
 | `trace.py`, `stt.py` | Traccia delle richieste (`/trace`); client del servizio di trascrizione |
 | `tools/sandbox.py`, `tools/files.py`, `tools/documents.py` | Esecuzione codice, consegna file, tool sui documenti |
-| `tools/websearch.py`, `tools/schedule.py` | Ricerca web a cascata; task programmati chiesti a parole |
+| `tools/websearch.py`, `tools/schedule.py` | Ricerca web a cascata, motori ordinati per affidabilità; task programmati chiesti a parole |
 | `channels/telegram.py`, `cli.py`, `api.py`, `common.py` | Canali e funzioni condivise |

@@ -41,7 +41,7 @@ esegue task programmati con cron.
 | 🔌 **Server MCP** | Qualsiasi server MCP (stdio o HTTP) in formato Claude Desktop, condiviso dal ComplexTeam |
 | 🎤 **Messaggi vocali** | Note vocali e file audio Telegram trascritti in locale (faster-whisper su CPU, italiano e inglese) ed eseguiti come testo scritto — vedi [vocali](docs/it/voice.md) |
 | 📚 **Riassunti** | Documenti (PDF, DOCX, TXT, MD, CSV, JSON, LOG; map-reduce in parallelo oltre 100.000 caratteri) e pagine web (`/riassumi <link>`) |
-| 🌐 **Ricerche aggiornate** | Gli agenti conoscono data e ora correnti; la ricerca web interroga un motore alla volta (prima DuckDuckGo) e passa al successivo solo se non trova nulla |
+| 🌐 **Ricerche aggiornate** | Gli agenti conoscono data e ora correnti; la ricerca web interroga un motore alla volta (prima il più affidabile, in base alle ultime 24 ore) e passa al successivo solo se non trova nulla |
 | 🧠 **Memoria e profilo** | Memorie, profilo strutturato (lingua, fuso, formato, titoli) ed entità, privati per utente |
 | ⏰ **Scheduler** | Task ricorrenti, con cron o a parole ("ogni giorno feriale alle 8…"); l'esito torna sul canale che li ha creati |
 | 🧩 **Skill da chat** | Gli amministratori installano e rimuovono skill da Telegram o dalla CLI (`/skill_add <link>`, uno `.zip` allegato, `/skill_remove`) |

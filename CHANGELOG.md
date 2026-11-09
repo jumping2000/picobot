@@ -4,6 +4,22 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.3] - 2026-11-09
+
+### Added
+
+- Keenable (Agno `KeenableTools`) is now one of the web search engines, second after DuckDuckGo. It works without a
+  key on the public endpoint; an optional `KEENABLE_API_KEY` raises the rate limits. It has no news search, so the
+  news engines are unchanged.
+- Web and news search now try the engines in order of reliability: before each search they are sorted by the share of
+  attempts that returned results in the last 24 hours (an engine with no attempts counts as fully reliable, so a
+  fallen one is retried after a day). Attempts are logged for 7 days in the `picobot_search_log` table of
+  `picobot.db`.
+
+### Changed
+
+- The engine order in `tools/websearch.py` is only the starting order, no longer fixed.
+
 ## [0.8.1] - 2026-10-30
 
 ### Added

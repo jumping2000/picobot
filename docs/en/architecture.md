@@ -44,7 +44,7 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
  |- answers chat and general questions by itself ................ 1 LLM call
  |- summarize_document -> DocSummary workflow (uploaded document, cheap model)
  |- SimpleTeam (cheap model; profile read-only)
- |    |- Web       web and news search (DDGS, one engine at a time)
+ |    |- Web       web and news search (DDGS + Keenable, one engine at a time)
  |    |- Finance   yfinance (sees the tickers you follow)
  |    '- Coder     Python programs (with confirmation), text files, file delivery
  '- ComplexTeam (STRONG model for every member; skills and MCP; profile read-only)
@@ -59,7 +59,7 @@ Router (coordinate team, CHEAP model; session, memories, profile and entities in
 | Agent | Tools |
 |---|---|
 | Router | `summarize_document`, memory (`add_memory`…), `update_profile`, `remember_about` |
-| Web | `web_search`, `search_news` (DDGS in cascade, see below) |
+| Web | `web_search`, `search_news` (DDGS + Keenable in cascade, see below) |
 | Finance | yfinance (price, company info, history, analyst recommendations, news) |
 | Coder | `save_python_file`, `run_python`, `save_text_file`, `deliver_file` |
 | Researcher | `web_search`, `search_news`, MCP, skills |
@@ -76,9 +76,14 @@ The Analyst cannot deliver files on purpose: it prepares the content, the Writer
   `scheduler.timezone` time zone, recomputed on every request (`dated` in [`agents.py`](../../src/picobot/agents.py)). So "today's news" really searches today,
   not around the model's training date; Coder and Analyst do not run code to find out the date.
 - **Cascading web search** ([`tools/websearch.py`](../../src/picobot/tools/websearch.py)). Web and Researcher ask
-  one engine at a time and move to the next only when the previous one finds nothing: DuckDuckGo, Yahoo,
-  Startpage, Mojeek for the web; DuckDuckGo, Bing, Yahoo for news. When none finds anything the agent gets a
-  message, not an error. The region of the results is `web.region`.
+  one engine at a time and move to the next only when the previous one finds nothing: DuckDuckGo, Keenable
+  (Agno `KeenableTools`), Yahoo, Startpage, Mojeek for the web; DuckDuckGo, Bing, Yahoo for news. When none finds
+  anything the agent gets a message, not an error. The region of the results is `web.region` (DDGS engines only).
+  That order is only the starting one: before each search the engines are re-sorted by their success rate over the
+  last 24 hours (an attempt counts as a success if the engine returned results), so one that keeps failing drops to
+  the end instead of costing a timeout on every query. An engine with no attempts in the window counts as 1.0, so
+  after a day a fallen engine is tried again. Attempts are kept for 7 days in the `picobot_search_log` table of
+  `picobot.db`; to see who answers: `SELECT engine, COUNT(*), AVG(ok) FROM picobot_search_log GROUP BY engine`.
 - **Yahoo tickers.** Finance and Analyst have in their instructions the symbols of the main indices (FTSE MIB =
   `FTSEMIB.MI`, S&P 500 = `^GSPC`, DAX = `^GDAXI`…), the exchange suffixes (`.MI`, `.DE`, `.PA`, `.L`, `.AS`) and
   the rule not to try symbols at random when one is not found.
@@ -151,5 +156,5 @@ Text extraction is deterministic (no LLM). Scanned PDFs without a text layer are
 | `web.py` | Page and file downloads with the local-network checks (`/riassumi <link>`, `/skill_add`) |
 | `trace.py`, `stt.py` | Request trace (`/trace`); transcription service client |
 | `tools/sandbox.py`, `tools/files.py`, `tools/documents.py` | Code execution, file delivery, document tools |
-| `tools/websearch.py`, `tools/schedule.py` | Cascading web search; scheduled tasks requested in plain words |
+| `tools/websearch.py`, `tools/schedule.py` | Cascading web search, engines sorted by reliability; scheduled tasks requested in plain words |
 | `channels/telegram.py`, `cli.py`, `api.py`, `common.py` | Channels and shared helpers |

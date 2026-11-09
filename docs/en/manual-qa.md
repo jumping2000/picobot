@@ -50,7 +50,7 @@ translation in brackets.
 | # | Test | Expected | Result |
 |---|---|---|---|
 | 25 | Telegram: "what day is it today?" | correct date and time in the `scheduler.timezone` time zone, without offering to run code | |
-| 26 | Telegram: "today's news about Piazza Affari" | the queries in the log (`primp`) carry today's date, not a past one; one request per engine, DuckDuckGo first | |
+| 26 | Telegram: "today's news about Piazza Affari" | the queries in the log (`primp`) carry today's date, not a past one; one request per engine, in order of reliability (DuckDuckGo first on a fresh database); `SELECT engine, COUNT(*), AVG(ok) FROM picobot_search_log GROUP BY engine` on `picobot.db` lists the attempts | |
 | 27 | Telegram: "how is the FTSE MIB doing?" | quote from `FTSEMIB.MI` at the first attempt; no yfinance 404 on made-up symbols in the log | |
 
 **Tasks in plain words and trace (v0.7.1)**
