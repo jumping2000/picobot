@@ -29,10 +29,10 @@ services:
     volumes:
       - ./models:/models            # cache dei modelli faster-whisper (scaricati al primo avvio)
     environment:
+      #STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8}
+      #STT_MAX_MB: ${STT_MAX_MB:-20}
       STT_MODEL: ${STT_MODEL:-small}
-      STT_COMPUTE_TYPE: ${STT_COMPUTE_TYPE:-int8}
-      STT_THREADS: ${STT_THREADS:-4}
+      STT_THREADS: ${STT_THREADS:-2}
       STT_BEAM_SIZE: ${STT_BEAM_SIZE:-1}
       STT_LANGUAGES: ${STT_LANGUAGES:-it,en}
-      STT_MAX_MB: ${STT_MAX_MB:-20}
       STT_MAX_SECONDS: ${STT_MAX_SECONDS:-300}

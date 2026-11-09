@@ -81,11 +81,9 @@ PicoBot (`voice` block of `config/config.yaml`; the variable names still work in
 | Variable | Default | Description |
 |---|---|---|
 | `STT_MODEL` | `small` | faster-whisper multilingual model (`base`, `small`, …) |
-| `STT_COMPUTE_TYPE` | `int8` | Quantization for CPU |
 | `STT_THREADS` | `4` | CPU threads |
 | `STT_BEAM_SIZE` | `1` | 1 = faster, 5 = more accurate |
 | `STT_LANGUAGES` | `it,en` | Allowed languages |
-| `STT_MAX_MB` | `20` | Max file size |
 | `STT_MAX_SECONDS` | `300` | Max audio duration (covers files without duration metadata) |
 
 `stt` transcribes **one request at a time**: on a 4-core CPU two parallel transcriptions would both be slower.

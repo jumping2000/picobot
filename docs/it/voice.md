@@ -81,11 +81,9 @@ Container `stt` (impostale in `.env`; il compose le passa al container):
 | Variabile | Default | Descrizione |
 |---|---|---|
 | `STT_MODEL` | `small` | Modello faster-whisper multilingua (`base`, `small`, …) |
-| `STT_COMPUTE_TYPE` | `int8` | Quantizzazione per CPU |
 | `STT_THREADS` | `4` | Thread della CPU |
 | `STT_BEAM_SIZE` | `1` | 1 = più veloce, 5 = più accurato |
 | `STT_LANGUAGES` | `it,en` | Lingue ammesse |
-| `STT_MAX_MB` | `20` | Dimensione massima del file |
 | `STT_MAX_SECONDS` | `300` | Durata massima dell'audio (vale anche per i file senza durata nei metadati) |
 
 `stt` trascrive **una richiesta alla volta**: su una CPU a 4 core due trascrizioni parallele sarebbero entrambe

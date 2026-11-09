@@ -18,6 +18,7 @@ __pycache__/
 *.pkl
 .superpowers/
 docs/superpowers/
+docs/superpowers/*
 *.egg-info/
 src/*.egg-info/
 # lockfile di uv (non versionati), tranne quello dell'immagine stt
