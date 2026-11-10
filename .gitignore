@@ -21,6 +21,8 @@ docs/superpowers/
 docs/superpowers/*
 *.egg-info/
 src/*.egg-info/
+# TODOLIST md file
+TODO.md
 # lockfile di uv (non versionati), tranne quello dell'immagine stt
 uv.lock
 !stt/uv.lock
