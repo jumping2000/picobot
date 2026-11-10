@@ -4,6 +4,17 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.8.4] - 2026-11-10
+
+### Added
+
+- CI/CD: a push to `main` with a version that has no release yet now publishes the images and creates the GitHub
+  release by itself, after a 5-minute wait. A newer push to `main` cancels the run and the wait restarts. The release
+  title and description come from the first section of `CHANGELOG.md` (`.github/scripts/changelog_release.py`).
+- CI/CD: the SBOMs are optional. `SBOM: 'yes'` (or `'no'`) in the `env` block at the top of
+  `.github/workflows/release_ci-cd.yml` turns them, and their release and artifact attachments, on or off; the Trivy
+  reports are always attached.
+
 ## [0.8.3] - 2026-11-09
 
 ### Added

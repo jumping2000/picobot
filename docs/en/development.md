@@ -88,9 +88,10 @@ Workflow: [`.github/workflows/release_ci-cd.yml`](../../.github/workflows/releas
 |---|---|---|
 | `prepare` | Always | Reads the version; fails if `pyproject.toml`, `__init__.py` and the release tag disagree |
 | `test` | Always | pytest on Python 3.11, 3.12, 3.13 (with the Node packages of `deps/npm.txt`) + CLI smoke test |
-| `docker-check` | Push to `main`, pull request | amd64 build without push + smoke test of the image (Python, Node and pip deps) |
-| `build-docker` | Release published, manual run | Trivy scan (repo), multi-arch build and push to GHCR, smoke test, Trivy scan (image), SBOM, reports attached to the release |
-| `notify` | Release, manual run | E-mail with the result, **only if** the SMTP secrets are set |
+| `wait` | Push to `main` with an unreleased version | 5-minute wait before publishing |
+| `docker-check` | Pull request, push to `main` without a release | amd64 build without push + smoke test of the image (Python, Node and pip deps) |
+| `build-docker` | Release published, manual run, push to `main` with an unreleased version | Trivy scan (repo), multi-arch build and push to GHCR, smoke test, Trivy scan (image), SBOM (optional), reports attached to the release (created here on push) |
+| `notify` | Release, manual run, push to `main` with a release | E-mail with the result, **only if** the SMTP secrets are set |
 
 Image: `ghcr.io/jumping2000/picobot`. Tags: version (`0.8.0`), minor (`0.8`), `sha-<commit>`, and `latest` for
 non-prerelease releases.
@@ -111,9 +112,13 @@ Keep them aligned: CI refuses to publish if they disagree.
 
 To release:
 
-1. Update the version in both files and commit to `main`.
-2. Create a GitHub release with tag `v<version>` (e.g. `v0.8.0`).
-3. CI publishes the image and attaches `trivy-fs-report.txt`, `trivy-image-report.txt` and `sbom.spdx.json`.
+1. Update the version in both files, add its `## [<version>] - <date>` section to `CHANGELOG.md` and push to `main`.
+2. CI waits 5 minutes (a newer push to `main` cancels the run and restarts the wait), then publishes the image and
+   creates the release `v<version>`: title is the first `## ` line of the changelog, description its `###` sections.
+   If the release `v<version>` already exists, the push only runs tests and the build check.
+3. The release gets `trivy-*.txt` and, with `SBOM: 'yes'` in the workflow `env`, `sbom*.spdx.json` (`no` skips them).
+
+Creating a release by hand on GitHub (tag `v<version>`) still works and triggers the same publish.
 
 A manual run (*Actions → PicoBot CI/CD Pipeline → Run workflow*) rebuilds and pushes the current version without
 moving `latest`.
