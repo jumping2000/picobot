@@ -229,3 +229,19 @@ def test_complex_prompts_split_roles():
         and "run_node" in prompts.WRITER
     )
     assert "deliver_file" not in prompts.ANALYST and "Writer" in prompts.ANALYST
+
+
+def test_send_email_only_with_mailbox_on_router_and_file_members(s):
+    from types import SimpleNamespace
+    from picobot.agents import build_complex_team, build_simple_team
+    assert "send_email" not in names(build_router(s))
+    assert "send_email" not in names(member(build_simple_team(s), "Coder"))
+    mb = SimpleNamespace(address="bot@x.it")
+
+    async def rec(*a): ...
+    r = build_router(s, SkillRegistry(s), mailbox=mb, record_mail=rec)
+    assert "send_email" in names(r)
+    assert "send_email" in names(member(member(r, "SimpleTeam"), "Coder"))
+    assert "send_email" in names(member(member(r, "ComplexTeam"), "Writer"))
+    assert "send_email" not in names(member(member(r, "ComplexTeam"), "Analyst"))
+    assert "send_email" in " ".join(r.instructions())
