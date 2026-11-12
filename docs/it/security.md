@@ -30,6 +30,20 @@ I bottoni di conferma su Telegram li può premere solo l'utente che ha fatto la 
 | Codice in sola lettura | Nel container `src/` e il venv sono di root e non modificabili dal codice generato (`skills/`: vedi sotto) |
 | Script delle skill | Mai eseguiti direttamente (`get_skill_script` è rimosso) |
 
+### Due livelli di controllo
+
+| Livello | Dove | Cosa decide |
+|---|---|---|
+| `code.allow_code` | `config.yaml` (per tutto il server) | `false`: **nessun** canale esegue codice, qualunque approvazione. `true` (default): si passa al livello successivo |
+| `approve_code` / approvazione del canale | per singola richiesta | Bottone Telegram, `y/N` nella CLI, `approve_code=true` nell'API, flag dello schedule |
+
+> [!WARNING]
+> **Email.** Con `allow_code: true`, chiunque sia in `EMAIL_ALLOWED_SENDERS` può far eseguire codice a PicoBot
+> **senza alcuna conferma**: nell'email non c'è un canale per chiederla. Un mittente autorizzato falsificato può
+> quindi eseguire codice nel sandbox. AgentMail esclude i messaggi non autenticati (SPF/DKIM/DMARC), il che lo rende
+> difficile ma non impossibile. Tieni la lista dei mittenti corta e, se il codice non ti serve, imposta
+> `allow_code: false`.
+
 ## File
 
 - Si possono consegnare solo file dentro `workspace/outputs/`; path traversal e **symlink** vengono rifiutati.

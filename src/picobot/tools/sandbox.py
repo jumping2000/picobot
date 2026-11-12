@@ -1,7 +1,8 @@
 """Tool per scrivere ed eseguire piccoli programmi (Python, Node), con human-in-the-loop.
 
 - scrittura file: libera, solo in workspace/scripts
-- esecuzione: SOLO dopo conferma umana a ogni esecuzione (o approve_code esplicito via API); mai negli schedule
+- esecuzione: SOLO dopo conferma umana a ogni esecuzione (o approve_code esplicito via API); mai negli schedule;
+  con code.allow_code=false non si esegue nulla, su nessun canale
 - subprocess separato, env ripulito (niente chiavi API), timeout, limiti CPU/RAM/file, output troncato
 - tetto di esecuzioni approvate per richiesta (CODE_MAX_RUNS)
 """
@@ -21,6 +22,7 @@ _PYTHON_AS_MB = 768
 
 NOT_ALLOWED = ("Esecuzione NON consentita in questo contesto (nessuna conferma umana possibile). "
                "Puoi salvare il codice con save_python_file e mostrarlo all'utente.")
+CODE_DISABLED = "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)."
 
 
 def _limits_for(as_mb: int, fsize_mb: int):
@@ -35,6 +37,8 @@ def _limits_for(as_mb: int, fsize_mb: int):
 
 async def _execute(s: Settings, ctx: RunCtx | None, code: str, language: str) -> str:
     """Gate umano + tetto + esecuzione isolata. language: 'python' | 'node'."""
+    if not s.allow_code:
+        return CODE_DISABLED
     if ctx is None or not ctx.can_run_code:
         return NOT_ALLOWED
     if ctx.runs >= s.code_max_runs:

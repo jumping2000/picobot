@@ -30,6 +30,19 @@ Confirmation buttons on Telegram can only be pressed by the user who made the re
 | Read-only code | In the container `src/` and the venv belong to root and cannot be modified by generated code (`skills/`: see below) |
 | Skill scripts | Never executed directly (`get_skill_script` is removed) |
 
+### Two levels of control
+
+| Level | Where | What it decides |
+|---|---|---|
+| `code.allow_code` | `config.yaml` (server-wide) | `false`: **no** channel runs code, whatever the approval. `true` (default): the next level applies |
+| `approve_code` / channel approval | per request | Telegram button, CLI `y/N`, API `approve_code=true`, schedule flag |
+
+> [!WARNING]
+> **Email.** With `allow_code: true`, anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code **without any
+> confirmation**: email has no channel to ask for one. A forged allowed sender can therefore run code in the sandbox.
+> AgentMail excludes unauthenticated messages (SPF/DKIM/DMARC), which makes this hard but not impossible. Keep the
+> sender list short and, if you do not need code, set `allow_code: false`.
+
 ## Files
 
 - Only files inside `workspace/outputs/` can be delivered; path traversal and **symlinks** are rejected.
