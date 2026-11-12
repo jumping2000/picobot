@@ -20,7 +20,7 @@ Confirmation buttons on Telegram can only be pressed by the user who made the re
 
 | Protection | Detail |
 |---|---|
-| Human-in-the-loop | **Every** execution needs approval (Telegram buttons, CLI `y/N`, API `approve_code`); the full code is shown first |
+| Human-in-the-loop | **Every** execution needs approval (Telegram buttons, CLI `y/N`, API `approve_code`); the full code is shown first. **Exception: email**, which has no one to ask: with `code.allow_code: true` mail from an allowed sender runs code without confirmation (see the Email note below) |
 | Code in schedules only if approved | A schedule runs code only if it was approved at creation (`approve_code`); without approval scheduled runs refuse it. Still subject to `code.allow_code` |
 | Run cap | At most `CODE_MAX_RUNS` (6) approved runs per request |
 | Separate process | Subprocess with `cwd = workspace/` |

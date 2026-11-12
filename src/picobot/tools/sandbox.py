@@ -1,7 +1,8 @@
 """Tool per scrivere ed eseguire piccoli programmi (Python, Node), con human-in-the-loop.
 
 - scrittura file: libera, solo in workspace/scripts
-- esecuzione: SOLO dopo conferma umana a ogni esecuzione (o approve_code esplicito via API); mai negli schedule;
+- esecuzione: dopo conferma umana a ogni esecuzione (Telegram, CLI) o approve_code esplicito via API; negli schedule
+  solo se approvati alla creazione; le email sono pre-approvate (nessuno a cui chiedere);
   con code.allow_code=false non si esegue nulla, su nessun canale
 - subprocess separato, env ripulito (niente chiavi API), timeout, limiti CPU/RAM/file, output troncato
 - tetto di esecuzioni approvate per richiesta (CODE_MAX_RUNS)

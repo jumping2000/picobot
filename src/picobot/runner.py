@@ -1,4 +1,4 @@
-"""Avvio dei canali: `serve` (Telegram + API + scheduler nello stesso processo) e `cli`."""
+"""Avvio dei canali: `serve` (Telegram + API + email + scheduler nello stesso processo) e `cli`."""
 import asyncio
 import logging
 import signal
@@ -9,7 +9,7 @@ from .service import PicoBotService
 logger = logging.getLogger(__name__)
 
 
-async def serve(s: Settings, use_telegram: bool, use_api: bool) -> None:
+async def serve(s: Settings, use_telegram: bool, use_api: bool, use_email: bool = False) -> None:
     service = PicoBotService(s)
     await service.start()
     stop = asyncio.Event()
@@ -20,7 +20,7 @@ async def serve(s: Settings, use_telegram: bool, use_api: bool) -> None:
         except NotImplementedError:  # Windows
             pass
 
-    tg_app = api_server = api_task = None
+    tg_app = api_server = api_task = email_task = None
     if use_telegram:
         from .channels.telegram import build_application, make_notify
 
@@ -43,12 +43,22 @@ async def serve(s: Settings, use_telegram: bool, use_api: bool) -> None:
         api_server.install_signal_handlers = lambda: None  # i segnali li gestiamo noi
         api_task = asyncio.create_task(api_server.serve())
         logger.info("API su %s://%s:%s", "https" if tls else "http", s.api_host, s.api_port)
+    if use_email:
+        from .channels.email import EmailChannel
+
+        email = EmailChannel(s, service, service.mailbox)
+        service.scheduler.notifiers["email"] = email.notify
+        email_task = asyncio.create_task(email.run(stop))
+        logger.info("Email attiva (polling ogni %ss).", s.poll_interval_s)
 
     await service.scheduler.start()
     try:
         await stop.wait()
     finally:
         logger.info("Arresto...")
+        stop.set()
+        if email_task:
+            await email_task
         if api_server:
             api_server.should_exit = True
             await api_task

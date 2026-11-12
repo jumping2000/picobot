@@ -100,12 +100,19 @@ zone), `formato_risposta` (answer format), `titoli_seguiti` (followed tickers). 
 curl -X POST localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
      -d '{"cron": "0 8 * * 1-5", "prompt": "AAPL and MSFT quotes"}'
 # -> 201 {"id": 3}
+# create a task that may run code (see below)
+curl -X POST localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN" -H "content-type: application/json"      -d '{"cron": "0 8 * * 1", "prompt": "sales report in xlsx", "approve_code": true}'
 curl localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN"
 curl -X DELETE localhost:8000/v1/schedules/3 -H "Authorization: Bearer $TOKEN"   # -> 204
 ```
 
-Each entry of `GET /v1/schedules` includes `id`, `cron`, `prompt`, `created_at`, `last_run` and `last_result`:
-tasks created through the API are not pushed anywhere, read their results here.
+`POST /v1/schedules` body: `cron` and `prompt` (required), `approve_code` (bool, default `false`). With
+`"approve_code": true` the task may run code at **every** run, with nobody there to confirm: you approve it once,
+when you create it. It is stored with the task (`approve_code` in `GET /v1/schedules`; `1` = may run code) and is
+revoked by deleting and recreating the task. `code.allow_code: false` blocks execution anyway.
+
+Each entry of `GET /v1/schedules` includes `id`, `cron`, `prompt`, `approve_code`, `created_at`, `last_run` and
+`last_result`: tasks created through the API are not pushed anywhere, read their results here.
 
 ## Error codes
 
