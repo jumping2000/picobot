@@ -43,6 +43,17 @@ I bottoni di conferma su Telegram li può premere solo l'utente che ha fatto la 
 > quindi eseguire codice nel sandbox. AgentMail esclude i messaggi non autenticati (SPF/DKIM/DMARC), il che lo rende
 > difficile ma non impossibile. Tieni la lista dei mittenti corta e, se il codice non ti serve, imposta
 > `allow_code: false`.
+>
+> **Indirizzo collegato.** Un indirizzo collegato a un id in `EMAIL_ALLOWED_SENDERS` (`indirizzo:id`) agisce come
+> quell'utente: chi lo falsifica legge la sua memoria di Telegram/CLI ("cosa sai di me?") e vede ed elimina i suoi
+> schedule.
+>
+> **Posta in uscita.** `send_email` può scrivere a **qualsiasi** indirizzo: un contenuto iniettato (pagina web,
+> documento, mail) può spingere un agente a inviare dati all'esterno. L'unico tetto è il limite giornaliero del
+> piano AgentMail.
+>
+> **Schedule con codice.** Uno schedule con `approve_code` esegue codice senza nessuno presente a **ogni** esecuzione,
+> e il contenuto letto durante il giro può orientare quel codice; restano a limitarlo il sandbox e `code.code_max_runs`.
 
 ## File
 
@@ -79,15 +90,18 @@ Limiti dell'installazione da chat:
 
 > [!NOTE]
 > `./skills` è montata in lettura e scrittura, quindi **anche il codice generato dal bot potrebbe scriverci**.
-> Il codice gira solo dopo la tua conferma a ogni esecuzione e già oggi può scrivere in `data/` (database
-> compreso). Se non usi l'installazione da chat, puoi rimettere `:ro` al mount di `./skills` nel compose.
+> Il codice di norma gira solo dopo la tua conferma, ma ci sono due eccezioni che girano senza che nessuno confermi:
+> la mail di un mittente ammesso (pre-approvata) e gli schedule creati con `approve_code`. Già oggi può scrivere in
+> `data/` (database compreso). Se usi l'email o gli schedule con codice e non ti serve l'installazione da chat,
+> rimetti `:ro` al mount di `./skills` nel compose.
 
 ## Privacy
 
 - La telemetria di Agno è **spenta** di default (`AGNO_TELEMETRY=false`, impostata prima di creare qualsiasi agente).
 - Il token del bot Telegram fa parte degli URL HTTP: i log di `httpx`/`httpcore` sono abbassati a WARNING per non
   esporlo.
-- Memorie, profilo ed entità sono privati per utente e si cancellano con `/forget`.
+- Memorie, profilo ed entità sono privati per utente e si cancellano con `/forget`. Avvertenza: un indirizzo email
+  collegato a un id utente (`EMAIL_ALLOWED_SENDERS`) legge la memoria di quell'utente, quindi chi lo falsifica la vede.
 - Prompt e documenti vengono inviati al provider LLM configurato.
 
 ## Limiti noti

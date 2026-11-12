@@ -48,6 +48,7 @@ esegue task programmati con cron.
 | ⚙️ **Configurazione YAML** | Segreti in `.env`, tutto il resto in `config/config.yaml`, diviso in blocchi e controllato all'avvio |
 | 🔎 **Traccia delle richieste** | Opzionale: `/trace` mostra team, agenti e tool attraversati dall'ultima richiesta |
 | 🛡️ **Human-in-the-loop** | Il codice generato gira **solo dopo la tua conferma**, in un processo separato e con limiti di risorse |
+| ✉️ **Canale email** | PicoBot ha una propria casella [AgentMail](https://agentmail.to): le mail dei mittenti ammessi ricevono risposta nello stesso thread, con documenti in ingresso e file in uscita, e può inviare mail con `send_email` — vedi [canali](docs/it/channels.md) |
 | 💬 **Tre canali** | Telegram (bottoni di conferma), CLI interattiva, API REST con token bearer e TLS opzionale |
 
 ## 🏗️ Architettura

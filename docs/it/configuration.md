@@ -173,7 +173,7 @@ Le variabili del container `stt` (`STT_MODEL`, `STT_BEAM_SIZE`, …) sono del co
 | Chiave | Variabile | Default | Descrizione |
 |---|---|---|---|
 | `email.inbox_id` | `INBOX_ID` | *(vuoto = spento)* | Indirizzo della casella AgentMail, es. `picobot@agentmail.to`. L'email parte solo con `AGENTMAIL_API_KEY` in `.env` |
-| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Secondi tra un controllo e l'altro della casella |
+| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Secondi tra un controllo e l'altro della casella (minimo 10) |
 
 ## Controlli all'avvio
 

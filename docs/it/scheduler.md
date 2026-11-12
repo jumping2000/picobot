@@ -67,6 +67,9 @@ stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva 
 > nell'API, flag nel tool del router): a ogni esecuzione non c'è nessuno per confermare. Senza approvazione non
 > può eseguire codice né produrre file; gli agenti possono comunque salvare il codice e mostrartelo nel risultato.
 > `code.allow_code: false` blocca comunque ogni esecuzione. L'elenco `/schedules` marca i task con `[codice]`.
+>
+> **Uno schedule non consegna mai file:** anche con l'approvazione, i file prodotti da un'esecuzione non vengono
+> inviati; arriva solo il testo dell'esito. Per ottenere un file, chiedilo da chat o per email.
 
 ## Consegna
 
@@ -74,6 +77,7 @@ stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva 
 |---|---|
 | Telegram | Messaggio nella chat, con il prefisso `[Schedule #id]` |
 | CLI con `CLI_USER_ID` = id Telegram autorizzato | Messaggio nella tua chat Telegram, come sopra |
+| Email | **Mail nuova** `[Schedule #id] ...` all'indirizzo che ha creato il task |
 | CLI (altro id), API | Nessuna notifica: si legge con `/schedules` (CLI) o `GET /v1/schedules` (`last_result`) |
 
 ## Funzionamento

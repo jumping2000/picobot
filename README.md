@@ -52,6 +52,7 @@ tasks with cron.
 | ⚙️ **YAML configuration** | Secrets in `.env`, everything else in `config/config.yaml`, split into blocks and checked at startup |
 | 🔎 **Request trace** | Optional: `/trace` shows which teams, agents and tools your last request went through |
 | 🛡️ **Human-in-the-loop** | Generated code always runs **after your confirmation**, in a separate, resource-limited process |
+| ✉️ **Email channel** | PicoBot has its own [AgentMail](https://agentmail.to) inbox: mail from allowed senders is answered in the same thread, documents in and files out, and it can send mail with `send_email` — see [channels](docs/en/channels.md) |
 | 💬 **Three channels** | Telegram (confirm buttons), interactive CLI, REST API with bearer tokens and optional TLS |
 
 ## 🏗️ Architecture

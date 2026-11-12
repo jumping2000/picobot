@@ -144,7 +144,8 @@ Treated like documents sent to Telegram: **PDF, DOCX, TXT, MD, CSV, JSON, LOG** 
   `[Documento caricato: name] <text>`; the file is **always deleted** afterwards.
 - The others (unsupported format, too large, or after the first) are listed at the end of the reply as ignored.
 - If the subject or the first line of the body starts with `/riassumi [instructions]`, the attachment gets a direct
-  summary, as on Telegram. Other commands (`/new`, `/schedules`, ...) do not exist by email: write in plain words.
+  summary, as on Telegram. `/riassumi <link>` is **not** supported by email: a link goes to the router as normal
+  text. Other commands (`/new`, `/schedules`, ...) do not exist by email: write in plain words.
 - Replies carry the files created by the agents. AgentMail accepts at most **6 MB per mail** (attachments counted in
   base64): beyond that the reply goes without attachments and says so ("Allegati oltre 6 MB: non inviati.").
 

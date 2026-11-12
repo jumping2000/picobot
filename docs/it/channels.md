@@ -147,7 +147,8 @@ Trattati come i documenti inviati su Telegram: **PDF, DOCX, TXT, MD, CSV, JSON, 
   `[Documento caricato: nome] <testo>`; il file viene **sempre cancellato** a fine elaborazione.
 - Gli altri (formato non supportato, troppo grandi, o successivi al primo) sono elencati in coda alla risposta come ignorati.
 - Se l'oggetto o la prima riga del corpo inizia con `/riassumi [istruzioni]`, l'allegato riceve un riassunto diretto,
-  come su Telegram. Gli altri comandi (`/new`, `/schedules`, ...) via email non esistono: scrivi a parole.
+  come su Telegram. `/riassumi <link>` via email **non** è supportato: un link arriva al router come testo normale.
+  Gli altri comandi (`/new`, `/schedules`, ...) via email non esistono: scrivi a parole.
 - La risposta porta i file creati dagli agenti. AgentMail accetta al massimo **6 MB per mail** (allegati contati in
   base64): oltre, la risposta parte senza allegati e lo dice ("Allegati oltre 6 MB: non inviati.").
 

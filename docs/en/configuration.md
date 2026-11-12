@@ -173,7 +173,7 @@ in [voice.md](voice.md).
 | Key | Variable | Default | Description |
 |---|---|---|---|
 | `email.inbox_id` | `INBOX_ID` | *(empty = off)* | AgentMail inbox address, e.g. `picobot@agentmail.to`. Email starts only with `AGENTMAIL_API_KEY` in `.env` |
-| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Seconds between two checks of the inbox |
+| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Seconds between two checks of the inbox (minimum 10) |
 
 ## Startup checks
 

@@ -67,6 +67,9 @@ Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the 
 > flag in the router tool): at each run nobody is there to confirm. Without approval it cannot run code or
 > produce files; the agents can still save code and show it to you in the result. `code.allow_code: false`
 > still blocks every execution. `/schedules` marks such tasks with `[codice]`.
+>
+> **A schedule never delivers files:** even with approval, files produced by a run are not sent; only the result
+> text arrives. To get a file, ask for it from chat or by email.
 
 ## Delivery
 
@@ -74,6 +77,7 @@ Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the 
 |---|---|
 | Telegram | Message in the chat, prefixed with `[Schedule #id]` |
 | CLI with `CLI_USER_ID` = an allowed Telegram id | Message in your Telegram chat, as above |
+| Email | **New mail** `[Schedule #id] ...` to the address that created the task |
 | CLI (other id), API | Not pushed: read it with `/schedules` (CLI) or `GET /v1/schedules` (`last_result`) |
 
 ## How it works

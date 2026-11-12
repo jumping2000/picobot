@@ -2,7 +2,7 @@
 
 🇮🇹 Italiano · 🇬🇧 [English](../en/index.md) · ⬅️ [README](../../README_IT.md)
 
-PicoBot v0.8 è un assistente personale multi-agente self-hosted, basato su [Agno 3](https://github.com/agno-agi/agno).
+PicoBot v0.9 è un assistente personale multi-agente self-hosted, basato su [Agno 3](https://github.com/agno-agi/agno).
 Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un unico processo.
 
 ## Guide
