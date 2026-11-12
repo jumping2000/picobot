@@ -77,3 +77,14 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d` (o
 | 38 | `cp config/config_example.yaml config/config.yaml`, `docker compose restart` | nessun warning "prevale su" nel log (se non hai le stesse chiavi in `.env`); comportamento identico, salvo i vocali accesi (`voice.stt_url`) | |
 | 39 | `memory.history_runs: 10` e `web.region: us-en`, `docker compose restart`; poi la stessa chiave anche in `.env` | valori attivi; con la chiave anche in `.env` il log mostra "… (ambiente/.env) prevale su memory.history_runs …" | |
 | 40 | `histroy_runs: 10` nel blocco `memory`, `docker compose restart` | il container non parte; `docker compose logs` mostra `Configurazione non valida: config/config.yaml: memory.histroy_runs: chiave sconosciuta` | |
+
+**Canale email (AgentMail)** — prerequisiti: `AGENTMAIL_API_KEY` e `EMAIL_ALLOWED_SENDERS=<tuo indirizzo>:<tuo id Telegram>` in `.env`, `email.inbox_id: <casella AgentMail>` in `config/config.yaml`, poi `docker compose restart`. Le prove da 42 a 44 richiedono di aspettare almeno `email.poll_interval_s` secondi.
+
+| # | Prova | Atteso | Esito |
+|---|---|---|---|
+| 41 | Telegram: "manda a <tuo indirizzo> un docx con una pagina sulla storia di Siena" | dopo la conferma del codice arriva la mail con il `*.docx` allegato | |
+| 42 | Rispondi a quella mail con "aggiungi un paragrafo sul Palio" | risposta nello stesso thread, con il contesto della mail precedente | |
+| 43 | Da un indirizzo non presente in `EMAIL_ALLOWED_SENDERS`: scrivi una mail alla casella | nessuna risposta | |
+| 44 | Mail dal tuo indirizzo con un PDF allegato e testo "riassumilo" | risposta con il riassunto del PDF | |
+| 45 | Telegram: `/schedule 0 8 * * 1 \| report \| codice`; poi `/schedules`; poi "elimina lo schedule N" | bottone di approvazione; dopo l'approvazione `/schedules` mostra `[codice]` accanto al task; il task viene eliminato | |
+| 46 | `code.allow_code: false`, `docker compose restart`, Telegram: "fammi un docx con ..." | nessuna esecuzione di codice: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." | |
