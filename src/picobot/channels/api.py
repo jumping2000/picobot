@@ -47,6 +47,7 @@ class ChatOut(BaseModel):
 class ScheduleIn(BaseModel):
     cron: str = Field(max_length=100)
     prompt: str = Field(min_length=1, max_length=1000)
+    approve_code: bool = False
 
 
 def create_app(s: Settings, service: PicoBotService) -> FastAPI:
@@ -151,7 +152,7 @@ def create_app(s: Settings, service: PicoBotService) -> FastAPI:
     @app.post("/v1/schedules", status_code=201)
     async def add_schedule(body: ScheduleIn, user: User):
         try:
-            return {"id": service.scheduler.add(user, "api", user, body.cron, body.prompt)}
+            return {"id": service.scheduler.add(user, "api", user, body.cron, body.prompt, body.approve_code)}
         except ScheduleError as e:
             raise HTTPException(422, str(e))
 

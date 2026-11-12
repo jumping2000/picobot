@@ -85,6 +85,17 @@ def test_api_summary_enters_session_for_followup():
     with_api(t)
 
 
+def test_api_schedule_approve_code():
+    async def t(c, svc):
+        r = await c.post("/v1/schedules", json={"cron": "0 8 * * 1", "prompt": "x", "approve_code": True}, headers=A)
+        assert r.status_code == 201
+        r = await c.post("/v1/schedules", json={"cron": "0 9 * * 1", "prompt": "y"}, headers=A)
+        assert r.status_code == 201
+        rows = {x["prompt"]: x["approve_code"] for x in (await c.get("/v1/schedules", headers=A)).json()["schedules"]}
+        assert rows["x"] == 1 and rows["y"] == 0
+    with_api(t)
+
+
 def test_api_memory_and_schedules_isolated_per_user():
     async def t(c, svc):
         await c.post("/v1/chat", json={"message": "ricorda che mi chiamo Gianpi"}, headers=A)

@@ -1,7 +1,7 @@
 """Task schedulati: stessi prompt dell'utente, eseguiti con cron. Tabella SQLite + APScheduler.
 
 Un solo processo (`picobot serve`) esegue i job; CLI/API/Telegram si limitano a scrivere nella tabella
-(il processo la riallinea ogni 30s). I run schedulati NON possono eseguire codice (nessun umano per confermare).
+(il processo la riallinea ogni 30s). I run schedulati eseguono codice solo se lo schedule ha approve_code (nessun umano per confermare).
 """
 import logging
 import sqlite3
@@ -29,7 +29,8 @@ def format_schedules(rows: list[dict]) -> str:
     out = []
     for r in rows:
         last = f" | ultimo: {r['last_run'][:16]}" if r["last_run"] else ""
-        out.append(f"#{r['id']} [{r['cron']}] {r['prompt'][:70]}{last}")
+        code = " [codice]" if r.get("approve_code") else ""
+        out.append(f"#{r['id']} [{r['cron']}]{code} {r['prompt'][:70]}{last}")
     return "\n".join(out)
 
 
@@ -44,7 +45,10 @@ class Scheduler:
             c.execute("""CREATE TABLE IF NOT EXISTS picobot_schedules(
                 id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL, channel TEXT NOT NULL,
                 target TEXT NOT NULL, cron TEXT NOT NULL, prompt TEXT NOT NULL,
-                created_at TEXT NOT NULL, last_run TEXT, last_result TEXT)""")
+                created_at TEXT NOT NULL, last_run TEXT, last_result TEXT,
+                approve_code INTEGER NOT NULL DEFAULT 0)""")
+            if "approve_code" not in {r["name"] for r in c.execute("PRAGMA table_info(picobot_schedules)")}:
+                c.execute("ALTER TABLE picobot_schedules ADD COLUMN approve_code INTEGER NOT NULL DEFAULT 0")
 
     def _db(self) -> sqlite3.Connection:
         c = sqlite3.connect(self.s.database_file, timeout=10)
@@ -68,7 +72,8 @@ class Scheduler:
         """Prossima esecuzione (nel fuso TIMEZONE) di un cron valido."""
         return self.validate(cron).get_next_fire_time(None, datetime.now(timezone.utc))
 
-    def add(self, user_id: str, channel: str, target: str, cron: str, prompt: str) -> int:
+    def add(self, user_id: str, channel: str, target: str, cron: str, prompt: str,
+            approve_code: bool = False) -> int:
         prompt = prompt.strip()
         if not prompt or len(prompt) > 1000:
             raise ScheduleError("Prompt vuoto o troppo lungo (max 1000 caratteri).")
@@ -80,8 +85,10 @@ class Scheduler:
             if n >= self.s.max_schedules_per_user:
                 raise ScheduleError(f"Massimo {self.s.max_schedules_per_user} schedule per utente.")
             cur = c.execute(
-                "INSERT INTO picobot_schedules(user_id,channel,target,cron,prompt,created_at) VALUES(?,?,?,?,?,?)",
-                (user_id, channel, target, cron.strip(), prompt, datetime.now(timezone.utc).isoformat()),
+                "INSERT INTO picobot_schedules(user_id,channel,target,cron,prompt,created_at,approve_code)"
+                " VALUES(?,?,?,?,?,?,?)",
+                (user_id, channel, target, cron.strip(), prompt, datetime.now(timezone.utc).isoformat(),
+                 int(approve_code)),
             )
             return cur.lastrowid
 
@@ -121,7 +128,8 @@ class Scheduler:
         if not r:
             return ""
         stamp = datetime.now().strftime("%Y%m%d%H%M")
-        ctx = RunCtx(user_id=r["user_id"], channel="schedule")  # niente confirm -> niente codice
+        # niente confirm: il codice gira solo se lo schedule e' stato approvato in creazione (approve_code)
+        ctx = RunCtx(user_id=r["user_id"], channel="schedule", pre_approved=bool(r["approve_code"]))
         try:
             text = await self.run_fn(r["prompt"], user_id=r["user_id"], session_id=f"sched-{sid}-{stamp}", ctx=ctx)
         except Exception:
