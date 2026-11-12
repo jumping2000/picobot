@@ -104,7 +104,7 @@ Each table is a block. The **Variable** column is the equivalent environment var
 | `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `120` | Seconds to answer a confirmation; no answer = refused |
 | `code.code_node_mem_mb` | `CODE_NODE_MEM_MB` | `1536` | Address-space limit for Node (pptxgenjs aborts below ~1 GB). Python: fixed 768 MB |
 | `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Approved executions per request |
-| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = no channel runs code. `true` = Telegram/CLI with confirmation, API with `approve_code`, email **without** confirmation |
+| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = no channel runs code. `true` = Telegram/CLI with confirmation, API with `approve_code`; anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code by email **without** confirmation |
 | `code.node_path` | `NODE_PATH` | *(empty)*; `/usr/local/lib/node_modules` in the image | Global Node packages visible to scripts. Fixed by the Dockerfile in the container |
 
 ### `outputs` (delivered files)

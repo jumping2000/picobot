@@ -36,7 +36,7 @@ code:                               # codice generato
   confirm_timeout_s: 120            # secondi per confermare un'esecuzione o una sostituzione
   code_node_mem_mb: 1536            # pptxgenjs va in abort sotto 1 GB
   code_max_runs: 6                  # esecuzioni approvate per richiesta
-  allow_code: true                  # false = nessun canale esegue codice; true = Telegram/CLI con conferma, API con approve_code, email SENZA conferma
+  allow_code: true                  # false = nessun canale esegue codice; true = Telegram/CLI con conferma, API con approve_code; chi è in EMAIL_ALLOWED_SENDERS può far eseguire codice via email SENZA conferma
   # node_path: ""                   # NODE_PATH per gli script Node. Nell'immagine Docker la fissa il Dockerfile (/usr/local/lib/node_modules): qui non ha effetto
 
 outputs:                            # file in uscita

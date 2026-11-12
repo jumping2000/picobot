@@ -104,7 +104,7 @@ Ogni tabella è un blocco. La colonna **Variabile** è il nome della variabile d
 | `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `120` | Secondi per rispondere a una conferma; nessuna risposta = rifiuto |
 | `code.code_node_mem_mb` | `CODE_NODE_MEM_MB` | `1536` | Limite di memoria per Node (pptxgenjs va in abort sotto ~1 GB). Python: 768 MB fissi |
 | `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Esecuzioni approvate per richiesta |
-| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = nessun canale esegue codice. `true` = Telegram/CLI con conferma, API con `approve_code`, email **senza** conferma |
+| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = nessun canale esegue codice. `true` = Telegram/CLI con conferma, API con `approve_code`; chi è in `EMAIL_ALLOWED_SENDERS` può far eseguire codice via email **senza** conferma |
 | `code.node_path` | `NODE_PATH` | *(vuoto)*; `/usr/local/lib/node_modules` nell'immagine | Pacchetti Node globali visibili agli script. Nel container la fissa il Dockerfile |
 
 ### `outputs` (file in uscita)
