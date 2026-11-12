@@ -14,7 +14,11 @@ from picobot.context import OutputFile, Reply
 from picobot.documents import DocumentError
 from picobot.mailbox import InAttachment, InMail, MailTooLarge, session_for
 
-NOW = datetime.now(timezone.utc)
+
+def now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
 ERR = "Errore interno durante l'elaborazione. Riprova tra poco."
 
 
@@ -79,7 +83,7 @@ class FakeService:
 
 def mail(mid="m1", sender="mario@esempio.it", subject="Ciao", text="dimmi l'ora", thread="t1", ts=None,
          attachments=None, auto=False):
-    return InMail(mid, thread, sender, subject, text, ts or NOW + timedelta(seconds=5),
+    return InMail(mid, thread, sender, subject, text, ts or now() + timedelta(seconds=5),
                   attachments or [], auto)
 
 
@@ -90,6 +94,17 @@ def setup(tmp_path, **kw):
     ch = EmailChannel(s, svc, mb)
     asyncio.run(ch.poll_once())           # primo avvio: riga sentinella, niente da elaborare
     return s, mb, svc, ch
+
+
+def test_run_warns_when_no_sender_is_allowed(tmp_path, caplog):
+    s = Settings(workspace_dir=tmp_path / "ws", data_dir=tmp_path / "data", agentmail_api_key="k",
+                 inbox_id="bot@agentmail.to")
+    ch = EmailChannel(s, FakeService(), FakeMailbox())
+    stop = asyncio.Event()
+    stop.set()
+    with caplog.at_level("WARNING", logger="picobot.channels.email"):
+        asyncio.run(ch.run(stop))
+    assert "nessun mittente" in caplog.text
 
 
 def poll(ch, times=1):
@@ -109,19 +124,19 @@ def test_first_start_processes_nothing_then_new_mail_is_asked(tmp_path):
     s = Settings(workspace_dir=tmp_path / "ws", data_dir=tmp_path / "data", agentmail_api_key="k",
                  inbox_id="bot@agentmail.to", email_allowed_senders="mario@esempio.it")
     mb, svc = FakeMailbox(), FakeService()
-    mb.mails = [mail("old1", ts=NOW - timedelta(hours=2)), mail("old2", ts=NOW - timedelta(hours=1))]
+    mb.mails = [mail("old1", ts=now() - timedelta(hours=2)), mail("old2", ts=now() - timedelta(hours=1))]
     ch = EmailChannel(s, svc, mb)
     poll(ch)
     assert svc.asks == [] and mb.replies == [] and mb.afters == []   # sentinella, nessuna lettura
     assert len(seen(s)) == 1
-    mb.mails.append(mail("new", ts=NOW + timedelta(seconds=30)))
+    mb.mails.append(mail("new", ts=now() + timedelta(seconds=30)))
     poll(ch)
     assert [a["text"] for a in svc.asks] == ["Ciao\n\ndimmi l'ora"]
 
 
 def test_after_is_max_ts_minus_300s(tmp_path):
     s, mb, svc, ch = setup(tmp_path)
-    mb.mails = [mail("a", ts=NOW + timedelta(seconds=40))]   # nel futuro: salvato limitato all'ora corrente
+    mb.mails = [mail("a", ts=now() + timedelta(seconds=40))]   # nel futuro: salvato limitato all'ora corrente
     poll(ch)
     poll(ch)
     assert mb.afters[-1] == datetime.fromtimestamp(max(seen(s).values()) - 300, tz=timezone.utc)
@@ -167,10 +182,10 @@ def test_auto_reply_is_ignored(tmp_path):
 
 def test_future_dated_mail_does_not_poison_watermark(tmp_path):
     s, mb, svc, ch = setup(tmp_path)
-    mb.mails = [mail("future", sender="estraneo@altro.it", ts=NOW + timedelta(days=365))]
+    mb.mails = [mail("future", sender="estraneo@altro.it", ts=now() + timedelta(days=365))]
     poll(ch)
     assert max(seen(s).values()) <= time.time()
-    mb.mails.append(mail("real", ts=NOW + timedelta(seconds=10)))
+    mb.mails.append(mail("real", ts=now() + timedelta(seconds=10)))
     poll(ch)
     assert [a["text"] for a in svc.asks] == ["Ciao\n\ndimmi l'ora"] and "real" in seen(s)
 
@@ -254,7 +269,7 @@ def test_mail_too_large_replies_without_files_and_with_note(tmp_path):
 def test_one_failing_mail_does_not_stop_the_next(tmp_path):
     s, mb, svc, ch = setup(tmp_path)
     mb.reply_errors = [RuntimeError("x")]
-    mb.mails = [mail("a", ts=NOW + timedelta(seconds=5)), mail("b", ts=NOW + timedelta(seconds=6))]
+    mb.mails = [mail("a", ts=now() + timedelta(seconds=5)), mail("b", ts=now() + timedelta(seconds=6))]
     poll(ch)
     assert len(svc.asks) == 2 and [r[0] for r in mb.replies] == ["b"]
 
@@ -272,7 +287,8 @@ def test_list_since_error_does_not_raise_and_next_round_works(tmp_path, caplog):
 
 
 def test_run_survives_poll_exception_and_stops(tmp_path):
-    s, mb, svc, ch = setup(tmp_path, poll_interval_s=0)
+    s, mb, svc, ch = setup(tmp_path)
+    s.poll_interval_s = 0   # sotto il minimo di configurazione: solo per non attendere nel test
     calls = []
 
     async def boom():

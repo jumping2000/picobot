@@ -127,7 +127,7 @@ class YamlBlocksSource(PydanticBaseSettingsSource):
                 except ValueError as e:
                     raise ConfigError(f"{where}: {e}") from None
                 try:
-                    TypeAdapter(self.settings_cls.model_fields[key].annotation).validate_python(value)
+                    TypeAdapter(self.settings_cls.model_fields[key].rebuild_annotation()).validate_python(value)
                 except ValidationError as e:
                     raise ConfigError(f"{where}: {e.errors()[0]['msg']}") from None
                 if key in defined:
@@ -224,7 +224,7 @@ class Settings(BaseSettings):
     agentmail_api_key: str = ""
     email_allowed_senders: str = ""   # CSV "indirizzo[:user_id]"; vuoto = nessun mittente (fail-closed)
     inbox_id: str = ""                # indirizzo della casella AgentMail; vuoto = email spenta
-    poll_interval_s: int = 60
+    poll_interval_s: int = Field(default=60, ge=10)
 
     @field_validator("email_allowed_senders")
     @classmethod

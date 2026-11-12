@@ -67,6 +67,8 @@ class EmailChannel:
 
     # -- ciclo ----------------------------------------------------------------------------
     async def run(self, stop: asyncio.Event) -> None:
+        if not self.s.email_sender_map:
+            logger.warning("EMAIL_ALLOWED_SENDERS e' vuoto: nessun mittente e' ammesso, tutta la posta in arrivo verra' ignorata.")
         while not stop.is_set():
             try:
                 await self.poll_once()

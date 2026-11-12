@@ -22,6 +22,7 @@ logger = logging.getLogger("picobot.mailbox")
 MAX_SEND_BYTES = 6 * 1024 * 1024        # limite AgentMail per richiesta (corpo + allegati in base64)
 _MARGIN = 64 * 1024                     # corpo e metadati
 _PAGE = 100
+_MD = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])   # come tg_format: HTML grezzo escapato
 
 
 class MailTooLarge(Exception):
@@ -77,7 +78,7 @@ def _payload(body_md: str, files: list[Path]) -> dict:
         raise MailTooLarge(f"{total} byte > {MAX_SEND_BYTES}")
     return {
         "text": body_md,
-        "html": MarkdownIt().render(body_md),
+        "html": _MD.render(body_md),
         "attachments": [
             {"content": base64.b64encode(f.read_bytes()).decode("ascii"), "filename": f.name,
              "content_type": mimetypes.guess_type(f.name)[0] or "application/octet-stream"}

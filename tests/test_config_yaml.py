@@ -268,6 +268,12 @@ def test_email_block_and_allow_code_from_yaml(yaml_cfg):
     assert s.inbox_id == "picobot@jumpi.top" and s.poll_interval_s == 30 and s.allow_code is False
 
 
+def test_email_poll_interval_has_lower_bound(yaml_cfg):
+    yaml_cfg("email:\n  poll_interval_s: 5\n")
+    with pytest.raises(ConfigError, match=re.escape("email.poll_interval_s")):
+        Settings()
+
+
 def test_allow_code_default_true(yaml_cfg):
     assert Settings().allow_code is True
 

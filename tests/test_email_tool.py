@@ -90,6 +90,16 @@ def test_send_passes_body_html_and_base64_attachment(tmp_path):
     assert att["filename"] == "r.txt" and att["content_type"] == "text/plain"
 
 
+def test_send_html_escapes_raw_html_and_renders_tables(tmp_path):
+    client, msgs = fake_client()
+    mb = Mailbox(settings(tmp_path), client=client)
+    body = "<img src=x onerror=alert(1)>\n\n| a | b |\n|---|---|\n| 1 | 2 |\n"
+    run(mb.send(["mario@esempio.it"], "Oggetto", body, []))
+    [kw] = msgs.calls_of("send")
+    assert "<img" not in kw["html"] and "&lt;img" in kw["html"]
+    assert "<table>" in kw["html"]
+
+
 def test_send_too_large_raises_before_sdk_call(tmp_path):
     client, msgs = fake_client()
     f = tmp_path / "big.csv"
