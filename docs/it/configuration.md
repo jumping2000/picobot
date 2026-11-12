@@ -48,6 +48,8 @@ blocchi e chiavi si scrivono in minuscolo, come nelle tabelle.
 | `ADMIN_USER_IDS` | — | Id numerici separati da virgola che possono installare/rimuovere skill da chat (`/skill_add`, `/skill_remove`). Vuoto = comandi spenti per tutti; `ALLOW_ALL_USERS=true` da solo non rende admin nessuno |
 | `API_TOKENS` | — | Coppie `token:user_id` separate da virgola. Vuoto = API disattivata |
 | `CLI_USER_ID` | `cli` | Id utente della CLI. Usa il tuo id Telegram per condividere la memoria |
+| `AGENTMAIL_API_KEY` | — | Chiave API di AgentMail. L'email è attiva solo con questa chiave **e** `email.inbox_id` |
+| `EMAIL_ALLOWED_SENDERS` | — | Mittenti ammessi, `indirizzo[:user_id]` separati da virgola (es. `io@jumpi.top:123456789`); l'indirizzo non distingue maiuscole. Senza `:user_id` lo user_id è l'indirizzo in minuscolo. Vuoto = **nessun mittente**. Una voce senza `@` o con `:` finale vuoto impedisce l'avvio |
 
 Restano in `.env` anche tre variabili che PicoBot non legge da `config.yaml`:
 
@@ -102,6 +104,7 @@ Ogni tabella è un blocco. La colonna **Variabile** è il nome della variabile d
 | `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `120` | Secondi per rispondere a una conferma; nessuna risposta = rifiuto |
 | `code.code_node_mem_mb` | `CODE_NODE_MEM_MB` | `1536` | Limite di memoria per Node (pptxgenjs va in abort sotto ~1 GB). Python: 768 MB fissi |
 | `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Esecuzioni approvate per richiesta |
+| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = nessun canale esegue codice. `true` = Telegram/CLI con conferma, API con `approve_code`, email **senza** conferma |
 | `code.node_path` | `NODE_PATH` | *(vuoto)*; `/usr/local/lib/node_modules` nell'immagine | Pacchetti Node globali visibili agli script. Nel container la fissa il Dockerfile |
 
 ### `outputs` (file in uscita)
@@ -164,6 +167,13 @@ Le variabili del container `stt` (`STT_MODEL`, `STT_BEAM_SIZE`, …) sono del co
 | `api.api_host` | `API_HOST` | `127.0.0.1` (`0.0.0.0` nell'immagine) | Indirizzo di ascolto nel processo. Nel container lo fissa il Dockerfile |
 | `api.api_port` | `API_PORT` | `8000` | Porta |
 | `api.api_ssl_certfile` / `api.api_ssl_keyfile` | `API_SSL_CERTFILE` / `API_SSL_KEYFILE` | — | HTTPS diretto con Uvicorn (servono entrambi) |
+
+### `email` (canale AgentMail)
+
+| Chiave | Variabile | Default | Descrizione |
+|---|---|---|---|
+| `email.inbox_id` | `INBOX_ID` | *(vuoto = spento)* | Indirizzo della casella AgentMail, es. `picobot@agentmail.to`. L'email parte solo con `AGENTMAIL_API_KEY` in `.env` |
+| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Secondi tra un controllo e l'altro della casella |
 
 ## Controlli all'avvio
 
