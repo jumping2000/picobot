@@ -28,21 +28,24 @@ TEXT_ENGINES = ("duckduckgo", "keenable", "yahoo", "startpage", "mojeek")
 NEWS_ENGINES = ("duckduckgo", "bing", "yahoo")
 NO_RESULTS = "Nessun risultato da nessun motore di ricerca: riprova con una query piu' breve o con parole diverse."
 WINDOW_S, KEEP_S = 24 * 3600, 7 * 24 * 3600
+SQL_CREATE = "CREATE TABLE IF NOT EXISTS picobot_search_log(category TEXT, engine TEXT, ts REAL, ok INTEGER)"
+SQL_RATES = "SELECT engine, AVG(ok) FROM picobot_search_log WHERE category=? AND ts>? GROUP BY engine"
+SQL_PURGE = "DELETE FROM picobot_search_log WHERE ts<?"
+SQL_INSERT = "INSERT INTO picobot_search_log VALUES(?,?,?,?)"
 
 
 def make_web_tools(s: Settings) -> list:
     def db() -> sqlite3.Connection:
         s.data_dir.mkdir(parents=True, exist_ok=True)
         c = sqlite3.connect(s.database_file, timeout=10)
-        c.execute("CREATE TABLE IF NOT EXISTS picobot_search_log(category TEXT, engine TEXT, ts REAL, ok INTEGER)")
+        c.execute(SQL_CREATE)
         return c
 
     def ranked(category: str, engines: tuple[str, ...]) -> list[str]:
         # shortcut: un motore a intermittenza resta a meta' classifica; va bene finche' i motori sono pochi
         try:
             with closing(db()) as c:
-                rate = dict(c.execute("SELECT engine, AVG(ok) FROM picobot_search_log WHERE category=? AND ts>? "
-                                      "GROUP BY engine", (category, time.time() - WINDOW_S)))
+                rate = dict(c.execute(SQL_RATES, (category, time.time() - WINDOW_S)))
         except sqlite3.Error as e:   # le statistiche non devono bloccare la ricerca
             logger.warning("statistiche ricerca non leggibili: %s", e)
             rate = {}
@@ -51,8 +54,8 @@ def make_web_tools(s: Settings) -> list:
     def record(category: str, engine: str, ok: bool) -> None:
         try:
             with closing(db()) as c, c:
-                c.execute("DELETE FROM picobot_search_log WHERE ts<?", (time.time() - KEEP_S,))
-                c.execute("INSERT INTO picobot_search_log VALUES(?,?,?,?)", (category, engine, time.time(), int(ok)))
+                c.execute(SQL_PURGE, (time.time() - KEEP_S,))
+                c.execute(SQL_INSERT, (category, engine, time.time(), int(ok)))
         except sqlite3.Error as e:
             logger.warning("statistiche ricerca non scrivibili: %s", e)
 

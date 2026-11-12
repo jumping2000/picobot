@@ -2,6 +2,7 @@
 
 Scrivono nello Scheduler come /schedule: stessi limiti, stesso elenco. Mai da un run schedulato.
 """
+
 from ..config import Settings
 from ..context import get_ctx
 from ..scheduler import ScheduleError, Scheduler, format_schedules
@@ -17,13 +18,17 @@ def make_schedule_tools(s: Settings, scheduler: Scheduler) -> list:
         if ctx.channel == "schedule":
             return "Rifiutato: un task programmato non puo' crearne altri."
         try:
-            sid = scheduler.add(ctx.user_id, ctx.channel, ctx.target or ctx.user_id, cron, richiesta)
+            sid = scheduler.add(
+                ctx.user_id, ctx.channel, ctx.target or ctx.user_id, cron, richiesta
+            )
             n = scheduler.next_run(cron)
         except ScheduleError as e:
             return str(e)
         when = f"{n:%d/%m/%Y %H:%M} ({s.timezone})" if n else "nessuna"
-        return (f"Task #{sid} creato: [{cron.strip()}] {richiesta.strip()[:60]}. Prossima esecuzione: {when}. "
-                f"Si elimina con /unschedule {sid}.")
+        return (
+            f"Task #{sid} creato: [{cron.strip()}] {richiesta.strip()[:120]}. Prossima esecuzione: {when}. "
+            f"Si elimina con /unschedule {sid}."
+        )
 
     schedule_task.__doc__ = f"""Crea un task ricorrente chiesto dall'utente: la richiesta viene eseguita a ogni scadenza del cron
         e l'esito arriva sul suo canale.
