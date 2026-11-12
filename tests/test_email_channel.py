@@ -121,11 +121,11 @@ def test_first_start_processes_nothing_then_new_mail_is_asked(tmp_path):
 
 def test_after_is_max_ts_minus_300s(tmp_path):
     s, mb, svc, ch = setup(tmp_path)
-    ts = NOW + timedelta(seconds=40)
-    mb.mails = [mail("a", ts=ts)]
+    mb.mails = [mail("a", ts=NOW + timedelta(seconds=40))]   # nel futuro: salvato limitato all'ora corrente
     poll(ch)
     poll(ch)
-    assert mb.afters[-1] == ts - timedelta(seconds=300)
+    assert mb.afters[-1] == datetime.fromtimestamp(max(seen(s).values()) - 300, tz=timezone.utc)
+    assert max(seen(s).values()) <= time.time()
 
 
 def test_same_mail_returned_twice_is_asked_once(tmp_path):
@@ -163,6 +163,16 @@ def test_auto_reply_is_ignored(tmp_path):
     mb.mails = [mail("ooo", auto=True)]
     poll(ch)
     assert svc.asks == [] and mb.replies == [] and "ooo" in seen(s)
+
+
+def test_future_dated_mail_does_not_poison_watermark(tmp_path):
+    s, mb, svc, ch = setup(tmp_path)
+    mb.mails = [mail("future", sender="estraneo@altro.it", ts=NOW + timedelta(days=365))]
+    poll(ch)
+    assert max(seen(s).values()) <= time.time()
+    mb.mails.append(mail("real", ts=NOW + timedelta(seconds=10)))
+    poll(ch)
+    assert [a["text"] for a in svc.asks] == ["Ciao\n\ndimmi l'ora"] and "real" in seen(s)
 
 
 def test_unknown_sender_logs_sender_not_subject(tmp_path, caplog):

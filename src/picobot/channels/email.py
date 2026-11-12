@@ -93,7 +93,7 @@ class EmailChannel:
         self._purge()
 
     async def _handle(self, m: InMail) -> None:
-        ts = m.timestamp.timestamp()
+        ts = min(m.timestamp.timestamp(), time.time())   # data nel futuro (mittente ostile): non sposta il watermark
         if m.sender == self.mailbox.address or m.auto_reply:
             return self._mark(m.message_id, ts)
         if m.sender not in self.s.email_sender_map:
