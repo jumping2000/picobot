@@ -23,6 +23,11 @@ class ScheduleError(ValueError):
     pass
 
 
+def code_approval_prompt(cron: str, richiesta: str) -> str:
+    return (f"Il task [{cron.strip()}] {richiesta.strip()} potrà eseguire codice senza conferma "
+            "a ogni esecuzione. Approvi?")
+
+
 def format_schedules(rows: list[dict]) -> str:
     if not rows:
         return "Nessun task schedulato."

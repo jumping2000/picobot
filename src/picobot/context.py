@@ -9,6 +9,8 @@ from pathlib import Path
 
 # (codice completo, linguaggio "python" | "node") -> l'utente conferma?
 ConfirmFn = Callable[[str, str], Awaitable[bool]]
+# domanda sì/no libera -> l'utente conferma?
+AskFn = Callable[[str], Awaitable[bool]]
 
 
 @dataclass
@@ -29,6 +31,7 @@ class RunCtx:
     user_id: str
     channel: str                       # telegram | cli | api | schedule
     confirm: ConfirmFn | None = None   # human-in-the-loop interattivo (telegram, cli)
+    ask: AskFn | None = None           # domanda sì/no all'utente (telegram, cli); None = nessuno a cui chiedere
     pre_approved: bool = False         # approvazione esplicita a monte (api: approve_code=true)
     outputs: list[OutputFile] = field(default_factory=list)   # file consegnati da deliver_file
     runs: int = 0                      # esecuzioni di codice approvate in questa richiesta

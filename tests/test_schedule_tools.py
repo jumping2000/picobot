@@ -97,3 +97,61 @@ def test_format_schedules_marks_code():
     row = {"id": 3, "cron": "0 8 * * 1", "prompt": "report", "last_run": None, "approve_code": 1}
     assert "[0 8 * * 1] [codice]" in format_schedules([row])
     assert "[codice]" not in format_schedules([{**row, "approve_code": 0}])
+
+
+# ---------------- con_codice e unschedule_task ----------------
+PROMPT = "Il task [0 8 * * 1] report potrà eseguire codice senza conferma a ogni esecuzione. Approvi?"
+
+
+def test_con_codice_approved_by_ask(sch, tools):
+    seen = []
+
+    async def ask(p):
+        seen.append(p)
+        return True
+    out = call(RunCtx("u1", "telegram", ask=ask), tools.schedule_task, "0 8 * * 1", "report", True)
+    assert sch.list("u1")[0]["approve_code"] == 1 and seen == [PROMPT] and "senza codice" not in out
+
+
+def test_con_codice_denied_creates_without_code(sch, tools):
+    async def ask(p): return False
+    out = call(RunCtx("u1", "telegram", ask=ask), tools.schedule_task, "0 8 * * 1", "report", True)
+    assert sch.list("u1")[0]["approve_code"] == 0 and "senza codice" in out
+
+
+@pytest.mark.parametrize("channel", ["api", "email"])
+def test_con_codice_pre_approved_does_not_ask(sch, tools, channel):
+    async def ask(p): raise AssertionError("non va chiesto")
+    call(RunCtx("u1", channel, pre_approved=True, ask=ask), tools.schedule_task, "0 8 * * 1", "report", True)
+    assert sch.list("u1")[0]["approve_code"] == 1
+
+
+def test_con_codice_without_ask_or_pre_approval(sch, tools):
+    out = call(RunCtx("u1", "cli"), tools.schedule_task, "0 8 * * 1", "report", True)
+    assert sch.list("u1")[0]["approve_code"] == 0 and "senza codice" in out
+
+
+def test_senza_con_codice_does_not_ask(sch, tools):
+    async def ask(p): raise AssertionError("non va chiesto")
+    out = call(RunCtx("u1", "telegram", ask=ask), tools.schedule_task, "0 8 * * 1", "report")
+    assert sch.list("u1")[0]["approve_code"] == 0 and "senza codice" not in out
+
+
+def test_schedule_task_text_mentions_asking_to_delete(sch, tools):
+    assert "chiedendomelo" in call(RunCtx("u1", "cli"), tools.schedule_task, "0 8 * * 1", "x")
+
+
+def test_unschedule_task(sch, tools):
+    sid = sch.add("u1", "cli", "u1", "0 8 * * 1", "x")
+    assert call(RunCtx("u2", "cli"), tools.unschedule_task, sid) == "Task non trovato."
+    assert call(RunCtx("u1", "cli"), tools.unschedule_task, 999) == "Task non trovato."
+    assert sch.list("u1") != []
+    assert call(RunCtx("u1", "cli"), tools.unschedule_task, sid).startswith("Eliminato")
+    assert sch.list("u1") == []
+
+
+@pytest.mark.parametrize("ctx", [None, RunCtx("u1", "schedule")])
+def test_unschedule_task_refused_without_human_context(sch, tools, ctx):
+    sid = sch.add("u1", "cli", "u1", "0 8 * * 1", "x")
+    assert call(ctx, tools.unschedule_task, sid).startswith("Rifiutato")
+    assert len(sch.list("u1")) == 1

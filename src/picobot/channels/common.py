@@ -61,7 +61,8 @@ HELP = (
     "/new - nuova conversazione (la memoria a lungo termine resta)\n"
     "/memory - cosa so di te\n"
     "/forget - cancella la mia memoria su di te (con conferma)\n"
-    "/schedule <cron> | <richiesta> - task ricorrente, es: /schedule 0 8 * * 1-5 | quotazioni AAPL e MSFT\n"
+    "/schedule <cron> | <richiesta> [| codice] - task ricorrente, es: /schedule 0 8 * * 1-5 | quotazioni AAPL e MSFT "
+    "(con | codice può eseguire codice, approvato una volta alla creazione)\n"
     "/schedules - elenco task schedulati\n"
     "/unschedule <id> - elimina un task\n"
     "/skills - skill installate\n"
@@ -73,12 +74,15 @@ HELP = (
 )
 
 
-def parse_schedule_args(arg: str) -> tuple[str, str]:
-    """'0 8 * * 1-5 | quotazioni AAPL' -> ('0 8 * * 1-5', 'quotazioni AAPL')"""
+def parse_schedule_args(arg: str) -> tuple[str, str, bool]:
+    """'0 8 * * 1-5 | quotazioni AAPL [| codice]' -> ('0 8 * * 1-5', 'quotazioni AAPL', con_codice)"""
     if "|" not in arg:
-        raise ValueError("Formato: /schedule <min ora giorno mese giorno_sett> | <richiesta>")
+        raise ValueError("Formato: /schedule <min ora giorno mese giorno_sett> | <richiesta> [| codice]")
     cron, prompt = arg.split("|", 1)
-    return cron.strip(), prompt.strip()
+    head, sep, last = prompt.rpartition("|")
+    if sep and last.strip().lower() == "codice":
+        return cron.strip(), head.strip(), True
+    return cron.strip(), prompt.strip(), False
 
 
 def trace_text(s: Settings, user_id: str) -> str:

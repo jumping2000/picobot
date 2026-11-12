@@ -6,7 +6,7 @@ from pathlib import Path
 from ..config import Settings
 from ..context import RunCtx
 from ..documents import DocumentError
-from ..scheduler import ScheduleError
+from ..scheduler import ScheduleError, code_approval_prompt
 from ..service import PicoBotService
 from ..web import is_url
 from .common import (
@@ -50,7 +50,7 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
         print(f"\n--- Codice da eseguire ({language}) ---\n{code}\n--------------------------")
         return await ask_yes_no("Eseguire?")
 
-    ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm)
+    ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm, ask=ask_yes_no)
     print(f"PicoBot CLI (utente '{uid}'). /help per i comandi.")
     while True:
         try:
@@ -109,14 +109,18 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
                 if cmd == "/riassumi":   # workflow diretto
                     print(await service.summarize(p, instr, user_id=uid, session_id=session))
                 else:                    # decide il router (il file dell'utente non viene mai cancellato)
-                    doc_ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm, document=p, document_name=p.name)
+                    doc_ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm, ask=ask_yes_no, document=p,
+                                     document_name=p.name)
                     reply = await service.ask(f"[Documento caricato: {p.name}] {instr}".strip(), user_id=uid,
                                               session_id=session, ctx=doc_ctx)
                     _print_reply(reply)
             elif cmd == "/schedule":
-                cron, prompt = parse_schedule_args(arg)
-                sid = service.scheduler.add(uid, "cli", uid, cron, prompt)
-                print(f"Task #{sid} creato. Lo esegue `picobot serve`; l'esito arriva su Telegram se CLI_USER_ID "
+                cron, prompt, with_code = parse_schedule_args(arg)
+                service.scheduler.validate(cron)   # cron invalido: errore subito, senza chiedere conferma
+                ok = with_code and await ask_yes_no(code_approval_prompt(cron, prompt))
+                sid = service.scheduler.add(uid, "cli", uid, cron, prompt, approve_code=ok)
+                note = " Con codice approvato." if ok else (" Creato senza codice." if with_code else "")
+                print(f"Task #{sid} creato.{note} Lo esegue `picobot serve`; l'esito arriva su Telegram se CLI_USER_ID "
                       "e' il tuo id Telegram, altrimenti lo leggi con /schedules.")
             elif cmd == "/schedules":
                 rows = service.scheduler.list(uid)

@@ -21,7 +21,7 @@ I bottoni di conferma su Telegram li può premere solo l'utente che ha fatto la 
 | Protezione | Dettaglio |
 |---|---|
 | Human-in-the-loop | **Ogni** esecuzione va approvata (bottoni Telegram, `y/N` nella CLI, `approve_code` nell'API); prima viene mostrato il codice completo |
-| Niente codice negli schedule | Le esecuzioni programmate non hanno un canale di conferma, quindi il codice viene rifiutato |
+| Codice negli schedule solo se approvato | Uno schedule esegue codice solo se è stato approvato alla creazione (`approve_code`); senza approvazione le esecuzioni programmate lo rifiutano. Resta soggetto a `code.allow_code` |
 | Tetto di esecuzioni | Massimo `CODE_MAX_RUNS` (6) esecuzioni approvate per richiesta |
 | Processo separato | Sottoprocesso con `cwd = workspace/` |
 | Ambiente ripulito | Solo `PATH`, `HOME`, `PYTHONIOENCODING` (e `NODE_PATH`): **nessuna chiave API o token** |

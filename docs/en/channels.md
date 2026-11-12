@@ -18,7 +18,7 @@ Available on Telegram and in the CLI.
 | `/riassumi <link> [instructions]` | Direct summary of a web page (articles, blogs) |
 | `/memory` | Show memories, profile and entities |
 | `/forget` | Delete memories, profile and entities (asks for confirmation) |
-| `/schedule <cron> \| <request>` | Create a recurring task, e.g. `/schedule 0 8 * * 1-5 \| AAPL and MSFT quotes` |
+| `/schedule <cron> \| <request> [\| codice]` | Create a recurring task, e.g. `/schedule 0 8 * * 1-5 \| AAPL and MSFT quotes`; with `\| codice` it may run code (one-time confirmation) |
 | `/schedules` | List your scheduled tasks |
 | `/unschedule <id>` | Delete a task |
 | `/skills` | Installed skills |

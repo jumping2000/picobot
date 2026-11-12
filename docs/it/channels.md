@@ -18,7 +18,7 @@ Disponibili su Telegram e nella CLI.
 | `/riassumi <link> [istruzioni]` | Riassunto diretto di una pagina web (articoli, blog) |
 | `/memory` | Mostra memorie, profilo ed entità |
 | `/forget` | Cancella memorie, profilo ed entità (chiede conferma) |
-| `/schedule <cron> \| <richiesta>` | Crea un task ricorrente, es. `/schedule 0 8 * * 1-5 \| quotazioni AAPL e MSFT` |
+| `/schedule <cron> \| <richiesta> [\| codice]` | Crea un task ricorrente, es. `/schedule 0 8 * * 1-5 \| quotazioni AAPL e MSFT`; con `\| codice` può eseguire codice (conferma una tantum) |
 | `/schedules` | Elenco dei tuoi task |
 | `/unschedule <id>` | Elimina un task |
 | `/skills` | Skill installate |
