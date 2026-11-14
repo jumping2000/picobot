@@ -1,6 +1,6 @@
 [project]
 name = "picobot-agent"
-version = "0.8.4"
+version = "0.9.0"
 description = "PicoBot - multi-agent personal assistant (Agno 3): Telegram, CLI, REST API"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -25,6 +25,7 @@ dependencies = [
     "trafilatura>=2.3.1",
     "pyyaml>=6.0.3",
     "markdown-it-py>=4.2.0",
+    "agentmail>=2.0.25",
 ]
 
 [dependency-groups]

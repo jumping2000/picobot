@@ -6,7 +6,7 @@
 
 🇬🇧 English · 🇮🇹 [Italiano](README_IT.md)
 
-[![Version](https://img.shields.io/badge/version-0.8.4-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.9.0-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
@@ -52,6 +52,7 @@ tasks with cron.
 | ⚙️ **YAML configuration** | Secrets in `.env`, everything else in `config/config.yaml`, split into blocks and checked at startup |
 | 🔎 **Request trace** | Optional: `/trace` shows which teams, agents and tools your last request went through |
 | 🛡️ **Human-in-the-loop** | Generated code always runs **after your confirmation**, in a separate, resource-limited process |
+| ✉️ **Email channel** | PicoBot has its own [AgentMail](https://agentmail.to) inbox: mail from allowed senders is answered in the same thread, documents in and files out, and it can send mail with `send_email` — see [channels](docs/en/channels.md) |
 | 💬 **Three channels** | Telegram (confirm buttons), interactive CLI, REST API with bearer tokens and optional TLS |
 
 ## 🏗️ Architecture

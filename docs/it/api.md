@@ -100,12 +100,20 @@ Vengono restituiti solo quelli valorizzati.
 curl -X POST localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN" -H "content-type: application/json" \
      -d '{"cron": "0 8 * * 1-5", "prompt": "quotazioni AAPL e MSFT"}'
 # -> 201 {"id": 3}
+# crea un task che può eseguire codice (vedi sotto)
+curl -X POST localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN" -H "content-type: application/json"      -d '{"cron": "0 8 * * 1", "prompt": "report vendite in xlsx", "approve_code": true}'
 curl localhost:8000/v1/schedules -H "Authorization: Bearer $TOKEN"
 curl -X DELETE localhost:8000/v1/schedules/3 -H "Authorization: Bearer $TOKEN"   # -> 204
 ```
 
-Ogni voce di `GET /v1/schedules` contiene `id`, `cron`, `prompt`, `created_at`, `last_run` e `last_result`:
-i task creati dall'API non vengono notificati, i risultati si leggono qui.
+Corpo di `POST /v1/schedules`: `cron` e `prompt` (obbligatori), `approve_code` (bool, default `false`). Con
+`"approve_code": true` il task può eseguire codice a **ogni** esecuzione, senza nessuno che confermi: lo approvi una
+volta sola, alla creazione. L'approvazione resta salvata con il task (`approve_code` in `GET /v1/schedules`; `1` =
+può eseguire codice) e si revoca eliminando e ricreando il task. `code.allow_code: false` blocca comunque
+l'esecuzione.
+
+Ogni voce di `GET /v1/schedules` contiene `id`, `cron`, `prompt`, `approve_code`, `created_at`, `last_run` e
+`last_result`: i task creati dall'API non vengono notificati, i risultati si leggono qui.
 
 ## Codici di errore
 

@@ -80,3 +80,14 @@ translation in brackets.
 | 38 | `cp config/config_example.yaml config/config.yaml`, `docker compose restart` | no "prevale su" (overrides) warning in the log (unless the same keys are in `.env`); same behaviour, except voice messages on (`voice.stt_url`) | |
 | 39 | `memory.history_runs: 10` and `web.region: us-en`, `docker compose restart`; then the same key in `.env` too | values active; with the key also in `.env` the log shows "… (ambiente/.env) prevale su memory.history_runs …" | |
 | 40 | `histroy_runs: 10` in the `memory` block, `docker compose restart` | the container does not start; `docker compose logs` shows `Configurazione non valida: config/config.yaml: memory.histroy_runs: chiave sconosciuta` | |
+
+**Email channel (AgentMail)** — prerequisites: `AGENTMAIL_API_KEY` and `EMAIL_ALLOWED_SENDERS=<your address>:<your Telegram id>` in `.env`, `email.inbox_id: <AgentMail inbox>` in `config/config.yaml`, then `docker compose restart`. Tests 42 to 44 require waiting at least `email.poll_interval_s` seconds.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 41 | Telegram: "manda a <your address> un docx con una pagina sulla storia di Siena" (in Italian, as the bot is) | after you confirm the code, the email arrives with the `*.docx` attached | |
+| 42 | Reply to that email with "aggiungi un paragrafo sul Palio" | reply in the same thread, with the context of the previous email | |
+| 43 | From an address not in `EMAIL_ALLOWED_SENDERS`: email the inbox | no reply | |
+| 44 | Email from your address with a PDF attached and the text "riassumilo" | reply with the PDF summary | |
+| 45 | Telegram: `/schedule 0 8 * * 1 \| report \| codice`; then `/schedules`; then "elimina lo schedule N" | approval button; after approval `/schedules` shows `[codice]` next to the task; the task is deleted | |
+| 46 | `code.allow_code: false`, `docker compose restart`, Telegram: "fammi un docx con ..." | no code runs: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." (code execution disabled by configuration) | |

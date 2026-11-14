@@ -48,6 +48,8 @@ in lowercase, as in the tables.
 | `ADMIN_USER_IDS` | — | Comma-separated numeric ids allowed to install/remove skills from chat (`/skill_add`, `/skill_remove`). Empty = commands off for everyone; `ALLOW_ALL_USERS=true` alone makes nobody an admin |
 | `API_TOKENS` | — | Comma-separated `token:user_id` pairs. Empty = API disabled |
 | `CLI_USER_ID` | `cli` | User ID of the CLI. Set it to your Telegram ID to share memory |
+| `AGENTMAIL_API_KEY` | — | AgentMail API key. Email is enabled only with this key **and** `email.inbox_id` |
+| `EMAIL_ALLOWED_SENDERS` | — | Allowed senders, comma-separated `address[:user_id]` (e.g. `io@jumpi.top:123456789`); the address is case-insensitive. Without `:user_id` the user_id is the lowercased address. Empty = **no sender allowed**. An entry without `@` or with an empty trailing `:` stops the startup |
 
 Three variables that PicoBot does not read from `config.yaml` also stay in `.env`:
 
@@ -102,6 +104,7 @@ Each table is a block. The **Variable** column is the equivalent environment var
 | `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `120` | Seconds to answer a confirmation; no answer = refused |
 | `code.code_node_mem_mb` | `CODE_NODE_MEM_MB` | `1536` | Address-space limit for Node (pptxgenjs aborts below ~1 GB). Python: fixed 768 MB |
 | `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Approved executions per request |
+| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = no channel runs code. `true` = Telegram/CLI with confirmation, API with `approve_code`; anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code by email **without** confirmation |
 | `code.node_path` | `NODE_PATH` | *(empty)*; `/usr/local/lib/node_modules` in the image | Global Node packages visible to scripts. Fixed by the Dockerfile in the container |
 
 ### `outputs` (delivered files)
@@ -164,6 +167,13 @@ in [voice.md](voice.md).
 | `api.api_host` | `API_HOST` | `127.0.0.1` (`0.0.0.0` in the image) | Bind address inside the process. Fixed by the Dockerfile in the container |
 | `api.api_port` | `API_PORT` | `8000` | Port |
 | `api.api_ssl_certfile` / `api.api_ssl_keyfile` | `API_SSL_CERTFILE` / `API_SSL_KEYFILE` | — | Direct HTTPS with Uvicorn (both required) |
+
+### `email` (AgentMail channel)
+
+| Key | Variable | Default | Description |
+|---|---|---|---|
+| `email.inbox_id` | `INBOX_ID` | *(empty = off)* | AgentMail inbox address, e.g. `picobot@agentmail.to`. Email starts only with `AGENTMAIL_API_KEY` in `.env` |
+| `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Seconds between two checks of the inbox (minimum 10) |
 
 ## Startup checks
 

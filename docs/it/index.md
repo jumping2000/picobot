@@ -2,7 +2,7 @@
 
 🇮🇹 Italiano · 🇬🇧 [English](../en/index.md) · ⬅️ [README](../../README_IT.md)
 
-PicoBot v0.8 è un assistente personale multi-agente self-hosted, basato su [Agno 3](https://github.com/agno-agi/agno).
+PicoBot v0.9 è un assistente personale multi-agente self-hosted, basato su [Agno 3](https://github.com/agno-agi/agno).
 Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un unico processo.
 
 ## Guide
@@ -12,7 +12,7 @@ Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un
 | [Per iniziare](getting-started.md) | Requisiti, installazione con Docker (immagini pronte o build locale) e in locale, primo avvio |
 | [Configurazione](configuration.md) | Chiavi di `.env` e blocchi di `config/config.yaml`, con precedenza e valori predefiniti |
 | [Architettura](architecture.md) | Router, team, workflow, scheduler, dati, ciclo di una richiesta |
-| [Canali](channels.md) | Telegram e CLI: comandi, documenti, conferme |
+| [Canali](channels.md) | Telegram, email e CLI: comandi, documenti, conferme |
 | [API REST](api.md) | Endpoint, payload, esempi, codici di errore |
 | [Skill](skills.md) | Formato Agent Skills, installazione da chat (`/skill_add`) e CLI di amministrazione, dipendenze Docker |
 | [MCP](mcp.md) | Collegare server Model Context Protocol |

@@ -13,6 +13,7 @@ from .models import make_model
 from .skills import SkillRegistry
 from .storage import make_learning_view
 from .tools.documents import make_read_tools
+from .tools.email import make_email_tools
 from .tools.files import make_file_tools, make_text_tools
 from .tools.sandbox import make_code_tools, make_node_tools
 from .tools.websearch import make_web_tools
@@ -66,28 +67,33 @@ def build_web(s: Settings) -> Agent:
     )
 
 
-def build_coder(s: Settings) -> Agent:
+def _mail(s: Settings, mailbox, record_mail) -> list:
+    return make_email_tools(s, mailbox, record_mail) if mailbox is not None else []
+
+
+def build_coder(s: Settings, mailbox=None, record_mail=None) -> Agent:
     return Agent(
         name="Coder",
         role="Scrive piccoli programmi Python (eseguiti solo con conferma umana) e file di testo; consegna i file.",
-        model=make_model(s), tools=[*make_code_tools(s), *make_text_tools(s), *make_file_tools(s)],
+        model=make_model(s),
+        tools=[*make_code_tools(s), *make_text_tools(s), *make_file_tools(s), *_mail(s, mailbox, record_mail)],
         instructions=dated(s, [prompts.CODER]),
     )
 
 
-def build_simple_team(s: Settings, db=None) -> Team:
+def build_simple_team(s: Settings, db=None, mailbox=None, record_mail=None) -> Team:
     """Compiti rapidi sul modello economico: ricerche, quotazioni, piccoli programmi e file di testo."""
     return Team(
         name="SimpleTeam",
         role="Compiti rapidi ed economici: quotazioni e dati di mercato, ricerche web, piccoli programmi Python, file di testo.",
         mode=TeamMode.coordinate, model=make_model(s),
-        members=[build_web(s), build_finance(s, db), build_coder(s)],
+        members=[build_web(s), build_finance(s, db), build_coder(s, mailbox, record_mail)],
         instructions=dated(s, [prompts.SIMPLE_LEADER]), **_view(s, db),
     )
 
 
 def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_tools: list | None = None,
-                       db=None) -> Team:
+                       db=None, mailbox=None, record_mail=None) -> Team:
     """Leader + Researcher, Analyst, Writer, (Critic), tutti sul modello forte, con skill e MCP.
     L'Analyst ragiona e calcola (anche con codice) ma non consegna; il Writer produce e consegna il risultato."""
     strong = lambda: make_model(s, strong=True)  # noqa: E731
@@ -103,7 +109,8 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
               skills=skills, instructions=dated(s, [prompts.ANALYST])),
         Agent(name="Writer", role="Scrive, formatta e produce il risultato finale (testo, Word, PowerPoint, Excel) e lo consegna.",
               model=strong(),
-              tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s), *read, *mcp],
+              tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s),
+                     *_mail(s, mailbox, record_mail), *read, *mcp],
               skills=skills, instructions=dated(s, [prompts.WRITER])),
     ]
     if s.enable_critic:

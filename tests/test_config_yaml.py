@@ -4,11 +4,13 @@ import logging
 import re
 
 import pytest
+from pydantic import ValidationError
 
 import picobot.config
 from picobot.config import BLOCKS, ENV_ONLY, ConfigError, Settings
 
-VARS = ("HISTORY_RUNS", "REGION", "API_PORT", "STT_URL", "STT_HOST", "PORT", "MANCA_XYZ", "REPLY_FORMAT", "history_runs")
+VARS = ("HISTORY_RUNS", "REGION", "API_PORT", "STT_URL", "STT_HOST", "PORT", "MANCA_XYZ", "REPLY_FORMAT", "history_runs",
+        "AGENTMAIL_API_KEY", "EMAIL_ALLOWED_SENDERS", "INBOX_ID", "POLL_INTERVAL_S", "ALLOW_CODE")
 
 
 @pytest.fixture
@@ -258,3 +260,49 @@ def test_python_tags_rejected(yaml_cfg):
     yaml_cfg("web:\n  region: !!python/object/apply:os.getcwd []\n")
     with pytest.raises(ConfigError, match="YAML non valido"):
         Settings()
+
+
+def test_email_block_and_allow_code_from_yaml(yaml_cfg):
+    yaml_cfg("email:\n  inbox_id: picobot@jumpi.top\n  poll_interval_s: 30\ncode:\n  allow_code: false\n")
+    s = Settings()
+    assert s.inbox_id == "picobot@jumpi.top" and s.poll_interval_s == 30 and s.allow_code is False
+
+
+def test_email_poll_interval_has_lower_bound(yaml_cfg):
+    yaml_cfg("email:\n  poll_interval_s: 5\n")
+    with pytest.raises(ConfigError, match=re.escape("email.poll_interval_s")):
+        Settings()
+
+
+def test_allow_code_default_true(yaml_cfg):
+    assert Settings().allow_code is True
+
+
+def test_email_secrets_rejected_in_yaml(yaml_cfg):
+    yaml_cfg("email:\n  agentmail_api_key: x\n")
+    with pytest.raises(ConfigError, match="AGENTMAIL_API_KEY"):
+        Settings()
+    yaml_cfg("email:\n  email_allowed_senders: a@b.it\n")
+    with pytest.raises(ConfigError, match="EMAIL_ALLOWED_SENDERS"):
+        Settings()
+
+
+def test_email_sender_map(yaml_cfg):
+    s = Settings(email_allowed_senders="Io@Jumpi.top:123, collega@esempio.it")
+    assert s.email_sender_map == {"io@jumpi.top": "123", "collega@esempio.it": "collega@esempio.it"}
+    assert s.email_user_id("IO@jumpi.top") == "123"
+    assert s.email_user_id("Altro@Esempio.it") == "altro@esempio.it"   # fuori mappa: indirizzo minuscolo
+    assert Settings(email_allowed_senders="").email_sender_map == {}
+
+
+@pytest.mark.parametrize("bad", ["io@jumpi.top:", "non-un-indirizzo", "ok@esempio.it, non-un-indirizzo"])
+def test_email_sender_map_malformed(yaml_cfg, bad):
+    with pytest.raises(ValidationError):
+        Settings(email_allowed_senders=bad)
+
+
+def test_email_enabled(yaml_cfg):
+    assert not Settings().email_enabled
+    assert not Settings(agentmail_api_key="k").email_enabled
+    assert not Settings(inbox_id="picobot@jumpi.top").email_enabled
+    assert Settings(agentmail_api_key="k", inbox_id="picobot@jumpi.top").email_enabled

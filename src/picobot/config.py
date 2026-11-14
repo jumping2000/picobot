@@ -12,7 +12,7 @@ from typing import Any, Literal
 
 import yaml
 from dotenv import dotenv_values
-from pydantic import Field, TypeAdapter, ValidationError
+from pydantic import Field, TypeAdapter, ValidationError, field_validator
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ CONFIG_FILE = Path("config/config.yaml")   # relativo alla cartella di lavoro (/
 ENV_ONLY = frozenset({
     "openrouter_api_key", "openai_api_key", "openrouter_base_url", "llm_model_id", "llm_strong_model_id",
     "telegram_bot_token", "telegram_allowed_user_ids", "api_tokens", "cli_user_id", "admin_user_ids",
+    "agentmail_api_key", "email_allowed_senders",
 })
 
 BLOCKS: dict[str, tuple[str, ...]] = {
@@ -32,7 +33,7 @@ BLOCKS: dict[str, tuple[str, ...]] = {
                "team_max_iterations"),
     "web": ("region",),
     "code": ("code_timeout_s", "code_max_output", "confirm_timeout_s", "code_node_mem_mb", "code_max_runs",
-             "node_path"),
+             "node_path", "allow_code"),
     "outputs": ("max_output_mb", "max_output_files", "output_extensions", "outbox_ttl_h"),
     "trace": ("trace_enabled", "trace_max_mb"),
     "skills": ("enable_skills", "skills_dir", "skills_list_max", "skills_router_hint_max"),
@@ -40,6 +41,7 @@ BLOCKS: dict[str, tuple[str, ...]] = {
     "voice": ("stt_url", "stt_timeout_s", "max_voice_s"),
     "scheduler": ("timezone", "schedule_min_interval_min", "max_schedules_per_user"),
     "api": ("api_enabled", "api_host", "api_port", "api_ssl_certfile", "api_ssl_keyfile"),
+    "email": ("inbox_id", "poll_interval_s"),
 }
 
 
@@ -125,7 +127,7 @@ class YamlBlocksSource(PydanticBaseSettingsSource):
                 except ValueError as e:
                     raise ConfigError(f"{where}: {e}") from None
                 try:
-                    TypeAdapter(self.settings_cls.model_fields[key].annotation).validate_python(value)
+                    TypeAdapter(self.settings_cls.model_fields[key].rebuild_annotation()).validate_python(value)
                 except ValidationError as e:
                     raise ConfigError(f"{where}: {e.errors()[0]['msg']}") from None
                 if key in defined:
@@ -176,6 +178,7 @@ class Settings(BaseSettings):
     code_node_mem_mb: int = 1536   # pptxgenjs va in abort a 768 MB
     code_max_runs: int = 6         # esecuzioni approvate per richiesta
     node_path: str = ""            # NODE_PATH per gli script Node (pacchetti globali)
+    allow_code: bool = True        # false = nessun canale esegue codice
 
     # --- File in uscita ---
     max_output_mb: int = 20
@@ -216,6 +219,22 @@ class Settings(BaseSettings):
     api_ssl_certfile: str = ""   # opzionale: HTTPS diretto (uvicorn), senza reverse proxy
     api_ssl_keyfile: str = ""
     api_tokens: str = ""   # CSV "token:user_id" (user_id = id Telegram per condividere la memoria)
+
+    # --- Email (AgentMail) ---
+    agentmail_api_key: str = ""
+    email_allowed_senders: str = ""   # CSV "indirizzo[:user_id]"; vuoto = nessun mittente (fail-closed)
+    inbox_id: str = ""                # indirizzo della casella AgentMail; vuoto = email spenta
+    poll_interval_s: int = Field(default=60, ge=10)
+
+    @field_validator("email_allowed_senders")
+    @classmethod
+    def _check_email_senders(cls, v: str) -> str:
+        for item in v.split(","):
+            if item.strip():
+                addr, sep, uid = item.strip().partition(":")
+                if "@" not in addr or (sep and not uid.strip()):
+                    raise ValueError(f"EMAIL_ALLOWED_SENDERS: voce non valida '{item.strip()}' (serve indirizzo[:user_id])")
+        return v
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings,
@@ -267,6 +286,25 @@ class Settings(BaseSettings):
                 if tok and uid:
                     out[tok] = uid
         return out
+
+    @property
+    def email_enabled(self) -> bool:
+        return bool(self.agentmail_api_key and self.inbox_id)
+
+    @property
+    def email_sender_map(self) -> dict[str, str]:
+        """Indirizzo minuscolo -> user_id (senza ':id' e' l'indirizzo stesso)."""
+        out = {}
+        for item in self.email_allowed_senders.split(","):
+            if item.strip():
+                addr, _, uid = item.strip().partition(":")
+                addr = addr.strip().lower()
+                out[addr] = uid.strip() or addr
+        return out
+
+    def email_user_id(self, address: str) -> str:
+        address = address.strip().lower()
+        return self.email_sender_map.get(address, address)
 
 
 @lru_cache

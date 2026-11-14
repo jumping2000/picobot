@@ -4,6 +4,29 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-11-12
+
+### Added
+
+- Email channel with an [AgentMail](https://docs.agentmail.to/) inbox (`AGENTMAIL_API_KEY`, `email.inbox_id`). It
+  polls the inbox every `email.poll_interval_s` seconds and answers, in the same thread, mail from the addresses in
+  `EMAIL_ALLOWED_SENDERS` (`address[:user_id]`, to share memory and schedules with a Telegram user); mail from anyone
+  else is ignored. One session per thread, attachments handled like Telegram documents (`/riassumi` included),
+  replies carry the files created by the agents (6 MB per mail). Processed mail ids are kept in the
+  `picobot_email_seen` table, and mail that arrived while PicoBot was stopped is processed once. `picobot serve
+  --no-email` turns the channel off; email can be the only channel.
+- `send_email` tool: the agents can email a result, files included, to any address from every channel. The reply to
+  that mail has the context of what was sent. Schedules created by email deliver their result by email.
+- `unschedule_task` tool: delete a schedule in plain words from any channel.
+- `code.allow_code` in `config/config.yaml` (default `true`): `false` stops every channel from running code.
+- Schedules can run code if approved at creation (`| codice` in `/schedule`, `con_codice` in the router tool,
+  `approve_code` in `POST /v1/schedules`); `/schedules` marks them `[codice]`.
+
+### Security
+
+- With `code.allow_code: true`, mail from an allowed sender runs code **without confirmation** (email has no one to
+  ask). Keep `EMAIL_ALLOWED_SENDERS` short, or set `allow_code: false`. See `docs/en/security.md`.
+
 ## [0.8.4] - 2026-11-10
 
 ### Added

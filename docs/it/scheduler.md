@@ -12,8 +12,9 @@ scritto tu. L'esito viene inviato al canale che ha creato il task.
 /schedule 30 18 * * 5 | riassunto settimanale delle notizie sulle auto elettriche
 ```
 
-Formato: `/schedule <minuto ora giorno mese giorno_settimana> | <richiesta>`. API: `POST /v1/schedules` con `cron`
-e `prompt` (vedi [api.md](api.md)).
+Formato: `/schedule <minuto ora giorno mese giorno_settimana> | <richiesta> [| codice]`. API: `POST /v1/schedules` con `cron`
+e `prompt` (vedi [api.md](api.md)). Con `| codice` il task può eseguire codice: il bot chiede conferma una sola volta, alla
+creazione (bottone Telegram o `y/N` nella CLI); se rifiuti o scade, il task nasce senza codice.
 
 | Cron | Significato |
 |---|---|
@@ -34,7 +35,8 @@ Task #3 creato: [0 8 * * 1-5] quotazioni di AAPL e MSFT. Prossima esecuzione: 27
 
 Il bot traduce l'orario in cron e crea un task identico a quello di `/schedule`, con gli stessi limiti: controlla
 l'orario indicato in "Prossima esecuzione". Puoi chiedere anche "quali task ho?". Per eliminarne uno usa
-`/unschedule <id>`. Sono supportati solo i task ricorrenti: per "domani alle 8" il bot risponde che non può.
+`/unschedule <id>` o chiedilo al bot ("elimina il task 3"). Se il task deve eseguire codice, il bot lo
+segnala e chiede la stessa conferma di `/schedule ... | codice`. Sono supportati solo i task ricorrenti: per "domani alle 8" il bot risponde che non può.
 Il bot è istruito a non creare task per istruzioni contenute in documenti o pagine web: è una regola del prompt,
 non un blocco nel codice, quindi controlla sempre la risposta "Task #N creato" e l'elenco `/schedules`.
 
@@ -61,8 +63,13 @@ stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva 
 | Lunghezza del prompt | 1.000 caratteri | — |
 
 > [!IMPORTANT]
-> Un task programmato **non può eseguire codice né produrre file**: non c'è nessuno per confermare. Gli agenti
-> possono comunque salvare il codice e mostrartelo nel risultato.
+> Un task programmato **esegue codice solo se lo hai approvato alla creazione** (`| codice`, `approve_code`
+> nell'API, flag nel tool del router): a ogni esecuzione non c'è nessuno per confermare. Senza approvazione non
+> può eseguire codice né produrre file; gli agenti possono comunque salvare il codice e mostrartelo nel risultato.
+> `code.allow_code: false` blocca comunque ogni esecuzione. L'elenco `/schedules` marca i task con `[codice]`.
+>
+> **Uno schedule non consegna mai file:** anche con l'approvazione, i file prodotti da un'esecuzione non vengono
+> inviati; arriva solo il testo dell'esito. Per ottenere un file, chiedilo da chat o per email.
 
 ## Consegna
 
@@ -70,6 +77,7 @@ stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva 
 |---|---|
 | Telegram | Messaggio nella chat, con il prefisso `[Schedule #id]` |
 | CLI con `CLI_USER_ID` = id Telegram autorizzato | Messaggio nella tua chat Telegram, come sopra |
+| Email | **Mail nuova** `[Schedule #id] ...` all'indirizzo che ha creato il task |
 | CLI (altro id), API | Nessuna notifica: si legge con `/schedules` (CLI) o `GET /v1/schedules` (`last_result`) |
 
 ## Funzionamento

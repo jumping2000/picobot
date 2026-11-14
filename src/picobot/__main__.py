@@ -19,9 +19,10 @@ def main() -> None:
         sys.exit(main_skills(sys.argv[2:], _settings()))
     p = argparse.ArgumentParser(prog="picobot")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sv = sub.add_parser("serve", help="Telegram + API + scheduler")
+    sv = sub.add_parser("serve", help="Telegram + API + email + scheduler")
     sv.add_argument("--no-telegram", action="store_true")
     sv.add_argument("--no-api", action="store_true")
+    sv.add_argument("--no-email", action="store_true")
     sub.add_parser("cli", help="REPL interattivo")
     sub.add_parser("skills", help="gestione skill: list | add | remove | validate | deps")
     args = p.parse_args()
@@ -43,6 +44,7 @@ def main() -> None:
 
     use_tg = not args.no_telegram and bool(s.telegram_bot_token)
     use_api = not args.no_api and s.api_enabled
+    use_email = not args.no_email and s.email_enabled
     if use_tg and not s.allowed_ids and not s.allow_all_users:
         sys.exit("TELEGRAM_ALLOWED_USER_IDS vuoto: nessuno sarebbe autorizzato (o ALLOW_ALL_USERS=true).")
     if use_tg:
@@ -55,9 +57,9 @@ def main() -> None:
         use_api = False
     if use_api and s.api_host not in {"127.0.0.1", "localhost"} and not s.api_ssl_certfile:
         logging.warning("API esposta senza TLS: il token viaggia in chiaro. Imposta API_SSL_CERTFILE/API_SSL_KEYFILE.")
-    if not (use_tg or use_api):
-        sys.exit("Nessun canale attivo: configura TELEGRAM_BOT_TOKEN e/o API_TOKENS.")
-    asyncio.run(runner.serve(s, use_tg, use_api))
+    if not (use_tg or use_api or use_email):
+        sys.exit("Nessun canale attivo: configura TELEGRAM_BOT_TOKEN, API_TOKENS e/o AGENTMAIL_API_KEY + email.inbox_id.")
+    asyncio.run(runner.serve(s, use_tg, use_api, use_email))
 
 
 if __name__ == "__main__":

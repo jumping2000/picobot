@@ -17,7 +17,7 @@ from telegram.ext import (
 from ..config import Settings
 from ..context import Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
-from ..scheduler import ScheduleError
+from ..scheduler import ScheduleError, code_approval_prompt
 from ..service import PicoBotService
 from ..stt import SttError, transcribe
 from ..web import is_url
@@ -181,10 +181,13 @@ class TelegramGateway:
             return
         arg = (update.message.text.split(maxsplit=1) + [""])[1]
         try:
-            cron, prompt = parse_schedule_args(arg)
-            sid = self.service.scheduler.add(str(update.effective_user.id), "telegram",
-                                             str(update.effective_chat.id), cron, prompt)
-            await update.message.reply_text(f"Task #{sid} creato. Fuso orario: {self.s.timezone}.")
+            cron, prompt, with_code = parse_schedule_args(arg)
+            uid, chat_id = update.effective_user.id, update.effective_chat.id
+            self.service.scheduler.validate(cron)   # cron invalido: errore subito, senza chiedere conferma
+            ok = with_code and await self.ask_yes_no(ctx.bot, chat_id, uid, code_approval_prompt(cron, prompt))
+            sid = self.service.scheduler.add(str(uid), "telegram", str(chat_id), cron, prompt, approve_code=ok)
+            note = " Con codice approvato." if ok else (" Creato senza codice." if with_code else "")
+            await update.message.reply_text(f"Task #{sid} creato.{note} Fuso orario: {self.s.timezone}.")
         except (ValueError, ScheduleError) as e:
             await update.message.reply_text(str(e))
 
@@ -274,7 +277,8 @@ class TelegramGateway:
 
     def _run_ctx(self, ctx, chat_id: int, uid: int, **kw) -> RunCtx:
         return RunCtx(user_id=str(uid), channel="telegram", target=str(chat_id),
-                      confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language), **kw)
+                      confirm=lambda code, language: self.confirm_code(ctx.bot, chat_id, uid, code, language),
+                      ask=lambda p: self.ask_yes_no(ctx.bot, chat_id, uid, p), **kw)
 
     async def _ask(self, update, ctx, text: str, target: str = "auto", **ctx_kw):
         async with self._locks[update.effective_chat.id]:

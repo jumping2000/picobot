@@ -85,6 +85,17 @@ def test_api_summary_enters_session_for_followup():
     with_api(t)
 
 
+def test_api_schedule_approve_code():
+    async def t(c, svc):
+        r = await c.post("/v1/schedules", json={"cron": "0 8 * * 1", "prompt": "x", "approve_code": True}, headers=A)
+        assert r.status_code == 201
+        r = await c.post("/v1/schedules", json={"cron": "0 9 * * 1", "prompt": "y"}, headers=A)
+        assert r.status_code == 201
+        rows = {x["prompt"]: x["approve_code"] for x in (await c.get("/v1/schedules", headers=A)).json()["schedules"]}
+        assert rows["x"] == 1 and rows["y"] == 0
+    with_api(t)
+
+
 def test_api_memory_and_schedules_isolated_per_user():
     async def t(c, svc):
         await c.post("/v1/chat", json={"message": "ricorda che mi chiamo Gianpi"}, headers=A)
@@ -228,9 +239,31 @@ def test_trace_text_messages(tmp_path):
 
 
 def test_schedule_arg_parsing():
-    assert parse_schedule_args("0 8 * * 1-5 | quotazioni AAPL") == ("0 8 * * 1-5", "quotazioni AAPL")
+    assert parse_schedule_args("0 8 * * 1-5 | quotazioni AAPL") == ("0 8 * * 1-5", "quotazioni AAPL", False)
+    assert parse_schedule_args("0 8 * * 1 | report | codice") == ("0 8 * * 1", "report", True)
+    assert parse_schedule_args("0 8 * * 1 | report | CODICE ") == ("0 8 * * 1", "report", True)
+    assert parse_schedule_args("0 8 * * 1 | analizza codice") == ("0 8 * * 1", "analizza codice", False)
     with pytest.raises(ValueError):
         parse_schedule_args("0 8 * * 1-5 quotazioni")
+
+
+@pytest.mark.parametrize("approve", [True, False])
+def test_telegram_schedule_with_code_asks(approve):
+    gw, asked, texts = make_gw(), [], []
+    async def ask_yes_no(bot, chat_id, user_id, prompt):
+        asked.append(prompt)
+        return approve
+    gw.ask_yes_no = ask_yes_no
+    async def reply_text(text, **kw): texts.append(text)
+    upd = NS(effective_user=NS(id=1), effective_chat=NS(id=10),
+             message=NS(text=f"/schedule 0 8 * * 1 | tg-{approve} | codice", reply_text=reply_text))
+    async def run():
+        await gw.service.start()
+        await gw.on_schedule(upd, NS(bot=None))
+    asyncio.run(run())
+    [row] = [r for r in gw.service.scheduler.list("1") if r["prompt"] == f"tg-{approve}"]
+    assert row["approve_code"] == int(approve) and len(asked) == 1 and "Approvi?" in asked[0]
+    assert ("senza codice" in texts[0]) != approve
 
 
 # ---------------- CLI ----------------
@@ -247,6 +280,20 @@ def test_cli_session(monkeypatch, capsys):
     assert "/forget" in out and "RISPOSTA-FINTA" in out and "Codice da eseguire" in out and "print(6*7)" in out
     res = [m["content"] for b in fake_llm.LOG for m in b["messages"] if m["role"] == "tool"]
     assert any("42" in r for r in res)
+
+
+@pytest.mark.parametrize("answer, expected", [("y", 1), ("n", 0)])
+def test_cli_schedule_with_code_asks_confirmation(monkeypatch, capsys, answer, expected):
+    inputs = iter([f"/schedule 0 8 * * 1 | report-{answer} | codice", answer, "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(); svc = PicoBotService(s); await svc.start()
+        await cli_mod.run_cli(s, svc)
+        return svc.scheduler.list(s.cli_user_id)
+    [row] = [r for r in asyncio.run(t()) if r["prompt"] == f"report-{answer}"]
+    assert row["approve_code"] == expected
+    assert ("Con codice approvato" if expected else "Creato senza codice") in capsys.readouterr().out
 
 
 # ---------------- consegna file Telegram ----------------

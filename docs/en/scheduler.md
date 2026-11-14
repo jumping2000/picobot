@@ -12,8 +12,9 @@ it. The result is sent to the channel that created the task.
 /schedule 30 18 * * 5 | weekly summary of news about electric cars
 ```
 
-Format: `/schedule <minute hour day month weekday> | <request>`. API: `POST /v1/schedules` with `cron` and `prompt`
-(see [api.md](api.md)).
+Format: `/schedule <minute hour day month weekday> | <request> [| codice]`. API: `POST /v1/schedules` with `cron` and `prompt`
+(see [api.md](api.md)). With `| codice` the task may run code: the bot asks for confirmation once, at creation
+(Telegram button or CLI `y/N`); if you decline or it times out, the task is created without code.
 
 | Cron | Meaning |
 |---|---|
@@ -34,7 +35,8 @@ Task #3 creato: [0 8 * * 1-5] AAPL and MSFT quotes. Prossima esecuzione: 27/10/2
 
 The bot turns the time into a cron expression and creates the same task as `/schedule`, with the same limits:
 check the time shown as "Prossima esecuzione" (next run). You can also ask "which tasks do I have?". To delete one,
-use `/unschedule <id>`. Only recurring tasks are supported: for "tomorrow at 8" the bot says it cannot.
+use `/unschedule <id>` or ask the bot ("delete task 3"). If the task must run code, the bot flags it and asks
+the same confirmation as `/schedule ... | codice`. Only recurring tasks are supported: for "tomorrow at 8" the bot says it cannot.
 The bot is instructed not to create tasks because of instructions found in documents or web pages: this is a
 prompt rule, not a check in the code, so always look at the "Task #N creato" reply and at `/schedules`.
 
@@ -61,8 +63,13 @@ Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the 
 | Prompt length | 1,000 characters | — |
 
 > [!IMPORTANT]
-> A scheduled task **cannot run code or produce files**: nobody is there to confirm. The agents can still save code
-> and show it to you in the result.
+> A scheduled task **runs code only if you approved it at creation** (`| codice`, `approve_code` in the API,
+> flag in the router tool): at each run nobody is there to confirm. Without approval it cannot run code or
+> produce files; the agents can still save code and show it to you in the result. `code.allow_code: false`
+> still blocks every execution. `/schedules` marks such tasks with `[codice]`.
+>
+> **A schedule never delivers files:** even with approval, files produced by a run are not sent; only the result
+> text arrives. To get a file, ask for it from chat or by email.
 
 ## Delivery
 
@@ -70,6 +77,7 @@ Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the 
 |---|---|
 | Telegram | Message in the chat, prefixed with `[Schedule #id]` |
 | CLI with `CLI_USER_ID` = an allowed Telegram id | Message in your Telegram chat, as above |
+| Email | **New mail** `[Schedule #id] ...` to the address that created the task |
 | CLI (other id), API | Not pushed: read it with `/schedules` (CLI) or `GET /v1/schedules` (`last_result`) |
 
 ## How it works

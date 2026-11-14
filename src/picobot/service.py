@@ -25,6 +25,7 @@ from .config import Settings
 from .context import Reply, RunCtx, reset_ctx, set_ctx
 from .documents import DocumentError
 from .mcp_loader import close_mcp_tools, load_mcp_tools
+from .mailbox import Mailbox, session_for
 from .scheduler import Scheduler
 from .prompts import router_instructions
 from .skills import SkillInfo, SkillRegistry
@@ -56,6 +57,7 @@ class PicoBotService:
         self.team: Team | None = None
         self.doc_flow: Workflow | None = None
         self.scheduler: Scheduler | None = None
+        self.mailbox: Mailbox | None = None
         self._mcp: list = []
         self.registry = SkillRegistry(settings)   # skill globali, ricaricate a caldo
 
@@ -68,8 +70,10 @@ class PicoBotService:
         self._mcp = await load_mcp_tools(self.s.mcp_config_path)
         self.doc_flow = build_doc_workflow(self.s)
         self.scheduler = Scheduler(self.s, self._ask_text)   # prima del router: i suoi tool lo usano
+        self.mailbox = Mailbox(self.s) if self.s.email_enabled else None   # prima del router: i suoi tool lo usano
         self.team = build_router(self.s, self.registry, mcp_tools=self._mcp, doc_flow=self.doc_flow,
-                                 scheduler=self.scheduler)
+                                 scheduler=self.scheduler, mailbox=self.mailbox,
+                                 record_mail=self.record_outgoing_mail)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
         logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d).",
                     self.s.llm_model_id, self.s.strong_model_id, len(self._mcp))
@@ -200,6 +204,17 @@ class PicoBotService:
         if session_id:
             await self._record_in_session(session_id, user_id, f"[Pagina web: {url}] {instruction.strip()}".strip(), summary)
         return summary
+
+    async def record_outgoing_mail(self, thread_id: str, address: str, subject: str, body: str,
+                                   filenames: list[str]) -> None:
+        """Registra l'email inviata nella sessione del thread, cosi' la risposta del destinatario ha il contesto.
+        Solo per i mittenti ammessi: gli altri non possono rispondere a PicoBot."""
+        address = address.lower()
+        if address not in self.s.email_sender_map:
+            return
+        files = "\n\nAllegati: " + ", ".join(filenames) if filenames else ""
+        await self._record_in_session(session_for(thread_id, address), self.s.email_user_id(address),
+                                      f"[Email inviata da PicoBot] {subject}", body + files)
 
     async def _record_in_session(self, session_id: str, user_id: str, user_text: str, answer: str) -> None:
         """Aggiunge uno scambio user/assistant alla sessione del router SENZA chiamate LLM."""
