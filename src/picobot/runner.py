@@ -27,7 +27,7 @@ async def serve(s: Settings, use_telegram: bool, use_api: bool, use_email: bool 
         tg_app, _ = build_application(s, service)
         await tg_app.initialize()
         await tg_app.start()
-        await tg_app.updater.start_polling()
+        await tg_app.updater.start_polling(allowed_updates=["message", "callback_query"])   # i click dei bottoni mai scartati
 
         service.scheduler.notifiers["telegram"] = make_notify(tg_app.bot, s.reply_format)
         logger.info("Telegram attivo.")
@@ -39,7 +39,7 @@ async def serve(s: Settings, use_telegram: bool, use_api: bool, use_email: bool 
         tls = ({"ssl_certfile": s.api_ssl_certfile, "ssl_keyfile": s.api_ssl_keyfile}
                if s.api_ssl_certfile and s.api_ssl_keyfile else {})
         api_server = uvicorn.Server(uvicorn.Config(create_app(s, service), host=s.api_host,
-                                                   port=s.api_port, log_level="warning", **tls))
+                                                   port=s.api_port, log_level="warning", log_config=None, **tls))
         api_server.install_signal_handlers = lambda: None  # i segnali li gestiamo noi
         api_task = asyncio.create_task(api_server.serve())
         logger.info("API su %s://%s:%s", "https" if tls else "http", s.api_host, s.api_port)

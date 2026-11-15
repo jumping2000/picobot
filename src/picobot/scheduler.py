@@ -5,6 +5,7 @@ Un solo processo (`picobot serve`) esegue i job; CLI/API/Telegram si limitano a 
 """
 import logging
 import sqlite3
+import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
 
@@ -135,11 +136,15 @@ class Scheduler:
         stamp = datetime.now().strftime("%Y%m%d%H%M")
         # niente confirm: il codice gira solo se lo schedule e' stato approvato in creazione (approve_code)
         ctx = RunCtx(user_id=r["user_id"], channel="schedule", pre_approved=bool(r["approve_code"]))
+        logger.info("Schedule #%s avviato: utente=%s req=%s codice=%s", sid, r["user_id"], ctx.req_id,
+                    bool(r["approve_code"]))
+        t0, outcome = time.monotonic(), "ok"
         try:
             text = await self.run_fn(r["prompt"], user_id=r["user_id"], session_id=f"sched-{sid}-{stamp}", ctx=ctx)
         except Exception:
             logger.exception("Schedule %s fallito", sid)
-            text = "Errore nell'esecuzione dello schedule."
+            text, outcome = "Errore nell'esecuzione dello schedule.", "errore"
+        logger.info("Schedule #%s finito: esito=%s durata=%.1fs", sid, outcome, time.monotonic() - t0)
         with self._db() as c:
             c.execute("UPDATE picobot_schedules SET last_run=?, last_result=? WHERE id=?",
                       (datetime.now(timezone.utc).isoformat(), text[:8000], sid))

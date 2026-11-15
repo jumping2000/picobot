@@ -17,11 +17,15 @@ def lines(rel):
 
 
 def test_deps_seed():
-    npm = lines("deps/npm.txt")
-    assert len(npm) == 2 and all(re.fullmatch(r"(docx|pptxgenjs)@\d+\.\d+\.\d+", l) for l in npm)
+    npm = lines("deps/npm.txt")   # versioni esatte: la build e' riproducibile
+    assert {"docx", "pptxgenjs"} <= {l.rsplit("@", 1)[0] for l in npm}
+    assert all(re.fullmatch(r"[a-z0-9@/._-]+@\d+\.\d+\.\d+", l) for l in npm), npm
     pip = lines("deps/pip.txt")
-    assert pip and all(re.fullmatch(r"openpyxl==\d+\.\d+\.\d+", l) for l in pip)
-    assert lines("deps/apt.txt") == []
+    assert any(l.startswith("openpyxl==") for l in pip)
+    assert all(re.fullmatch(r"[A-Za-z0-9._-]+(\[[a-z0-9,_-]+\])?==\d+(\.\d+)+", l) for l in pip), pip
+    apt = lines("deps/apt.txt")
+    assert all(re.fullmatch(r"[a-z0-9.+-]+(=\S+)?", l) for l in apt), apt
+    assert not any("libreoffice" in l for l in apt)   # escluso: ~500 MB in piu' nell'immagine
     assert read("deps/setup.sh").startswith("#!")
     assert "# skill: docx" in read("deps/npm.txt") and "# skill: xlsx" in read("deps/pip.txt")
 

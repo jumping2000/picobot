@@ -2,6 +2,8 @@
 import asyncio
 import logging
 import mimetypes
+import platform
+import shutil
 import uuid
 from io import BytesIO
 from collections import defaultdict
@@ -15,14 +17,15 @@ from telegram.ext import (
 )
 
 from ..config import Settings
-from ..context import Reply, RunCtx
+from ..context import OutputFile, Reply, RunCtx
 from ..documents import SUPPORTED, DocumentError
 from ..scheduler import ScheduleError, code_approval_prompt
 from ..service import PicoBotService
 from ..stt import SttError, transcribe
+from ..tools.sandbox import _execute
 from ..web import is_url
 from .common import (
-    HELP, SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY, add_skill_flow, format_memory_report, format_schedules,
+    HELP, SKILL_ADMIN_OFF, SKILL_ADMIN_ONLY, add_skill_flow, code_approval_note, format_memory_report, format_schedules,
     parse_schedule_args, remove_skill_flow, split_text, trace_text,
 )
 from .tg_format import send_formatted
@@ -96,9 +99,19 @@ class TelegramGateway:
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("Conferma", callback_data=f"cf:{token}:y"),
                                     InlineKeyboardButton("Annulla", callback_data=f"cf:{token}:n")]])
         msg = await bot.send_message(chat_id, prompt[:3900], reply_markup=kb)
+        logger.info("Conferma richiesta: utente=%s token=%s", user_id, token)
         try:
-            return await asyncio.wait_for(fut, timeout=self.s.confirm_timeout_s)
+            ok = await asyncio.wait_for(fut, timeout=self.s.confirm_timeout_s)
+            if not ok:
+                logger.info("Conferma annullata dall'utente: utente=%s", user_id)
+            return ok
         except asyncio.TimeoutError:
+            logger.info("Conferma scaduta senza risposta dopo %ss: utente=%s", self.s.confirm_timeout_s, user_id)
+            try:
+                await bot.send_message(chat_id, f"⏱ Nessuna risposta entro {self.s.confirm_timeout_s} s: "
+                                                "nessun codice eseguito. Rimanda la richiesta.")
+            except Exception:  # noqa: BLE001  l'esito (rifiuto) non dipende dall'invio dell'avviso
+                logger.exception("Avviso di conferma scaduta non inviato")
             return False
         finally:
             self._pending.pop(token, None)
@@ -117,9 +130,9 @@ class TelegramGateway:
                 logger.exception("Invio del codice da confermare fallito")
                 await bot.send_message(chat_id, "Impossibile mostrare il codice: esecuzione annullata.")
                 return False
-            prompt = f"Eseguire il codice {language} allegato ({len(code)} caratteri)?"
+            prompt = f"Eseguire il codice {language} allegato ({len(code)} caratteri)?\n{code_approval_note(self.s)}"
         else:
-            prompt = f"Eseguire questo codice {language}?\n\n{code}"
+            prompt = f"Eseguire questo codice {language}?\n{code_approval_note(self.s)}\n\n{code}"
         return await self.ask_yes_no(bot, chat_id, user_id, prompt)
 
     async def send_reply(self, update: Update, reply: Reply) -> None:
@@ -140,10 +153,42 @@ class TelegramGateway:
             return await q.answer()
         entry = self._pending.get(token)
         if not entry or entry[1] != q.from_user.id:   # solo chi ha chiesto puo' confermare
+            logger.info("Click conferma ignorato: token=%s motivo=%s utente=%s", token,
+                        "token sconosciuto o scaduto" if not entry else "utente diverso", q.from_user.id)
             return await q.answer("Richiesta scaduta o non tua.", show_alert=True)
+        logger.info("Click conferma: token=%s esito=%s utente=%s", token, "si" if ans == "y" else "no", q.from_user.id)
         if not entry[0].done():
             entry[0].set_result(ans == "y")
         await q.answer("Ok" if ans == "y" else "Annullato")
+
+    async def on_selftest(self, update, ctx):
+        """/selftest (solo admin): outputs scrivibile, Python e Node, bottone di conferma + esecuzione, consegna file."""
+        if not self.authorized(update):
+            return
+        if not self.is_admin(update):
+            return await update.message.reply_text("Comando riservato agli amministratori (ADMIN_USER_IDS).")
+        chat_id, uid, out = update.effective_chat.id, update.effective_user.id, self.s.outputs_dir
+        lines, probe = [], out / "selftest.txt"
+        try:
+            out.mkdir(parents=True, exist_ok=True)
+            probe.write_text("PicoBot selftest\n", encoding="utf-8")
+            lines.append(f"✅ outputs scrivibile ({out})")
+        except OSError as e:
+            probe = None
+            lines.append(f"❌ outputs non scrivibile ({out}): {e}")
+        node = shutil.which("node")
+        lines.append(f"✅ Python {platform.python_version()}" + (", Node trovato" if node else ""))
+        if not node:
+            lines.append("❌ Node non trovato nel PATH (serve per docx e pptx)")
+        await update.message.reply_text("Prova in corso: tra poco ti arriva il bottone di conferma (premi Conferma).")
+        rc = self._run_ctx(ctx, chat_id, uid)
+        res = await _execute(self.s, rc, "print(6*7)", "python")
+        lines.append("✅ conferma ed esecuzione del codice (6*7 = 42)" if res.startswith("exit=0") and "42" in res
+                     else f"❌ conferma o esecuzione del codice: {res[:200]}")
+        if probe:
+            rc.outputs.append(OutputFile(probe, probe.name, probe.stat().st_size))
+            lines.append("Qui sotto deve arrivare il file selftest.txt: prova la consegna.")
+        await self.send_reply(update, Reply("\n".join(lines), rc.outputs))
 
     # -- comandi ----------------------------------------------------------------------
     async def on_help(self, update, ctx):
@@ -467,6 +512,7 @@ def build_application(s: Settings, service: PicoBotService) -> tuple[Application
     app.add_handler(CommandHandler("riassumi", gw.on_riassumi))
     app.add_handler(CommandHandler("unschedule", gw.on_unschedule))
     app.add_handler(CommandHandler("trace", gw.on_trace))
+    app.add_handler(CommandHandler("selftest", gw.on_selftest))
     app.add_handler(CallbackQueryHandler(gw.on_callback, pattern=r"^cf:"))
     app.add_handler(MessageHandler(filters.VOICE | filters.AUDIO, gw.on_voice))
     app.add_handler(MessageHandler(filters.Document.ALL, gw.on_document))

@@ -4,6 +4,7 @@ import logging
 import sys
 
 from .config import ConfigError, Settings, get_settings
+from .logs import setup_logging
 
 
 def _settings() -> Settings:
@@ -27,12 +28,10 @@ def main() -> None:
     sub.add_parser("skills", help="gestione skill: list | add | remove | validate | deps")
     args = p.parse_args()
 
-    logging.basicConfig(format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-                        level=logging.WARNING if args.cmd == "cli" else logging.INFO)
-    for noisy in ("httpx", "httpx2", "httpcore", "apscheduler"):
-        logging.getLogger(noisy).setLevel(logging.WARNING)   # il token Telegram e' nell'URL
-
+    setup_logging("INFO", "text")   # provvisorio: gli avvisi della config (es. "prevale su") restano visibili
     s = _settings()
+    level = s.log_level if args.cmd != "cli" or s.log_level == "DEBUG" else "WARNING"   # la REPL resta pulita
+    setup_logging(level, s.log_format)
     if not s.api_key:
         sys.exit("OPENROUTER_API_KEY (o OPENAI_API_KEY) non configurata.")
 

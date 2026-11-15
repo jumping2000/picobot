@@ -3,3 +3,9 @@
 # Dopo una modifica: docker compose build && docker compose up -d
 # skill: xlsx
 openpyxl==3.1.5
+# skill: pdf (estrazione testo/tabelle, PDF -> immagini con poppler, creazione PDF)
+pdfplumber==0.11.10
+pdf2image==1.17.0
+reportlab==5.1.0
+# skill: docx, pptx, xlsx, pdf (lettura rapida; porta anche python-pptx e mammoth)
+markitdown[docx,pptx,xlsx,pdf]==0.1.9

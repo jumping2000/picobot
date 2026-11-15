@@ -66,7 +66,8 @@ Tasks belong to a user id. With `CLI_USER_ID=<your Telegram id>` in `.env`, the 
 > A scheduled task **runs code only if you approved it at creation** (`| codice`, `approve_code` in the API,
 > flag in the router tool): at each run nobody is there to confirm. Without approval it cannot run code or
 > produce files; the agents can still save code and show it to you in the result. `code.allow_code: false`
-> still blocks every execution. `/schedules` marks such tasks with `[codice]`.
+> still blocks every execution, skill scripts included. A task with code created by email is approved without
+> confirmation, because email is pre-approved. `/schedules` marks such tasks with `[codice]`.
 >
 > **A schedule never delivers files:** even with approval, files produced by a run are not sent; only the result
 > text arrives. To get a file, ask for it from chat or by email.

@@ -1,5 +1,6 @@
 """Canali: API (auth, endpoint), Telegram (auth, bottoni di conferma, documenti), CLI."""
 import asyncio
+import logging
 from pathlib import Path
 from types import SimpleNamespace as NS
 from unittest.mock import AsyncMock, MagicMock
@@ -164,6 +165,92 @@ def test_confirm_buttons_yes_no_wrong_user_timeout():
     asyncio.run(t())
 
 
+def test_confirm_cancel_and_timeout_are_logged(caplog):
+    caplog.set_level(logging.INFO, logger="picobot.channels.telegram")
+
+    async def t():
+        gw = make_gw(confirm_timeout_s=1)
+        task = asyncio.create_task(gw.ask_yes_no(_bot(), 10, 1, "Eseguire?"))
+        await asyncio.sleep(0.05)
+        await _press(gw, next(iter(gw._pending)), "n", 1)[0]
+        assert await task is False
+        assert "Conferma annullata dall'utente: utente=1" in caplog.text
+        assert "Conferma scaduta" not in caplog.text
+        assert await gw.ask_yes_no(_bot(), 10, 1, "Eseguire?") is False
+        assert "Conferma scaduta senza risposta dopo 1s: utente=1" in caplog.text
+    asyncio.run(t())
+
+
+def test_confirm_timeout_tells_the_user(caplog):
+    caplog.set_level(logging.INFO, logger="picobot.channels.telegram")
+
+    async def t():
+        gw, events = make_gw(confirm_timeout_s=1), []
+        assert await gw.ask_yes_no(_confirm_bot(events), 10, 1, "Eseguire?") is False
+        assert any("Nessuna risposta entro 1 s" in e[1] for e in events if e[0] == "msg")
+        assert "Conferma richiesta: utente=1" in caplog.text
+    asyncio.run(t())
+
+
+def test_callback_clicks_are_logged(caplog):
+    caplog.set_level(logging.INFO, logger="picobot.channels.telegram")
+
+    async def t():
+        gw = make_gw(confirm_timeout_s=5)
+        task = asyncio.create_task(gw.ask_yes_no(_bot(), 10, 1, "Eseguire?"))
+        await asyncio.sleep(0.05)
+        token = next(iter(gw._pending))
+        await _press(gw, token, "y", 2)[0]       # un altro utente
+        await _press(gw, "zzzz", "y", 1)[0]      # token inesistente
+        await _press(gw, token, "y", 1)[0]
+        assert await task is True
+    asyncio.run(t())
+    assert "motivo=utente diverso utente=2" in caplog.text
+    assert "motivo=token sconosciuto o scaduto utente=1" in caplog.text
+    assert "esito=si utente=1" in caplog.text
+
+
+def test_selftest_admin_only_and_full_chain(tmp_path):
+    async def t():
+        gw = make_gw(admin_user_ids="1", workspace_dir=tmp_path)
+        said, docs = [], []
+
+        async def yes(bot, chat_id, user_id, prompt):
+            return True
+
+        async def reply_text(text, **kw):
+            said.append(text)
+
+        async def reply_document(document, filename):
+            docs.append(filename)
+        gw.ask_yes_no = yes
+
+        def upd(uid):
+            return NS(effective_user=NS(id=uid), effective_chat=NS(id=10),
+                      message=NS(reply_text=reply_text, reply_document=reply_document))
+        await gw.on_selftest(upd(2), NS(bot=None))                   # autorizzato ma non admin
+        assert said == ["Comando riservato agli amministratori (ADMIN_USER_IDS)."] and not docs
+        said.clear()
+        await gw.on_selftest(upd(1), NS(bot=None))
+        report = said[-1]
+        assert "✅ outputs scrivibile" in report and "✅ conferma ed esecuzione del codice" in report
+        assert docs == ["selftest.txt"]                              # la consegna del file e' provata
+    asyncio.run(t())
+
+
+def test_selftest_reports_refused_code(tmp_path):
+    async def t():
+        gw = make_gw(admin_user_ids="1", workspace_dir=tmp_path, allow_code=False)
+        said = []
+
+        async def reply_text(text, **kw):
+            said.append(text)
+        await gw.on_selftest(NS(effective_user=NS(id=1), effective_chat=NS(id=10),
+                                message=NS(reply_text=reply_text, reply_document=AsyncMock())), NS(bot=None))
+        assert "❌ conferma o esecuzione del codice" in said[-1] and "disattivata" in said[-1]
+    asyncio.run(t())
+
+
 def test_telegram_reply_uses_reply_format(tmp_path):
     s = Settings(telegram_allowed_user_ids="1", reply_format="html"); svc = PicoBotService(s)
     gw, sent = TelegramGateway(s, svc), []
@@ -282,6 +369,19 @@ def test_cli_session(monkeypatch, capsys):
     assert any("42" in r for r in res)
 
 
+def test_cli_asks_once_per_request(monkeypatch, capsys):
+    # due richieste, due conferme: il contesto e' per richiesta, non per sessione
+    inputs = iter(["scrivi un programma", "y", "scrivi un programma", "y", "/quit"])
+    async def fake_input(prompt): return next(inputs)
+    monkeypatch.setattr(cli_mod, "_ainput", fake_input)
+    async def t():
+        s = Settings(); svc = PicoBotService(s); await svc.start()
+        await cli_mod.run_cli(s, svc)
+    asyncio.run(t())
+    out = capsys.readouterr().out
+    assert out.count("Codice da eseguire") == 2 and "vale per tutte le esecuzioni di questa richiesta" in out
+
+
 @pytest.mark.parametrize("answer, expected", [("y", 1), ("n", 0)])
 def test_cli_schedule_with_code_asks_confirmation(monkeypatch, capsys, answer, expected):
     inputs = iter([f"/schedule 0 8 * * 1 | report-{answer} | codice", answer, "/quit"])
@@ -351,6 +451,7 @@ def test_confirm_code_short_inline():
         task = asyncio.create_task(gw.confirm_code(_confirm_bot(events), 10, 1, code, "python"))
         await asyncio.sleep(0.05)
         assert [e[0] for e in events] == ["msg"] and code in events[0][1]
+        assert "vale per tutte le esecuzioni di questa richiesta" in events[0][1]
         await _press(gw, next(iter(gw._pending)), "n", 1)[0]
         assert await task is False
     asyncio.run(t())

@@ -69,6 +69,7 @@ HELP = (
     "/skill_add <link> | /skill_remove <nome> - installa o rimuove una skill "
     "(solo amministratori; o allega uno .zip con didascalia /skill_add)\n"
     "/trace - percorso dell'ultima richiesta (se TRACE_ENABLED=true)\n"
+    "/selftest - prova codice, bottone di conferma e consegna file (solo amministratori)\n"
     "/help - questo messaggio\n\n"
     "Il codice Python viene eseguito solo dopo la tua conferma."
 )
@@ -180,3 +181,9 @@ async def remove_skill_flow(service, name: str, *, user: str, channel: str) -> s
     logger.info("skill_remove utente=%s canale=%s nome=%s esito=%s", _log_safe(str(user)), channel,
                 _log_safe(name), _log_safe(outcome))
     return text
+
+
+def code_approval_note(s) -> str:
+    """Nota delle conferme di codice (Telegram, CLI): una risposta vale per tutta la richiesta."""
+    return (f"La conferma vale per tutte le esecuzioni di questa richiesta (max {s.code_max_runs}); "
+            "un rifiuto le blocca tutte.")

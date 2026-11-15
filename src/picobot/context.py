@@ -2,6 +2,7 @@
 
 Viaggia in un ContextVar: i tool (es. run_python) lo leggono senza dipendere da Agno.
 """
+import uuid
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
@@ -29,15 +30,18 @@ class Reply:
 @dataclass
 class RunCtx:
     user_id: str
-    channel: str                       # telegram | cli | api | schedule
-    confirm: ConfirmFn | None = None   # human-in-the-loop interattivo (telegram, cli)
+    channel: str                       # telegram | cli | api | email | schedule
+    confirm: ConfirmFn | None = None   # human-in-the-loop interattivo (telegram, cli): una volta per richiesta
     ask: AskFn | None = None           # domanda sì/no all'utente (telegram, cli); None = nessuno a cui chiedere
     pre_approved: bool = False         # approvazione esplicita a monte (api: approve_code=true)
     outputs: list[OutputFile] = field(default_factory=list)   # file consegnati da deliver_file
     runs: int = 0                      # esecuzioni di codice approvate in questa richiesta
+    code_approval: bool | None = None  # risposta a confirm (None = non ancora chiesta): vale per tutta la richiesta
     document: Path | None = None       # documento caricato in questa richiesta (Telegram, CLI)
     document_name: str = ""
     target: str = ""                   # dove consegnare gli esiti degli schedule (chat Telegram); vuoto = user_id
+    notices: list[str] = field(default_factory=list)   # avvisi fissi per l'utente (es. codice non eseguito), aggiunti alla risposta
+    req_id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])   # nei log: raggruppa le righe di una richiesta
 
     @property
     def can_run_code(self) -> bool:

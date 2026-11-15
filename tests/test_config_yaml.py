@@ -9,13 +9,27 @@ from pydantic import ValidationError
 import picobot.config
 from picobot.config import BLOCKS, ENV_ONLY, ConfigError, Settings
 
-VARS = ("HISTORY_RUNS", "REGION", "API_PORT", "STT_URL", "STT_HOST", "PORT", "MANCA_XYZ", "REPLY_FORMAT", "history_runs",
-        "AGENTMAIL_API_KEY", "EMAIL_ALLOWED_SENDERS", "INBOX_ID", "POLL_INTERVAL_S", "ALLOW_CODE")
+VARS = (
+    "HISTORY_RUNS",
+    "REGION",
+    "API_PORT",
+    "STT_URL",
+    "STT_HOST",
+    "PORT",
+    "MANCA_XYZ",
+    "REPLY_FORMAT",
+    "history_runs",
+    "AGENTMAIL_API_KEY",
+    "EMAIL_ALLOWED_SENDERS",
+    "INBOX_ID",
+    "POLL_INTERVAL_S",
+    "ALLOW_CODE",
+)
 
 
 @pytest.fixture
 def yaml_cfg(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)   # niente .env dello sviluppatore
+    monkeypatch.chdir(tmp_path)  # niente .env dello sviluppatore
     for v in VARS:
         monkeypatch.delenv(v, raising=False)
     monkeypatch.setattr(picobot.config, "CONFIG_FILE", tmp_path / "none.yaml")
@@ -24,6 +38,7 @@ def yaml_cfg(tmp_path, monkeypatch):
         f = tmp_path / "config.yaml"
         f.write_text(text, encoding=encoding)
         monkeypatch.setattr(picobot.config, "CONFIG_FILE", f)
+
     return write
 
 
@@ -166,7 +181,7 @@ def test_bom(yaml_cfg):
 
 def test_blocks_cover_all_fields():
     in_blocks = [f for fields in BLOCKS.values() for f in fields]
-    assert len(in_blocks) == len(set(in_blocks))   # nessun campo in due blocchi
+    assert len(in_blocks) == len(set(in_blocks))  # nessun campo in due blocchi
     assert not set(in_blocks) & ENV_ONLY
     assert set(in_blocks) | ENV_ONLY == set(Settings.model_fields)
 
@@ -183,9 +198,16 @@ def test_cli_exits_with_message(tmp_path):
     import sys
 
     (tmp_path / "config").mkdir()
-    (tmp_path / "config" / "config.yaml").write_text("memory:\n  histroy_runs: 1\n", encoding="utf-8")
-    r = subprocess.run([sys.executable, "-m", "picobot", "skills", "list"], cwd=tmp_path,
-                       capture_output=True, text=True, env={**os.environ})
+    (tmp_path / "config" / "config.yaml").write_text(
+        "memory:\n  histroy_runs: 1\n", encoding="utf-8"
+    )
+    r = subprocess.run(
+        [sys.executable, "-m", "picobot", "skills", "list"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        env={**os.environ},
+    )
     assert r.returncode != 0
     assert "memory.histroy_runs" in r.stderr and "Traceback" not in r.stderr
 
@@ -204,27 +226,42 @@ def test_example_matches_defaults(monkeypatch, tmp_path):
     for f in fields:
         monkeypatch.delenv(f.upper(), raising=False)
     s = Settings()
-    expected = {f: Settings.model_fields[f].default for f in fields} | {"stt_url": "http://stt:8000"}
+    expected = {f: Settings.model_fields[f].default for f in fields} | {
+        "stt_url": "http://stt:8000"
+    }
     assert {f: getattr(s, f) for f in fields} == expected
     data = yaml.safe_load(example.read_text(encoding="utf-8"))
     assert {k for block in data.values() for k in block} == set(fields) - DOCKER_FIXED
-    assert all(f"# {k}:" in example.read_text(encoding="utf-8") for k in DOCKER_FIXED)   # commentate, con la nota
+    assert all(
+        f"# {k}:" in example.read_text(encoding="utf-8") for k in DOCKER_FIXED
+    )  # commentate, con la nota
 
 
-DOCKER_FIXED = {"data_dir", "workspace_dir", "skills_dir", "api_host", "node_path"}   # ENV del Dockerfile
+DOCKER_FIXED = {
+    "data_dir",
+    "workspace_dir",
+    "skills_dir",
+    "api_host",
+    "node_path",
+}  # ENV del Dockerfile
 
 
 def test_env_example_only_env_keys():
     """In .env.example restano attive solo le chiavi riservate a .env; il resto va in config.yaml."""
-    active = [l.split("=", 1)[0] for l in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
-              if re.match(r"^[A-Z_]+=", l)]
+    active = [
+        l.split("=", 1)[0]
+        for l in (ROOT / ".env.example").read_text(encoding="utf-8").splitlines()
+        if re.match(r"^[A-Z_]+=", l)
+    ]
     assert active and [k for k in active if k.lower() not in ENV_ONLY] == []
 
 
 def test_undecodable_file_is_config_error(yaml_cfg, tmp_path):
     """Un config.yaml salvato in ANSI (cp1252) con un accento: errore che nomina il file, non traceback."""
     yaml_cfg("web:\n  region: us-en\n")
-    (tmp_path / "config.yaml").write_bytes("# perché\nweb:\n  region: us-en\n".encode("cp1252"))
+    (tmp_path / "config.yaml").write_bytes(
+        "# perché\nweb:\n  region: us-en\n".encode("cp1252")
+    )
     with pytest.raises(ConfigError, match="config.yaml"):
         Settings()
 
@@ -241,14 +278,22 @@ def test_duplicate_block_or_key_is_config_error(yaml_cfg):
 def test_example_in_docker_gives_no_warnings(monkeypatch, tmp_path, caplog):
     """Nel container il Dockerfile fissa percorsi, API_HOST e NODE_PATH: copiare l'esempio non deve dare avvisi."""
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(picobot.config, "CONFIG_FILE", ROOT / "config" / "config_example.yaml")
+    monkeypatch.setattr(
+        picobot.config, "CONFIG_FILE", ROOT / "config" / "config_example.yaml"
+    )
     monkeypatch.setenv("DATA_DIR", "/app/data")
     monkeypatch.setenv("WORKSPACE_DIR", "/app/workspace")
     monkeypatch.setenv("SKILLS_DIR", "/app/skills")
     monkeypatch.setenv("API_HOST", "0.0.0.0")
     monkeypatch.setenv("NODE_PATH", "/usr/local/lib/node_modules")
     for f in [f for fs in BLOCKS.values() for f in fs]:
-        if f.upper() not in ("DATA_DIR", "WORKSPACE_DIR", "SKILLS_DIR", "API_HOST", "NODE_PATH"):
+        if f.upper() not in (
+            "DATA_DIR",
+            "WORKSPACE_DIR",
+            "SKILLS_DIR",
+            "API_HOST",
+            "NODE_PATH",
+        ):
             monkeypatch.delenv(f.upper(), raising=False)
     with caplog.at_level(logging.WARNING, logger="picobot.config"):
         Settings()
@@ -263,9 +308,15 @@ def test_python_tags_rejected(yaml_cfg):
 
 
 def test_email_block_and_allow_code_from_yaml(yaml_cfg):
-    yaml_cfg("email:\n  inbox_id: picobot@jumpi.top\n  poll_interval_s: 30\ncode:\n  allow_code: false\n")
+    yaml_cfg(
+        "email:\n  inbox_id: picobot@pippo.com\n  poll_interval_s: 30\ncode:\n  allow_code: false\n"
+    )
     s = Settings()
-    assert s.inbox_id == "picobot@jumpi.top" and s.poll_interval_s == 30 and s.allow_code is False
+    assert (
+        s.inbox_id == "picobot@pippo.com"
+        and s.poll_interval_s == 30
+        and s.allow_code is False
+    )
 
 
 def test_email_poll_interval_has_lower_bound(yaml_cfg):
@@ -288,14 +339,21 @@ def test_email_secrets_rejected_in_yaml(yaml_cfg):
 
 
 def test_email_sender_map(yaml_cfg):
-    s = Settings(email_allowed_senders="Io@Jumpi.top:123, collega@esempio.it")
-    assert s.email_sender_map == {"io@jumpi.top": "123", "collega@esempio.it": "collega@esempio.it"}
-    assert s.email_user_id("IO@jumpi.top") == "123"
-    assert s.email_user_id("Altro@Esempio.it") == "altro@esempio.it"   # fuori mappa: indirizzo minuscolo
+    s = Settings(email_allowed_senders="Io@pippo.com:123, collega@esempio.it")
+    assert s.email_sender_map == {
+        "io@pippo.com": "123",
+        "collega@esempio.it": "collega@esempio.it",
+    }
+    assert s.email_user_id("IO@pippo.com") == "123"
+    assert (
+        s.email_user_id("Altro@Esempio.it") == "altro@esempio.it"
+    )  # fuori mappa: indirizzo minuscolo
     assert Settings(email_allowed_senders="").email_sender_map == {}
 
 
-@pytest.mark.parametrize("bad", ["io@jumpi.top:", "non-un-indirizzo", "ok@esempio.it, non-un-indirizzo"])
+@pytest.mark.parametrize(
+    "bad", ["io@pippo.com:", "non-un-indirizzo", "ok@esempio.it, non-un-indirizzo"]
+)
 def test_email_sender_map_malformed(yaml_cfg, bad):
     with pytest.raises(ValidationError):
         Settings(email_allowed_senders=bad)
@@ -304,5 +362,5 @@ def test_email_sender_map_malformed(yaml_cfg, bad):
 def test_email_enabled(yaml_cfg):
     assert not Settings().email_enabled
     assert not Settings(agentmail_api_key="k").email_enabled
-    assert not Settings(inbox_id="picobot@jumpi.top").email_enabled
-    assert Settings(agentmail_api_key="k", inbox_id="picobot@jumpi.top").email_enabled
+    assert not Settings(inbox_id="picobot@pippo.com").email_enabled
+    assert Settings(agentmail_api_key="k", inbox_id="picobot@pippo.com").email_enabled

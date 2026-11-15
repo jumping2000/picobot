@@ -25,6 +25,7 @@ Disponibili su Telegram e nella CLI.
 | `/skill_add <link>` | Installa una skill da un URL `https://` (zip o repository git); solo amministratori. Su Telegram anche un allegato `.zip` con didascalia `/skill_add`; nella CLI anche un percorso locale. Vedi [skills.md](skills.md#da-telegram-e-dalla-chat-cli) |
 | `/skill_remove <nome>` | Rimuove una skill; solo amministratori |
 | `/trace` | Percorso dell'ultima richiesta: team, agenti, tool ed esiti (con `TRACE_ENABLED=true`) |
+| `/selftest` | Solo amministratori: verifica che `outputs/` sia scrivibile, che Python e Node ci siano, che il bottone di conferma funzioni, che il codice giri e che un file venga consegnato |
 
 Solo CLI:
 
@@ -83,12 +84,23 @@ prima `🎤 <trascrizione>`, poi risponde come se lo avessi scritto. Spento finc
 
 ### Conferma del codice
 
-Prima di ogni esecuzione PicoBot mostra il **codice completo** e due bottoni, **Conferma** e **Annulla**:
+Alla **prima** esecuzione di una richiesta PicoBot mostra il **codice completo** (per uno script di una skill, il suo
+sorgente) e due bottoni, **Conferma** e **Annulla**. La risposta vale per tutta la richiesta:
 
+- dopo **Conferma**, le esecuzioni successive dello stesso messaggio partono senza chiedere di nuovo (al massimo
+  `CODE_MAX_RUNS`, 6) e non vengono mostrate prima; il messaggio dopo chiede di nuovo;
+- dopo **Annulla**, nessuna esecuzione di quel messaggio parte;
 - il codice fino a 1.500 caratteri è mostrato nel messaggio; quello più lungo arriva prima come allegato
   (`codice.py` / `codice.js`);
 - solo l'utente che ha fatto la richiesta può premere i bottoni;
-- nessuna risposta entro `CONFIRM_TIMEOUT_S` (120 s) vale come **rifiuto**.
+- nessuna risposta entro `CONFIRM_TIMEOUT_S` (300 s) vale come **rifiuto**, e il bot scrive che nessun codice è stato eseguito.
+- se il codice è stato rifiutato, è scaduto o non è consentito, la risposta finisce con `⚠️ Codice non eseguito: <motivo>`,
+  aggiunto da PicoBot e non dal modello. Se la risposta cita un documento (`report.docx`) ma nessun file è stato
+  consegnato, finisce anche con `⚠️ Nessun file è stato consegnato in questa richiesta.`
+
+La CLI funziona allo stesso modo, con una domanda `[y/N]`. Gli altri canali non chiedono mai: l'API esegue codice
+solo con `approve_code: true`, uno schedule solo se è stato approvato alla creazione, e l'email è pre-approvata
+(vedi sotto). Con `code.allow_code: false` nessun canale esegue codice, script delle skill compresi.
 
 I file creati dagli agenti arrivano come documenti Telegram dopo la risposta.
 
@@ -114,7 +126,7 @@ nome visualizzato. Una mail di chiunque altro non riceve risposta, non arriva ag
 mittente. Elenco vuoto = nessuno può scrivere (l'invio di mail resta possibile).
 
 Una voce si collega a un utente esistente con `indirizzo:id`, per esempio
-`io@jumpi.top:123456789,collega@esempio.it`. Con `:id` lo user_id è quell'id (di solito il tuo id Telegram, lo
+`io@pippo.com:123456789,collega@esempio.it`. Con `:id` lo user_id è quell'id (di solito il tuo id Telegram, lo
 stesso di `CLI_USER_ID`): memoria, profilo e schedule sono condivisi tra i canali. Senza `:id` lo user_id è
 l'indirizzo in minuscolo.
 

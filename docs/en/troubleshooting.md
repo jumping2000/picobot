@@ -11,7 +11,7 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 |---|---|---|
 | `OPENROUTER_API_KEY (o OPENAI_API_KEY) non configurata.` | No LLM key | Set it in `.env` |
 | `TELEGRAM_ALLOWED_USER_IDS vuoto: nessuno sarebbe autorizzato...` | Telegram enabled with no authorized users | Add your ID, or start with `--no-telegram` |
-| `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN e/o API_TOKENS.` | Neither Telegram nor API configured | Configure at least one |
+| `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN, API_TOKENS e/o AGENTMAIL_API_KEY + email.inbox_id.` | None of Telegram, API and email configured | Configure at least one |
 | `API_TOKENS non configurato: API disattivata.` (warning) | API without tokens | Set `API_TOKENS` or ignore |
 | `API esposta senza TLS...` (warning) | API on a non-local address without certificates | Set `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
 | `Configurazione non valida: config/config.yaml: <block>.<key>: ...` | Unknown key or key in the wrong block, invalid value, undefined `${NAME}`, key reserved for `.env`, repeated key, non-UTF-8 file | Fix the key it names (compare with `config/config_example.yaml`), then `docker compose restart` |
@@ -27,6 +27,7 @@ Log messages and errors are in Italian; the original text is quoted so you can s
 |---|---|
 | The bot does not answer | Check `Accesso negato: user_id=...` in the logs and add that ID to `TELEGRAM_ALLOWED_USER_IDS` |
 | "Richiesta scaduta o non tua." on a button | The confirmation expired (`CONFIRM_TIMEOUT_S`) or was requested by another user |
+| The button does not arrive, or the code is "refused" although you pressed Confirm | Run `/selftest` (admins). In the log: `Conferma richiesta` = button sent; `Click conferma` = click received; `Click conferma ignorato ... token sconosciuto o scaduto` = the click came after the timeout; no `Click` line = Telegram did not deliver it. If the model never calls `run_python`, there is no button: check the tools in `/trace` |
 | "Formato non supportato" | Only PDF, DOCX, TXT, MD, CSV, JSON, LOG are accepted |
 | "File troppo grande" | Raise `MAX_UPLOAD_MB` |
 | "Nessun testo estraibile (PDF scansionato? serve OCR)." | Scanned PDF without a text layer: OCR is not included |
@@ -86,12 +87,47 @@ File: siena.docx
 ```
 
 It shows which team the router chose, which agents worked and where a chain of tools stops (for example
-`exit=1 ... Cannot find module 'docx'`). Each line also goes to the process log (`docker compose logs picobot`).
+`exit=1 ... Cannot find module 'docx'`). The summary of each request (`Richiesta: ...`) always goes to the process
+log, even with the trace off (see [Logs](#logs)).
 To follow them live: `tail -f data/trace.jsonl`.
 
 > [!NOTE]
 > The file holds request and tool texts, cut to 200 characters. It stays in `data/` and above `TRACE_MAX_MB`
 > (5 MB) it becomes `trace.jsonl.1`, overwriting the previous one.
+
+## Logs
+
+The process log (`docker compose logs picobot`) is set with the `logging` block of `config/config.yaml`
+(`log_level`, `log_format`) or with `LOG_LEVEL` / `LOG_FORMAT`. Every line written during a request carries the
+request id, the channel and the user:
+
+```text
+2026-11-15 08:15:40,199 INFO    picobot.tools.sandbox [d21f4fdb telegram/220808358] Codice: ... esecuzione 1/6 exit=0 durata=0.4s
+2026-11-15 08:15:52,031 INFO    picobot.service [d21f4fdb telegram/220808358] Richiesta: target=auto esito=completed durata=12.3s token=5120 file=1 percorso=PicoBot > ComplexTeam > Writer tool=[delegate_task_to_member, run_node, deliver_file]
+```
+
+Outside a request (startup, email polling) the three fields are `-`.
+
+| Level | What it holds |
+|---|---|
+| `DEBUG` | Every successful tool call (name, parameter names, duration), the tail of the output of failed code |
+| `INFO` | Startup, outcome of every request, code executions and refusals, cancelled or expired confirmations, schedules, email |
+| `WARNING` | Recoverable problems: failed tool, request in error, MCP server unavailable, mailbox not readable |
+| `ERROR` | Lost features and unhandled exceptions (with traceback) |
+
+Best practices:
+
+- **Development**: `log_level: DEBUG`, `log_format: text`.
+- **Production**: `log_level: INFO`, `log_format: json`. `compose.yaml` rotates the Docker logs (5 files of 10 MB).
+  To group one request: `docker compose logs --no-log-prefix picobot | jq -c 'select(.req=="d21f4fdb")'`.
+- `WARNING` only if the logs are too many: you lose the request outcomes.
+- `DEBUG` in production only to diagnose, then back to `INFO`.
+- Secrets, code, tool arguments and message text never go to the logs. `httpx`, `httpcore`, `openai` and
+  `apscheduler` stay at `WARNING` or above even in `DEBUG`: the first two carry the Telegram token in URLs,
+  `openai` writes the prompts.
+
+To change level or format: edit `config/config.yaml` and `docker compose restart` (or `.env` and
+`docker compose up -d`).
 
 ## Resetting
 

@@ -32,9 +32,9 @@ It is reachable through Telegram, an interactive CLI and a REST API, all served 
 | **ComplexTeam** | Strong-model team: Researcher, Analyst, Writer, Critic (optional), with skills and MCP |
 | **DocSummary** | Agno workflow that summarizes an uploaded document |
 | **Skill** | A folder in Agent Skills format (`SKILL.md` + optional scripts and references) |
-| **Workspace** | `workspace/`: the only directory where generated code runs; delivered files come from `workspace/outputs/` |
+| **Workspace** | `workspace/`: the only directory where generated code runs; delivered files come from `workspace/outputs/` (on the host `./workspace/outputs/`, in the container `/app/workspace/outputs/`) |
 | **Outbox** | `data/outbox/`: per-user copies of delivered files, downloadable from the API for 24 hours |
-| **HITL** | Human-in-the-loop: every code execution needs explicit approval |
+| **HITL** | Human-in-the-loop: code runs only with explicit approval (Telegram/CLI: once per request) |
 
 ## Other documents
 

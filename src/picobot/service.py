@@ -42,6 +42,16 @@ TARGETS = {"auto": None, "simple": "SimpleTeam", "complex": "ComplexTeam"}
 _SCP_LIKE = re.compile(r"^[^/\\]+:")          # sintassi scp di git (host:org/repo): ssh
 _WIN_DRIVE = re.compile(r"^[A-Za-z]:[\\/]")   # C:\cartella, C:/cartella
 _PROFILE_META = {"user_id", "agent_id", "team_id", "created_at", "updated_at"}
+_DELIVERABLE = {"docx", "pptx", "xlsx", "pdf", "csv"}   # md/txt/py/json compaiono troppo spesso nel testo
+NO_FILE_NOTICE = "⚠️ Nessun file è stato consegnato in questa richiesta."
+
+
+def file_promise_notice(s: Settings, text: str, ctx: RunCtx) -> str:
+    """Avviso se la risposta cita un documento (es. report.docx) ma nessun file e' stato consegnato."""
+    exts = "|".join(sorted(_DELIVERABLE & s.output_ext_set))
+    if ctx.outputs or not exts or not re.search(rf"\b[\w-][\w.-]*\.(?:{exts})\b", text, re.I):
+        return ""
+    return NO_FILE_NOTICE
 
 
 @dataclass
@@ -75,8 +85,9 @@ class PicoBotService:
                                  scheduler=self.scheduler, mailbox=self.mailbox,
                                  record_mail=self.record_outgoing_mail)
         self.team.initialize_team()   # necessario per leggere/scrivere sessioni fuori da un run (riassunti)
-        logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d).",
-                    self.s.llm_model_id, self.s.strong_model_id, len(self._mcp))
+        logger.info("PicoBot pronto (modello=%s, strong=%s, mcp=%d, allow_code=%s, trace=%s, log=%s/%s).",
+                    self.s.llm_model_id, self.s.strong_model_id, len(self._mcp), self.s.allow_code,
+                    self.s.trace_enabled, self.s.log_level, self.s.log_format)
 
     async def stop(self) -> None:
         if self.scheduler:
@@ -106,23 +117,25 @@ class PicoBotService:
             err = e
             raise
         finally:
+            self._trace(out, text, ctx, session_id, target, time.monotonic() - t0, err)   # col ctx: req nel log
             reset_ctx(token)
-            self._trace(out, text, ctx, session_id, target, time.monotonic() - t0, err)
         content = out.content if isinstance(out.content, str) else str(out.content)
         if target != "auto":   # lo scambio entra nella sessione del router: i follow-up hanno il contesto
             await self._record_in_session(session_id, user_id, f"[/{target}] {text}", content)
-        return Reply(content, list(ctx.outputs))
+        notes = [*ctx.notices, file_promise_notice(self.s, content, ctx)]   # avvisi fissi, non scritti dal modello
+        shown = "\n\n".join([content, *(n for n in notes if n)])
+        return Reply(shown, list(ctx.outputs))
 
     def _trace(self, out, text: str, ctx: RunCtx, session_id: str, target: str, duration_s: float,
                error: BaseException | None) -> None:
-        """Percorso della richiesta in data/trace.jsonl (TRACE_ENABLED). Non fa mai fallire la richiesta."""
-        if not self.s.trace_enabled:
-            return
+        """Esito della richiesta nel log (sempre) e percorso in data/trace.jsonl (TRACE_ENABLED).
+        Non fa mai fallire la richiesta."""
         try:
             rec = build_trace(out, text=text, ctx=ctx, session_id=session_id, target=target,
                               duration_s=duration_s, error=error)
-            write_trace(self.s, rec)
-            logger.info(summary_line(rec))
+            (logger.warning if error is not None else logger.info)(summary_line(rec))
+            if self.s.trace_enabled:
+                write_trace(self.s, rec)
         except Exception:  # noqa: BLE001
             logger.exception("Traccia della richiesta non scritta")
 

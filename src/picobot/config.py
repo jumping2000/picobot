@@ -36,6 +36,7 @@ BLOCKS: dict[str, tuple[str, ...]] = {
              "node_path", "allow_code"),
     "outputs": ("max_output_mb", "max_output_files", "output_extensions", "outbox_ttl_h"),
     "trace": ("trace_enabled", "trace_max_mb"),
+    "logging": ("log_level", "log_format"),
     "skills": ("enable_skills", "skills_dir", "skills_list_max", "skills_router_hint_max"),
     "documents": ("max_upload_mb", "doc_chunk_chars", "doc_max_chars"),
     "voice": ("stt_url", "stt_timeout_s", "max_voice_s"),
@@ -173,7 +174,7 @@ class Settings(BaseSettings):
     # --- Codice generato ---
     code_timeout_s: int = 30
     code_max_output: int = 4000
-    confirm_timeout_s: int = 120
+    confirm_timeout_s: int = 300
 
     code_node_mem_mb: int = 1536   # pptxgenjs va in abort a 768 MB
     code_max_runs: int = 6         # esecuzioni approvate per richiesta
@@ -189,6 +190,17 @@ class Settings(BaseSettings):
     # --- Traccia delle richieste ---
     trace_enabled: bool = False   # una riga JSON per richiesta in data/trace.jsonl; /trace mostra l'ultima
     trace_max_mb: int = 5         # oltre, trace.jsonl diventa trace.jsonl.1
+
+    # --- Log ---
+    log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"   # la CLI resta a WARNING salvo DEBUG
+    log_format: Literal["text", "json"] = "text"                       # text = leggibile (dev), json = una riga per evento (prod)
+
+    @field_validator("log_level", "log_format", mode="before")
+    @classmethod
+    def _log_case(cls, v: Any, info) -> Any:
+        if not isinstance(v, str):
+            return v
+        return v.strip().upper() if info.field_name == "log_level" else v.strip().lower()
 
     # --- Skill ---
     enable_skills: bool = True

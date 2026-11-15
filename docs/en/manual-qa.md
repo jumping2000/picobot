@@ -91,3 +91,17 @@ translation in brackets.
 | 44 | Email from your address with a PDF attached and the text "riassumilo" | reply with the PDF summary | |
 | 45 | Telegram: `/schedule 0 8 * * 1 \| report \| codice`; then `/schedules`; then "elimina lo schedule N" | approval button; after approval `/schedules` shows `[codice]` next to the task; the task is deleted | |
 | 46 | `code.allow_code: false`, `docker compose restart`, Telegram: "fammi un docx con ..." | no code runs: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." (code execution disabled by configuration) | |
+
+**Code confirmation and skill scripts** — prerequisites: the `docx` skill installed, `code.allow_code: true`.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 47 | Telegram: `/complex fammi un docx di due pagine su Siena` | **one** confirmation, with the first code and the note "La conferma vale per tutte le esecuzioni di questa richiesta"; the following executions run without asking; the file arrives | |
+| 48 | Same request, press **Annulla** | no execution in that request (the reply says the code was refused); the next message asks again | |
+| 49 | Skill `demo` with `scripts/hello.py` printing `sys.argv`; `/complex usa la skill demo e lancia il suo script con argomento X` | confirmation showing `[skill demo] hello.py X` and the script source; the reply contains `X` | |
+| 50 | `docker compose logs picobot` after 47-49 | `Codice: utente=… canale=telegram tipo=… esecuzione N/6 exit=…` lines (`tipo=skill:demo/hello.py` for 49) and `Conferma annullata dall'utente` (or `Conferma scaduta senza risposta`) and `Codice rifiutato: … motivo=rifiutato dall'utente` for 48; a retry within the same request logs `motivo=gia' rifiutato in questa richiesta`; no code in the log | |
+| 51 | `code.allow_code: false`, `docker compose restart`, repeat 49 | the script does not run: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." | |
+| 52 | Telegram (admin): `/selftest` | the confirmation button arrives; press Confirm: the report shows ✅ for `outputs/`, Python and confirmation plus execution (42), and the file `selftest.txt` arrives | |
+| 53 | Telegram: `/simple esegui un programma che calcola 6x7`, press **Annulla** | the reply ends with `⚠️ Codice non eseguito: conferma negata o scaduta.`; the log has `Click conferma: ... esito=no` | |
+| 54 | Same request, press nothing for 300 s (or set `confirm_timeout_s: 15`) | `⏱ Nessuna risposta entro N s: nessun codice eseguito` arrives; the reply ends with the `⚠️` notice | |
+| 55 | Ask for a document (`/complex fammi un report docx su <company>`) and the model does not deliver the file | the reply ends with `⚠️ Nessun file è stato consegnato in questa richiesta.` | |

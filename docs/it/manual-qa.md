@@ -88,3 +88,17 @@ skill `docx`, `pptx`, `xlsx` installate in `./skills`; `docker compose up -d` (o
 | 44 | Mail dal tuo indirizzo con un PDF allegato e testo "riassumilo" | risposta con il riassunto del PDF | |
 | 45 | Telegram: `/schedule 0 8 * * 1 \| report \| codice`; poi `/schedules`; poi "elimina lo schedule N" | bottone di approvazione; dopo l'approvazione `/schedules` mostra `[codice]` accanto al task; il task viene eliminato | |
 | 46 | `code.allow_code: false`, `docker compose restart`, Telegram: "fammi un docx con ..." | nessuna esecuzione di codice: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." | |
+
+**Conferma del codice e script delle skill** — prerequisiti: skill `docx` installata, `code.allow_code: true`.
+
+| # | Prova | Atteso | Esito |
+|---|---|---|---|
+| 47 | Telegram: `/complex fammi un docx di due pagine su Siena` | **una** conferma, con il primo codice e la nota "La conferma vale per tutte le esecuzioni di questa richiesta"; le esecuzioni successive partono senza chiedere; il file arriva | |
+| 48 | Stessa richiesta, premi **Annulla** | nessuna esecuzione in quella richiesta (la risposta dice che il codice è stato rifiutato); il messaggio dopo chiede di nuovo | |
+| 49 | Skill `demo` con `scripts/hello.py` che stampa `sys.argv`; `/complex usa la skill demo e lancia il suo script con argomento X` | conferma con `[skill demo] hello.py X` e il sorgente dello script; la risposta contiene `X` | |
+| 50 | `docker compose logs picobot` dopo 47-49 | righe `Codice: utente=… canale=telegram tipo=… esecuzione N/6 exit=…` (`tipo=skill:demo/hello.py` per la 49) e `Conferma annullata dall'utente` (o `Conferma scaduta senza risposta`) e `Codice rifiutato: … motivo=rifiutato dall'utente` per la 48; un nuovo tentativo nella stessa richiesta dà `motivo=gia' rifiutato in questa richiesta`; nessun codice nel log | |
+| 51 | `code.allow_code: false`, `docker compose restart`, ripeti la 49 | lo script non parte: "Esecuzione di codice disattivata dalla configurazione (code.allow_code: false)." | |
+| 52 | Telegram (admin): `/selftest` | arriva il bottone di conferma; premi Conferma: il report mostra ✅ per `outputs/`, Python e conferma ed esecuzione (42), e arriva il file `selftest.txt` | |
+| 53 | Telegram: `/simple esegui un programma che calcola 6x7`, premi **Annulla** | la risposta finisce con `⚠️ Codice non eseguito: conferma negata o scaduta.`; nel log `Click conferma: ... esito=no` | |
+| 54 | Stessa richiesta, non premere nulla per 300 s (o imposta `confirm_timeout_s: 15`) | arriva `⏱ Nessuna risposta entro N s: nessun codice eseguito`; la risposta finisce con l'avviso `⚠️` | |
+| 55 | Richiesta di un documento (`/complex fammi un report docx su <azienda>`) in cui il modello non consegna il file | la risposta finisce con `⚠️ Nessun file è stato consegnato in questa richiesta.` | |

@@ -49,7 +49,7 @@ in lowercase, as in the tables.
 | `API_TOKENS` | — | Comma-separated `token:user_id` pairs. Empty = API disabled |
 | `CLI_USER_ID` | `cli` | User ID of the CLI. Set it to your Telegram ID to share memory |
 | `AGENTMAIL_API_KEY` | — | AgentMail API key. Email is enabled only with this key **and** `email.inbox_id` |
-| `EMAIL_ALLOWED_SENDERS` | — | Allowed senders, comma-separated `address[:user_id]` (e.g. `io@jumpi.top:123456789`); the address is case-insensitive. Without `:user_id` the user_id is the lowercased address. Empty = **no sender allowed**. An entry without `@` or with an empty trailing `:` stops the startup |
+| `EMAIL_ALLOWED_SENDERS` | — | Allowed senders, comma-separated `address[:user_id]` (e.g. `io@pippo.com:123456789`); the address is case-insensitive. Without `:user_id` the user_id is the lowercased address. Empty = **no sender allowed**. An entry without `@` or with an empty trailing `:` stops the startup |
 
 Three variables that PicoBot does not read from `config.yaml` also stay in `.env`:
 
@@ -101,10 +101,10 @@ Each table is a block. The **Variable** column is the equivalent environment var
 |---|---|---|---|
 | `code.code_timeout_s` | `CODE_TIMEOUT_S` | `30` | Wall-clock timeout per execution |
 | `code.code_max_output` | `CODE_MAX_OUTPUT` | `4000` | Characters of stdout/stderr returned to the agent |
-| `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `120` | Seconds to answer a confirmation; no answer = refused |
+| `code.confirm_timeout_s` | `CONFIRM_TIMEOUT_S` | `300` | Seconds to answer a confirmation (code: one per request; skill replacement); no answer = refused |
 | `code.code_node_mem_mb` | `CODE_NODE_MEM_MB` | `1536` | Address-space limit for Node (pptxgenjs aborts below ~1 GB). Python: fixed 768 MB |
-| `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Approved executions per request |
-| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = no channel runs code. `true` = Telegram/CLI with confirmation, API with `approve_code`; anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code by email **without** confirmation |
+| `code.code_max_runs` | `CODE_MAX_RUNS` | `6` | Approved executions per request, skill scripts included. Every execution and refusal is logged at INFO (`Codice: ...`) |
+| `code.allow_code` | `ALLOW_CODE` | `true` | `false` = no channel runs code, skill scripts included. `true` = Telegram/CLI with **one confirmation per request**, API with `approve_code`, schedules approved at creation; anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code by email **without** confirmation |
 | `code.node_path` | `NODE_PATH` | *(empty)*; `/usr/local/lib/node_modules` in the image | Global Node packages visible to scripts. Fixed by the Dockerfile in the container |
 
 ### `outputs` (delivered files)
@@ -122,6 +122,15 @@ Each table is a block. The **Variable** column is the equivalent environment var
 |---|---|---|---|
 | `trace.trace_enabled` | `TRACE_ENABLED` | `false` | One JSON line per request in `data/trace.jsonl` (teams, agents, tools, results); `/trace` shows the last one |
 | `trace.trace_max_mb` | `TRACE_MAX_MB` | `5` | Above this size `trace.jsonl` becomes `trace.jsonl.1` |
+
+### `logging` (process log)
+
+| Key | Variable | Default | Description |
+|---|---|---|---|
+| `logging.log_level` | `LOG_LEVEL` | `INFO` | `DEBUG`, `INFO`, `WARNING` or `ERROR`. The CLI stays at `WARNING` unless `DEBUG` |
+| `logging.log_format` | `LOG_FORMAT` | `text` | `text` = readable lines (development); `json` = one JSON line per event (production) |
+
+Levels, format and best practices: [Troubleshooting](troubleshooting.md#logs).
 
 ### `skills`
 
@@ -172,7 +181,7 @@ in [voice.md](voice.md).
 
 | Key | Variable | Default | Description |
 |---|---|---|---|
-| `email.inbox_id` | `INBOX_ID` | *(empty = off)* | AgentMail inbox address, e.g. `picobot@agentmail.to`. Email starts only with `AGENTMAIL_API_KEY` in `.env` |
+| `email.inbox_id` | `INBOX_ID` | *(empty = off)* | AgentMail inbox address, e.g. `pippo@agentmail.to`. Email starts only with `AGENTMAIL_API_KEY` in `.env` |
 | `email.poll_interval_s` | `POLL_INTERVAL_S` | `60` | Seconds between two checks of the inbox (minimum 10) |
 
 ## Startup checks
@@ -183,7 +192,7 @@ PicoBot stops with an error if:
 - no LLM key is set;
 - Telegram is enabled but `TELEGRAM_ALLOWED_USER_IDS` is empty and `ALLOW_ALL_USERS` is not `true`;
 - Telegram is enabled and `ADMIN_USER_IDS` is not a list of numeric ids;
-- no channel is active (neither Telegram nor API).
+- no channel is active (none of Telegram, API and email).
 
 It logs a warning (without stopping) if `API_TOKENS` is empty (the API is disabled), if the API listens on a
 non-local address without TLS, or if a `config.yaml` key is also set in `.env` or the environment.

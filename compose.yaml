@@ -3,6 +3,9 @@ services:
     image: ghcr.io/jumping2000/picobot:latest
     container_name: picobot-agent
     restart: unless-stopped
+    logging:                        # rotazione dei log Docker: al massimo 5 file da 10 MB
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
     env_file: .env
     ports:
       - "${API_BIND:-127.0.0.1}:8000:8000"   # API_BIND=0.0.0.0 per esporla (abilita TLS: blocco api di config/config.yaml)

@@ -47,7 +47,8 @@ il file valgono i default):
 cp config/config_example.yaml config/config.yaml
 ```
 
-Tutte le opzioni sono descritte in [Configurazione](configuration.md).
+Tutte le opzioni sono descritte in [Configurazione](configuration.md). I server MCP (facoltativi) stanno in
+`config/mcp_config.json`: per cominciare copia `config/mcp_config_example.json`, vedi [Server MCP](mcp.md).
 
 ## 2. Preparazione delle cartelle
 

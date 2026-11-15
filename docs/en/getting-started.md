@@ -48,7 +48,8 @@ defaults apply):
 cp config/config_example.yaml config/config.yaml
 ```
 
-All options are described in [Configuration](configuration.md).
+All options are described in [Configuration](configuration.md). MCP servers (optional) live in
+`config/mcp_config.json`: copy `config/mcp_config_example.json` to start, see [MCP servers](mcp.md).
 
 ## 2. Prepare the folders
 

@@ -6,6 +6,13 @@ PicoBot connects [Model Context Protocol](https://modelcontextprotocol.io/) serv
 `config/mcp_config.json` (mounted read-only at `/app/config`). Each connected server is shared by **every member of
 the ComplexTeam** (Researcher, Analyst, Writer, Critic).
 
+The file is not in the repository (it is git-ignored, as it may hold your own servers). Without it PicoBot starts with
+no MCP servers; to begin, copy the example (a `filesystem` server on `/app/workspace`):
+
+```bash
+cp config/mcp_config_example.json config/mcp_config.json
+```
+
 ## Format
 
 Claude Desktop format, plus an optional `enabled` flag:

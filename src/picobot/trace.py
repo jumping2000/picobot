@@ -90,7 +90,10 @@ def format_trace(rec: dict) -> str:
 
 
 def summary_line(rec: dict) -> str:
+    """Riga di log a fine richiesta (canale, utente e req li aggiunge il formato del log)."""
     agents = list(dict.fromkeys(n["agent"] for n in rec["path"] if "agent" in n))
     tools = list(dict.fromkeys(n["tool"] for n in rec["path"] if "tool" in n))
-    return (f"trace {rec['channel']}/{rec['user']} {rec['duration_s']:.1f}s {rec['tokens']}tok {rec['status']}: "
-            f"{' > '.join(agents)} [{', '.join(tools)}]")
+    line = (f"Richiesta: target={rec['target']} esito={rec['status']} durata={rec['duration_s']:.1f}s "
+            f"token={rec['tokens']} file={len(rec['files'])} percorso={' > '.join(agents) or '-'} "
+            f"tool=[{', '.join(tools)}]")
+    return line + (f" errore={rec['error']}" if "error" in rec else "")

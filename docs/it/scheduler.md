@@ -66,7 +66,9 @@ stesso elenco (e la stessa memoria), e l'esito dei task creati dalla CLI arriva 
 > Un task programmato **esegue codice solo se lo hai approvato alla creazione** (`| codice`, `approve_code`
 > nell'API, flag nel tool del router): a ogni esecuzione non c'è nessuno per confermare. Senza approvazione non
 > può eseguire codice né produrre file; gli agenti possono comunque salvare il codice e mostrartelo nel risultato.
-> `code.allow_code: false` blocca comunque ogni esecuzione. L'elenco `/schedules` marca i task con `[codice]`.
+> `code.allow_code: false` blocca comunque ogni esecuzione, script delle skill compresi. Un task con codice creato
+> via email è approvato senza conferma, perché l'email è pre-approvata. L'elenco `/schedules` marca i task con
+> `[codice]`.
 >
 > **Uno schedule non consegna mai file:** anche con l'approvazione, i file prodotti da un'esecuzione non vengono
 > inviati; arriva solo il testo dell'esito. Per ottenere un file, chiedilo da chat o per email.

@@ -4,6 +4,58 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.1] - 2026-11-15
+
+### Changed
+
+- Code confirmation on Telegram and in the CLI is asked **once per request**, at the first execution: the answer
+  covers the following executions of the same message (at most `code.code_max_runs`), and a refusal blocks them
+  all. The next message asks again. The CLI now uses a new context for every request.
+- `code.allow_code` is the only switch for every kind of code, skill scripts included. API (`approve_code`),
+  schedules (approved at creation) and email (pre-approved) are unchanged.
+- Log format: `%(asctime)s %(levelname)s %(name)s [req channel/user] message`. The summary line of each request
+  (`Richiesta: target=… esito=… durata=… token=… file=… percorso=… tool=[…]`) is always logged, also with
+  `trace.trace_enabled: false`. Agno and uvicorn lines use the same format.
+- `code.confirm_timeout_s` is now 300 s (was 120). When a confirmation expires the bot writes that no code was run.
+- The CODER, ANALYST and WRITER prompts tell the model to call `run_python` / `run_node` when asked to run or
+  calculate and never to invent the output of a program it did not run.
+
+### Added
+
+- `run_skill_script(skill, script, args)`: Analyst and Writer can run a `.py` or `.js` script from a skill's
+  `scripts/` folder, in PicoBot's sandbox (clean environment, timeout, CPU/memory limits, workspace as working
+  folder) and with the same rules as `run_python` / `run_node`.
+- `get_skill_script` is back, **read-only**: the agents can read a skill's scripts but cannot run them through Agno.
+- Every code execution and refusal is logged at INFO level (`Codice: utente=… canale=… tipo=… esecuzione N/6
+  exit=… durata=…`), without the code.
+- The reason for a refused confirmation is logged: `Conferma annullata dall'utente` or `Conferma scaduta senza
+  risposta` (Telegram), and a retry within an already refused request shows `motivo=gia' rifiutato in questa
+  richiesta`.
+- `logging` block in `config/config.yaml`: `log_level` (`LOG_LEVEL`, default `INFO`) and `log_format`
+  (`LOG_FORMAT`: `text` or `json`, one JSON line per event). Every line written during a request carries a request
+  id (`req`), the channel and the user.
+- Tool calls are logged by an Agno hook: failures at WARNING, successes at DEBUG (name, parameter names, duration;
+  never the arguments). Schedules log start and end; the sandbox logs a missing executable at WARNING and, at DEBUG,
+  the tail of the output of failed code.
+- `compose.yaml` and `compose-build.yaml` rotate the Docker logs (5 files of 10 MB).
+- `/selftest` (Telegram, admins): checks that `outputs/` is writable, Python and Node are present, the confirmation
+  button works, code runs and a file is delivered.
+- Fixed notices in the reply, written by PicoBot and not by the model: `⚠️ Codice non eseguito: <reason>` when code
+  was refused, expired or not allowed, and `⚠️ Nessun file è stato consegnato in questa richiesta.` when the reply
+  names a document (.docx, .pptx, .xlsx, .pdf, .csv) but none was delivered.
+- Telegram log lines for every confirmation: `Conferma richiesta` when the button is sent, `Click conferma` for
+  every click, also the ignored ones (unknown or expired token, other user). Polling asks Telegram explicitly for
+  `message` and `callback_query` updates.
+- `deps/`: libraries for the Anthropic Office skills (`pdfplumber`, `pdf2image`, `reportlab`, `markitdown`,
+  `react`, `react-dom`, `react-icons`, `sharp`, `poppler-utils`, `pandoc`, `qpdf`). LibreOffice is left out.
+
+### Security
+
+- Installed skills can run their own scripts. Install only skills whose scripts you have read and keep
+  `ADMIN_USER_IDS` short. After the first confirmation of a request, the following executions are not shown before
+  they run. See `docs/en/security.md`.
+- `openai` and `httpcore2` logs stay at WARNING even with `LOG_LEVEL=DEBUG`: at DEBUG `openai` writes the prompts.
+
 ## [0.9.0] - 2026-11-12
 
 ### Added

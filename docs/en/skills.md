@@ -13,7 +13,7 @@ A skill is a folder in [Agent Skills](https://docs.anthropic.com/en/docs/agents-
 skills/
 └── docx/
     ├── SKILL.md          # required, with YAML frontmatter
-    ├── scripts/          # optional: reference scripts (never executed directly)
+    ├── scripts/          # optional: scripts (.py, .js) the agents can read and run in the sandbox
     ├── requirements.txt  # optional: Python dependencies
     ├── package.json      # optional: Node dependencies ("dependencies")
     └── apt.txt           # optional: Debian packages
@@ -113,8 +113,14 @@ If the bot says it cannot write to the skills folder, run on the host: `sudo cho
 2. ComplexTeam members receive a fixed-length snippet and call `list_skills(task)`, which ranks skills by relevance
    (~40 tokens per skill, once per task, max `SKILLS_LIST_MAX`).
 3. They read the relevant skill with `get_skill_instructions(name)` and its references.
-4. Scripts inside skills are **never executed directly** (`get_skill_script` is disabled): the Analyst or the
-   Writer writes code and runs it with `run_python` / `run_node`, and every run asks for your confirmation.
+4. The Analyst or the Writer writes code and runs it with `run_python` / `run_node`, or runs a script of the skill:
+   they read it with `get_skill_script` (read-only) and run it with `run_skill_script(skill, script, args)`.
+5. Skill scripts run in **PicoBot's sandbox**, like generated code: clean environment (no API keys), timeout,
+   CPU/memory limits, working folder = workspace (files go in `outputs/`). Only `.py` (Python) and `.js` / `.mjs` /
+   `.cjs` (Node); other extensions are refused.
+6. The rules are the same for every kind of code: `code.allow_code: false` blocks everything; on Telegram and in
+   the CLI the **first** execution of a request asks for your confirmation and the answer covers the rest of the
+   request; every run counts toward `CODE_MAX_RUNS` and is logged. See [security.md](security.md).
 
 ## Dependencies (extension points)
 
@@ -128,7 +134,7 @@ Libraries needed by skills are installed in the Docker image through four files:
 | `deps/setup.sh` | Free-form hook, run as root at build time | `bash` |
 
 One dependency per line, with a `# skill: <name>` comment naming the skill that needs it. Already present for the
-sample skills: `docx@9.9.0`, `pptxgenjs@4.0.1`, `openpyxl==3.1.5`.
+Anthropic Office skills (see below).
 
 ```bash
 uv run picobot skills deps            # declared by skills (requirements.txt, package.json, apt.txt) but missing from deps/
@@ -141,10 +147,29 @@ Comparison is by package name, not version.
 ## Sample Office skills
 
 > [!CAUTION]
-> The sample `docx`, `pptx` and `xlsx` skills are licensed "All rights reserved" (Anthropic terms): personal use
-> only, do not redistribute them. `skills/` is in `.gitignore`.
+> The sample `docx`, `pdf`, `pptx` and `xlsx` skills are licensed "All rights reserved" (Anthropic terms): personal
+> use only, do not redistribute them. `skills/` is in `.gitignore`.
 
-Without LibreOffice in the image, the bot **creates** the files but skips validation, formula recalculation
-(formulas are computed when the file is opened in Excel), previews and PDF conversion. Adding `libreoffice` to
-`deps/apt.txt` and rebuilding should enable them; this setup is not covered by the tests and makes the image much
-larger.
+`deps/` already holds what the four skills need, except LibreOffice:
+
+| File | Packages | Skill |
+|---|---|---|
+| `deps/pip.txt` | `pdfplumber`, `pdf2image`, `reportlab` | pdf |
+| `deps/pip.txt` | `markitdown[docx,pptx,xlsx,pdf]` (also brings `python-pptx`), `openpyxl` | docx, pptx, xlsx, pdf |
+| `deps/npm.txt` | `docx`, `pptxgenjs`, `react`, `react-dom`, `react-icons`, `sharp` | docx, pptx |
+| `deps/apt.txt` | `poppler-utils` (`pdftoppm`, `pdftotext`), `pandoc`, `qpdf` | pdf, docx, pptx |
+
+`pypdf`, `python-docx`, `lxml`, `defusedxml`, `Pillow`, `pandas` and `numpy` already come with the bot's
+dependencies. After changing `deps/`: `docker compose -f compose-build.yaml up -d --build`.
+
+What does not work:
+
+- **Without LibreOffice** (left out: about 500 MB more) the bot **creates** the files but cannot validate or convert
+  them: `soffice.py`, `recalc.py` (Excel formulas are computed when the file is opened), `accept_changes.py`,
+  `thumbnail.py`, previews and `.doc`/`.ppt` conversion. Adding `libreoffice` to `deps/apt.txt` should enable them,
+  but it also needs more memory than the Python sandbox allows (768 MB) and this setup is not covered by the tests.
+- **OCR** (`pytesseract` + `tesseract-ocr`) and `pdftk` are not installed.
+- `run_skill_script` only sees the files at the top of `scripts/`: scripts in subfolders such as `scripts/office/`
+  cannot be run that way.
+- PicoBot has no shell tool: the agent runs commands such as `markitdown`, `pandoc`, `pdftoppm` and `qpdf` through
+  `subprocess` inside `run_python`.

@@ -20,28 +20,30 @@ Confirmation buttons on Telegram can only be pressed by the user who made the re
 
 | Protection | Detail |
 |---|---|
-| Human-in-the-loop | **Every** execution needs approval (Telegram buttons, CLI `y/N`, API `approve_code`); the full code is shown first. **Exception: email**, which has no one to ask: with `code.allow_code: true` mail from an allowed sender runs code without confirmation (see the Email note below) |
+| Human-in-the-loop | Telegram and CLI ask **once per request**, at the first execution: that code is shown in full first (for a skill script, its source) and the answer covers the following executions of the same request, which are **not** shown before they run; a refusal blocks them all. API: `approve_code`. **Exception: email**, which has no one to ask: with `code.allow_code: true` mail from an allowed sender runs code without confirmation (see the Email note below) |
 | Code in schedules only if approved | A schedule runs code only if it was approved at creation (`approve_code`); without approval scheduled runs refuse it. Still subject to `code.allow_code` |
-| Run cap | At most `CODE_MAX_RUNS` (6) approved runs per request |
+| Run cap | At most `CODE_MAX_RUNS` (6) approved runs per request, skill scripts included |
+| Execution log | Every execution and every refusal is logged at INFO level with user, channel, type (`python`, `node`, `skill:<name>/<script>`), run number, exit code and duration, e.g. `Codice: utente=123 canale=telegram tipo=python esecuzione 1/6 exit=0 durata=0.4s`. The code itself is not logged |
 | Separate process | Subprocess with `cwd = workspace/` |
 | Clean environment | Only `PATH`, `HOME`, `PYTHONIOENCODING` (and `NODE_PATH`): **no API keys or tokens** |
 | Resource limits | CPU 60 s, memory 768 MB (Python) / `CODE_NODE_MEM_MB` (Node), max file size 2×`MAX_OUTPUT_MB`, timeout `CODE_TIMEOUT_S` |
 | Truncated output | `CODE_MAX_OUTPUT` characters returned to the agent |
 | Read-only code | In the container `src/` and the venv belong to root and cannot be modified by generated code (`skills/`: see below) |
-| Skill scripts | Never executed directly (`get_skill_script` is removed) |
+| Skill scripts | Readable with `get_skill_script` (read-only) and run only with `run_skill_script`, in this same sandbox and with the same rules: `.py` and `.js` only, `cwd = workspace/`. Agno's own script execution (which inherits the API keys and has no limits) is not used |
 
 ### Two levels of control
 
 | Level | Where | What it decides |
 |---|---|---|
 | `code.allow_code` | `config.yaml` (server-wide) | `false`: **no** channel runs code, whatever the approval. `true` (default): the next level applies |
-| `approve_code` / channel approval | per request | Telegram button, CLI `y/N`, API `approve_code=true`, schedule flag |
+| `approve_code` / channel approval | per request | Telegram button or CLI `y/N` once per request, API `approve_code=true`, schedule approved at creation; email pre-approved |
 
 > [!WARNING]
 > **Email.** With `allow_code: true`, anyone in `EMAIL_ALLOWED_SENDERS` can make PicoBot run code **without any
 > confirmation**: email has no channel to ask for one. A forged allowed sender can therefore run code in the sandbox.
 > AgentMail excludes unauthenticated messages (SPF/DKIM/DMARC), which makes this hard but not impossible. Keep the
-> sender list short and, if you do not need code, set `allow_code: false`.
+> sender list short and, if you do not need code, set `allow_code: false`. The same goes for schedules: a schedule
+> with code requested by email is approved without confirmation.
 >
 > **Linked address.** An address linked to an id in `EMAIL_ALLOWED_SENDERS` (`address:id`) acts as that user: whoever
 > forges it reads their Telegram/CLI memory ("what do you know about me?") and sees and deletes their schedules.
@@ -69,6 +71,11 @@ components or symlinks, symlinks in folders, invalid names and skills larger tha
 extraction). The same checks apply to `/skill_add` from chat. Skills are instructions that the ComplexTeam follows
 for every user: installing one is equivalent to changing the bot's behavior.
 
+> [!WARNING]
+> A skill can also **run its own `scripts/`** (`run_skill_script`), in the sandbox and with the same rules as
+> generated code: one confirmation per request on Telegram and CLI, none by email or in approved schedules. Install
+> only skills whose scripts you have read, and keep `ADMIN_USER_IDS` short.
+
 Limits of installing from chat:
 
 - **admins only** (`ADMIN_USER_IDS`); with the key empty the commands are off, even with `ALLOW_ALL_USERS=true`. In
@@ -94,6 +101,8 @@ Limits of installing from chat:
 
 - Agno telemetry is **off** by default (`AGNO_TELEMETRY=false`, set before any agent is created).
 - The Telegram bot token is part of HTTP URLs: `httpx`/`httpcore` logs are lowered to WARNING to avoid leaking it.
+- Code, tool arguments and message text never go to the logs. With `logging.log_level: DEBUG` the tail of the
+  output of failed code appears, and it may contain user data: use it only to diagnose.
 - Memories, profile and entities are private per user and can be deleted with `/forget`. Caveat: an email address
   linked to a user id (`EMAIL_ALLOWED_SENDERS`) reads that user's memory, so whoever forges the address sees it.
 - Prompts and documents are sent to the configured LLM provider.
@@ -105,9 +114,13 @@ Limits of installing from chat:
 > - It runs as the same user as the bot, so it **can read `data/`** (database, Telegram state, outbox).
 > - Analyst and Writer are not isolated from each other.
 > - **MCP tools do not ask for confirmation.**
+> - After the first confirmation of a request, the following executions of the same request are not shown before
+>   they run: check them afterwards with `/trace` or in the log.
+> - **Outside Docker on Windows** the CPU, memory and file-size limits are not applied: only the timeout and the
+>   output truncation remain.
 >
 > The real isolation boundary is the **container**. Do not run PicoBot outside Docker on a machine with sensitive
-> data, and approve only code you have read.
+> data, and approve only requests whose code you are willing to run.
 
 ## Hardening checklist
 

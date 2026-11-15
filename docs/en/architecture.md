@@ -122,8 +122,9 @@ Text extraction is deterministic (no LLM). Scanned PDFs without a text layer are
 1. The channel builds a `RunCtx` ([`context.py`](../../src/picobot/context.py)): user, channel, confirmation
    callback, optional uploaded document. It travels in a `ContextVar`, so tools read it without depending on Agno.
 2. `PicoBotService.ask()` refreshes skills (hot reload), then runs the router or the requested team.
-3. Code tools call the confirmation callback before every execution; `deliver_file` adds validated files to
-   `RunCtx.outputs`.
+3. Code tools (`run_python`, `run_node`, `run_skill_script`) go through one gate: `allow_code`, approval
+   (`pre_approved` or the confirmation callback, called once at the first execution and stored in
+   `RunCtx.code_approval`), `CODE_MAX_RUNS`; `deliver_file` adds validated files to `RunCtx.outputs`.
 4. The channel sends the text and the delivered files (Telegram: documents; CLI: paths; API: download IDs).
 
 ## Data layout
@@ -135,7 +136,7 @@ Text extraction is deterministic (no LLM). Scanned PDFs without a text layer are
 | `data/inbox/` | Uploaded documents, **deleted** right after processing |
 | `data/outbox/<hash(user)>/<id>/` | API copies of delivered files, purged after `OUTBOX_TTL_H` |
 | `workspace/scripts/` | Saved scripts and temporary `_run-*.py/js` files (deleted after the run) |
-| `workspace/outputs/` | The only folder from which files can be delivered |
+| `workspace/outputs/` | The only folder from which files can be delivered. On the host: `./workspace/outputs/`; in the container: `/app/workspace/outputs/` (same folder, bind mount) |
 
 ## Source map
 

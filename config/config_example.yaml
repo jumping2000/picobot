@@ -1,71 +1,75 @@
-# Configurazione di PicoBot: copia questo file in config/config.yaml e cambia solo cio' che ti serve.
-# Le chiavi qui sotto hanno i default del codice, tranne voice.stt_url che accende i messaggi vocali (serve il
-# servizio stt: COMPOSE_PROFILES=stt in .env).
-# Le chiavi commentate le fissa il Dockerfile: servono solo fuori da Docker (togli il # per cambiarle).
+# PicoBot configuration: copy this file to config/config.yaml and change only what you need.
+# The keys below hold the code defaults, except voice.stt_url, which turns voice messages on (it needs the stt
+# service: COMPOSE_PROFILES=stt in .env).
+# Commented-out keys are fixed by the Dockerfile: they only matter outside Docker (remove the # to change them).
 #
-# - .env e le variabili d'ambiente vincono su questo file: se HISTORY_RUNS e' in .env, memory.history_runs qui
-#   non ha effetto (il log lo segnala). Per spostare un parametro qui, togli la riga da .env.
-# - Chiavi e segreti (OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS, API_TOKENS, ...) stanno solo in .env.
-#   Un segreto si richiama come ${NOME}, con il valore in .env.
-# - Una chiave sconosciuta o un valore sbagliato bloccano l'avvio con un messaggio che nomina blocco.chiave.
-# - Il file si legge all'avvio: dopo una modifica serve docker compose restart.
+# - .env and environment variables win over this file: if HISTORY_RUNS is in .env, memory.history_runs here has
+#   no effect (the log reports it). To move a setting here, remove its line from .env.
+# - Keys and secrets (OPENROUTER_API_KEY, TELEGRAM_BOT_TOKEN, ADMIN_USER_IDS, API_TOKENS, ...) live only in .env.
+#   A secret is referenced as ${NAME}, with the value in .env.
+# - An unknown key or a wrong value stops the startup with a message naming block.key.
+# - The file is read at startup: after a change you need docker compose restart.
 
 telegram:
-  allow_all_users: false            # true = chiunque puo' usare il bot (sconsigliato); non rende admin nessuno
-  reply_format: markdown            # markdown (semplice) | markdownv2 | html: come PicoBot formatta su Telegram
+  allow_all_users: false            # true = anyone can use the bot (not recommended); it makes nobody an admin
+  reply_format: markdown            # markdown (simple) | markdownv2 | html: how PicoBot formats replies on Telegram
 
 paths:
-  # data_dir: /app/data             # DB, stato Telegram (NON visibile al codice generato). Nell'immagine Docker la fissa il Dockerfile (/app/data): qui non ha effetto
-  # workspace_dir: /app/workspace   # file di lavoro dell'agente. Nell'immagine Docker la fissa il Dockerfile (/app/workspace): qui non ha effetto
+  # data_dir: /app/data             # DB, Telegram state (NOT visible to generated code). In the Docker image the Dockerfile fixes it (/app/data): it has no effect here
+  # workspace_dir: /app/workspace   # agent working files. In the Docker image the Dockerfile fixes it (/app/workspace): it has no effect here
   mcp_config_path: /app/config/mcp_config.json
 
-memory:                             # sessione, memoria e costi
+memory:                             # session, memory and costs
   history_runs: 6
   enable_memory: true
   enable_learning: true
-  enable_session_summaries: false   # +1 chiamata LLM per run: off di default
+  enable_session_summaries: false   # +1 LLM call per run: off by default
   enable_critic: true
   team_max_iterations: 3
 
 web:
-  region: it-it                     # regione dei risultati della ricerca web (es. us-en, uk-en)
+  region: it-it                     # region of web search results (e.g. us-en, uk-en)
 
-code:                               # codice generato
+code:                               # generated code
   code_timeout_s: 30
   code_max_output: 4000
-  confirm_timeout_s: 120            # secondi per confermare un'esecuzione o una sostituzione
-  code_node_mem_mb: 1536            # pptxgenjs va in abort sotto 1 GB
-  code_max_runs: 6                  # esecuzioni approvate per richiesta
-  allow_code: true                  # false = nessun canale esegue codice; true = Telegram/CLI con conferma, API con approve_code; chi è in EMAIL_ALLOWED_SENDERS può far eseguire codice via email SENZA conferma
-  # node_path: ""                   # NODE_PATH per gli script Node. Nell'immagine Docker la fissa il Dockerfile (/usr/local/lib/node_modules): qui non ha effetto
+  confirm_timeout_s: 300            # seconds to answer a confirmation (code: one per request; skill replacement)
+  code_node_mem_mb: 1536            # pptxgenjs aborts below 1 GB
+  code_max_runs: 6                  # approved executions per request, skill scripts included; each one is logged
+  allow_code: true                  # false = no code runs anywhere, skill scripts included; true = Telegram/CLI one confirmation per request, API with approve_code, schedules approved at creation; anyone in EMAIL_ALLOWED_SENDERS can make PicoBot run code by email WITHOUT confirmation
+  # node_path: ""                   # NODE_PATH for Node scripts. In the Docker image the Dockerfile fixes it (/usr/local/lib/node_modules): it has no effect here
 
-outputs:                            # file in uscita
+outputs:                            # delivered files
   max_output_mb: 20
   max_output_files: 5
   output_extensions: docx,pptx,xlsx,csv,txt,md,pdf,html,json,py
-  outbox_ttl_h: 24                  # file scaricabili via API per 24 ore
+  outbox_ttl_h: 24                  # files downloadable via the API for 24 hours
 
 trace:
-  trace_enabled: false              # una riga JSON per richiesta in data/trace.jsonl; /trace mostra l'ultima
-  trace_max_mb: 5                   # oltre, trace.jsonl diventa trace.jsonl.1
+  trace_enabled: false              # one JSON line per request in data/trace.jsonl; /trace shows the last one
+  trace_max_mb: 5                   # above this size, trace.jsonl becomes trace.jsonl.1
 
-skills:                             # skill del ComplexTeam
+logging:
+  log_level: INFO                   # DEBUG | INFO | WARNING | ERROR; the CLI stays at WARNING unless DEBUG
+  log_format: text                  # text = readable (dev); json = one JSON line per event (prod: jq, Loki, ELK)
+
+skills:                             # ComplexTeam skills
   enable_skills: true
-  # skills_dir: /app/skills         # sull'host la CLI usa ./skills. Nell'immagine Docker la fissa il Dockerfile (/app/skills): qui non ha effetto
+  # skills_dir: /app/skills         # on the host the CLI uses ./skills. In the Docker image the Dockerfile fixes it (/app/skills): it has no effect here
   skills_list_max: 50
   skills_router_hint_max: 15
 
 documents:
   max_upload_mb: 15
-  doc_chunk_chars: 100000           # sotto questa soglia il riassunto e' 1 sola chiamata
+  doc_chunk_chars: 100000           # below this size the summary is a single call
   doc_max_chars: 400000
 
-voice:                              # messaggi vocali (STT)
-  # Servizio di trascrizione del profilo compose "stt": mkdir -p models && sudo chown -R 1000 models,
-  # COMPOSE_PROFILES=stt in .env, poi docker compose up -d. Senza il servizio stt lascia stt_url vuoto.
-  stt_url: http://stt:8000           # es. http://stt:8000 (servizio del profilo compose "stt"); vuoto = vocali spenti
+voice:                              # voice messages (STT)
+  # Transcription service of the compose profile "stt": mkdir -p models && sudo chown -R 1000 models,
+  # COMPOSE_PROFILES=stt in .env, then docker compose up -d. Without the stt service, leave stt_url empty.
+  stt_url: http://stt:8000          # e.g. http://stt:8000 (service of the compose profile "stt"); empty = voice off
   stt_timeout_s: 180
-  max_voice_s: 300                  # durata massima di un vocale (secondi), controllata prima del download
+  max_voice_s: 300                  # maximum length of a voice message (seconds), checked before downloading
 
 scheduler:
   timezone: Europe/Rome
@@ -74,13 +78,13 @@ scheduler:
 
 api:
   api_enabled: true
-  # api_host: 127.0.0.1             # nell'immagine Docker la fissa il Dockerfile (0.0.0.0): qui non ha effetto
+  # api_host: 127.0.0.1             # in the Docker image the Dockerfile fixes it (0.0.0.0): it has no effect here
   api_port: 8000
-  # HTTPS diretto (senza reverse proxy). Senza TLS il token viaggia in chiaro se esponi l'API.
-  # Cert di prova: openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 365 -subj "/CN=host"
-  api_ssl_certfile: ""              # es. /app/certs/cert.pem
-  api_ssl_keyfile: ""               # es. /app/certs/key.pem
+  # Direct HTTPS (no reverse proxy). Without TLS the token travels in clear if you expose the API.
+  # Test cert: openssl req -x509 -newkey rsa:2048 -nodes -keyout certs/key.pem -out certs/cert.pem -days 365 -subj "/CN=host"
+  api_ssl_certfile: ""              # e.g. /app/certs/cert.pem
+  api_ssl_keyfile: ""               # e.g. /app/certs/key.pem
 
-email:                              # canale email (AgentMail): attivo solo con AGENTMAIL_API_KEY in .env e inbox_id
-  inbox_id: ""                      # indirizzo della casella AgentMail, es. picobot@agentmail.to; vuoto = email spenta
-  poll_interval_s: 60               # secondi tra un controllo e l'altro della casella
+email:                              # email channel (AgentMail): on only with AGENTMAIL_API_KEY in .env and inbox_id
+  inbox_id: ""                      # address of the AgentMail inbox, e.g. pippo@agentmail.to; empty = email off
+  poll_interval_s: 60               # seconds between two checks of the inbox

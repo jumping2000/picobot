@@ -6,6 +6,7 @@ from agno.team.mode import TeamMode
 from . import prompts
 from .agents import build_complex_team, build_simple_team, dated
 from .config import Settings
+from .logs import log_tool_call
 from .skills import SkillRegistry
 from .models import make_model
 from .scheduler import Scheduler
@@ -37,6 +38,7 @@ def build_router(s: Settings, registry: SkillRegistry | None = None, mcp_tools: 
                *(make_schedule_tools(s, scheduler) if scheduler is not None else []),
                *(make_email_tools(s, mailbox, record_mail) if mailbox is not None else [])],
         instructions=dated(s, prompts.router_instructions(registry.names() if registry else [], s.skills_router_hint_max)),
+        tool_hooks=[log_tool_call],
         db=db,
         add_history_to_context=True,
         num_history_runs=s.history_runs,

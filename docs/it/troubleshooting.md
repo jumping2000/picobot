@@ -10,7 +10,7 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 |---|---|---|
 | `OPENROUTER_API_KEY (o OPENAI_API_KEY) non configurata.` | Manca la chiave LLM | Impostala in `.env` |
 | `TELEGRAM_ALLOWED_USER_IDS vuoto: nessuno sarebbe autorizzato...` | Telegram attivo senza utenti autorizzati | Aggiungi il tuo id, o avvia con `--no-telegram` |
-| `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN e/o API_TOKENS.` | Né Telegram né API configurati | Configurane almeno uno |
+| `Nessun canale attivo: configura TELEGRAM_BOT_TOKEN, API_TOKENS e/o AGENTMAIL_API_KEY + email.inbox_id.` | Né Telegram né API né email configurati | Configurane almeno uno |
 | `API_TOKENS non configurato: API disattivata.` (avviso) | API senza token | Imposta `API_TOKENS` o ignora |
 | `API esposta senza TLS...` (avviso) | API su indirizzo non locale senza certificati | Imposta `API_SSL_CERTFILE`/`API_SSL_KEYFILE` |
 | `Configurazione non valida: config/config.yaml: <blocco>.<chiave>: ...` | Chiave sconosciuta o nel blocco sbagliato, valore non valido, `${NOME}` non definito, chiave riservata a `.env`, chiave ripetuta, file non UTF-8 | Correggi la chiave indicata (confronta con `config/config_example.yaml`), poi `docker compose restart` |
@@ -26,6 +26,7 @@ I messaggi sono riportati come compaiono nel log (`docker compose logs picobot`)
 |---|---|
 | Il bot non risponde | Cerca `Accesso negato: user_id=...` nel log e aggiungi quell'id a `TELEGRAM_ALLOWED_USER_IDS` |
 | "Richiesta scaduta o non tua." su un bottone | La conferma è scaduta (`CONFIRM_TIMEOUT_S`) o l'ha chiesta un altro utente |
+| Il bottone non arriva, o il codice è "rifiutato" anche se hai premuto Conferma | Lancia `/selftest` (admin). Nel log: `Conferma richiesta` = bottone inviato; `Click conferma` = click ricevuto; `Click conferma ignorato ... token sconosciuto o scaduto` = il click è arrivato dopo il timeout; nessuna riga `Click` = Telegram non l'ha consegnato. Se il modello non chiama mai `run_python`, il bottone non c'è: guarda i tool in `/trace` |
 | "Formato non supportato" | Sono accettati solo PDF, DOCX, TXT, MD, CSV, JSON, LOG |
 | "File troppo grande" | Aumenta `MAX_UPLOAD_MB` |
 | "Nessun testo estraibile (PDF scansionato? serve OCR)." | PDF scansionato senza livello di testo: l'OCR non è incluso |
@@ -85,12 +86,47 @@ File: siena.docx
 ```
 
 Si vede quale team ha scelto il router, quali agenti hanno lavorato e dove si ferma una catena di tool (per esempio
-`exit=1 ... Cannot find module 'docx'`). Ogni riga va anche nel log del processo (`docker compose logs picobot`).
+`exit=1 ... Cannot find module 'docx'`). Il riepilogo di ogni richiesta (`Richiesta: ...`) va comunque nel log del
+processo, anche con il trace spento (vedi [Log](#log)).
 Per seguirle dal vivo: `tail -f data/trace.jsonl`.
 
 > [!NOTE]
 > Il file contiene i testi delle richieste e dei tool, troncati a 200 caratteri. Resta in `data/` e oltre
 > `TRACE_MAX_MB` (5 MB) diventa `trace.jsonl.1`, sovrascrivendo il precedente.
+
+## Log
+
+Il log del processo (`docker compose logs picobot`) si regola con il blocco `logging` di `config/config.yaml`
+(`log_level`, `log_format`) o con `LOG_LEVEL` / `LOG_FORMAT`. Ogni riga emessa durante una richiesta porta
+l'id della richiesta, il canale e l'utente:
+
+```text
+2026-11-15 08:15:40,199 INFO    picobot.tools.sandbox [d21f4fdb telegram/220808358] Codice: ... esecuzione 1/6 exit=0 durata=0.4s
+2026-11-15 08:15:52,031 INFO    picobot.service [d21f4fdb telegram/220808358] Richiesta: target=auto esito=completed durata=12.3s token=5120 file=1 percorso=PicoBot > ComplexTeam > Writer tool=[delegate_task_to_member, run_node, deliver_file]
+```
+
+Fuori da una richiesta (avvio, polling email) i tre campi valgono `-`.
+
+| Livello | Cosa contiene |
+|---|---|
+| `DEBUG` | Ogni chiamata a un tool riuscita (nome, nomi dei parametri, durata), la fine dell'output del codice fallito |
+| `INFO` | Avvio, esito di ogni richiesta, esecuzioni e rifiuti del codice, conferme annullate o scadute, schedule, email |
+| `WARNING` | Problemi recuperabili: tool fallito, richiesta in errore, server MCP non disponibile, casella email non leggibile |
+| `ERROR` | Funzionalità perse ed eccezioni non gestite (con traceback) |
+
+Best practice:
+
+- **Sviluppo**: `log_level: DEBUG`, `log_format: text`.
+- **Produzione**: `log_level: INFO`, `log_format: json`. `compose.yaml` ruota i log Docker (5 file da 10 MB).
+  Per raggruppare una richiesta: `docker compose logs --no-log-prefix picobot | jq -c 'select(.req=="d21f4fdb")'`.
+- `WARNING` solo se i log sono troppi: si perdono gli esiti delle richieste.
+- `DEBUG` in produzione solo per diagnosi, poi si torna a `INFO`.
+- Nei log non finiscono segreti, codice, argomenti dei tool né testo dei messaggi. `httpx`, `httpcore`, `openai`
+  e `apscheduler` restano almeno a `WARNING` anche in `DEBUG`: i primi due hanno il token Telegram negli URL,
+  `openai` scrive i prompt.
+
+Per cambiare livello o formato: modifica `config/config.yaml` e `docker compose restart` (oppure `.env` e
+`docker compose up -d`).
 
 ## Ripartire da zero
 

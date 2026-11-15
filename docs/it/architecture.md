@@ -123,8 +123,9 @@ L'estrazione del testo è deterministica (nessun LLM). I PDF scansionati senza l
 1. Il canale costruisce un `RunCtx` ([`context.py`](../../src/picobot/context.py)): utente, canale, callback di
    conferma, eventuale documento caricato. Viaggia in un `ContextVar`, così i tool lo leggono senza dipendere da Agno.
 2. `PicoBotService.ask()` aggiorna le skill (ricarica a caldo), poi esegue il router o il team richiesto.
-3. I tool di codice chiamano la callback di conferma prima di ogni esecuzione; `deliver_file` aggiunge i file
-   validati a `RunCtx.outputs`.
+3. I tool di codice (`run_python`, `run_node`, `run_skill_script`) passano da un unico cancello: `allow_code`,
+   approvazione (`pre_approved` oppure la callback di conferma, chiamata una volta alla prima esecuzione e salvata
+   in `RunCtx.code_approval`), `CODE_MAX_RUNS`; `deliver_file` aggiunge i file validati a `RunCtx.outputs`.
 4. Il canale invia il testo e i file consegnati (Telegram: documenti; CLI: percorsi; API: id di download).
 
 ## Dati
@@ -136,7 +137,7 @@ L'estrazione del testo è deterministica (nessun LLM). I PDF scansionati senza l
 | `data/inbox/` | Documenti caricati, **cancellati** subito dopo l'elaborazione |
 | `data/outbox/<hash(utente)>/<id>/` | Copie per l'API dei file consegnati, eliminate dopo `OUTBOX_TTL_H` |
 | `workspace/scripts/` | Script salvati e file temporanei `_run-*.py/js` (cancellati dopo l'esecuzione) |
-| `workspace/outputs/` | L'unica cartella da cui si possono consegnare file |
+| `workspace/outputs/` | L'unica cartella da cui si possono consegnare file. Sull'host: `./workspace/outputs/`; nel container: `/app/workspace/outputs/` (stessa cartella, bind mount) |
 
 ## Mappa dei sorgenti
 

@@ -25,6 +25,7 @@ Available on Telegram and in the CLI.
 | `/skill_add <link>` | Install a skill from an `https://` URL (zip or git repository); admins only. On Telegram also a `.zip` attachment with caption `/skill_add`; in the CLI also a local path. See [skills.md](skills.md#from-telegram-and-the-cli-chat) |
 | `/skill_remove <name>` | Remove a skill; admins only |
 | `/trace` | Path of your last request: teams, agents, tools and results (with `TRACE_ENABLED=true`) |
+| `/selftest` | Admins only: checks that `outputs/` is writable, Python and Node are present, the confirmation button works, code runs and a file is delivered |
 
 CLI only:
 
@@ -82,12 +83,22 @@ Voice notes and audio files (also sent as a document) are transcribed by the `st
 
 ### Code confirmation
 
-Before every execution PicoBot shows the **full code** and two buttons, **Conferma** (confirm) and **Annulla**
-(cancel):
+At the **first** execution of a request PicoBot shows the **full code** (for a skill script, its source) and two
+buttons, **Conferma** (confirm) and **Annulla** (cancel). The answer covers the whole request:
 
+- after **Conferma**, the following executions of the same message run without asking again (at most
+  `CODE_MAX_RUNS`, 6) and are not shown first; the next message asks again;
+- after **Annulla**, no execution of that message runs;
 - code up to 1,500 characters is shown inline; longer code arrives first as an attachment (`codice.py` / `codice.js`);
 - only the user who made the request can press the buttons;
-- no answer within `CONFIRM_TIMEOUT_S` (120 s) means **refused**.
+- no answer within `CONFIRM_TIMEOUT_S` (300 s) means **refused**, and the bot writes that no code was run.
+- when code was refused, expired or not allowed, the reply ends with `⚠️ Codice non eseguito: <reason>`, added by
+  PicoBot and not by the model. If the reply names a document (`report.docx`) but no file was delivered, it also
+  ends with `⚠️ Nessun file è stato consegnato in questa richiesta.`
+
+The CLI works the same way with a `[y/N]` question. The other channels never ask: the API runs code only with
+`approve_code: true`, a schedule only if it was approved at creation, and email is pre-approved (see below). With
+`code.allow_code: false` no code runs on any channel, skill scripts included.
 
 Files created by the agents arrive as Telegram documents after the answer.
 
@@ -111,7 +122,7 @@ Only the addresses in `EMAIL_ALLOWED_SENDERS` are served; the comparison ignores
 from anyone else is not answered, never reaches the agents and is logged only with the sender. An empty list means
 nobody can write (sending mail stays possible).
 
-An entry can be linked to an existing user with `address:id`, e.g. `io@jumpi.top:123456789,colleague@example.com`.
+An entry can be linked to an existing user with `address:id`, e.g. `io@pippo.com:123456789,colleague@example.com`.
 With `:id` the user_id is that id (typically your Telegram ID, the same as `CLI_USER_ID`): memory, profile and
 schedules are shared across channels. Without `:id` the user_id is the lowercased address.
 

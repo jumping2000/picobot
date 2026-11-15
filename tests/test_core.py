@@ -1,12 +1,13 @@
 """Router (costi), HITL codice, memoria, documenti, scheduler. LLM finto, nessuna chiave API."""
 import asyncio, sys
+from pathlib import Path
 import pytest
 import fake_llm
 from picobot.config import Settings
 from picobot.context import OutputFile, Reply, RunCtx, set_ctx, reset_ctx
 from picobot.documents import DocumentError, extract_text, split_chunks
 from picobot.scheduler import ScheduleError
-from picobot.service import PicoBotService
+from picobot.service import NO_FILE_NOTICE, PicoBotService, file_promise_notice
 from picobot.tools.sandbox import make_code_tools
 from picobot.trace import last_trace
 import picobot.service
@@ -74,6 +75,24 @@ def test_code_blocked_without_human_or_preapproval(svc, ctx):
 def test_api_preapproved_runs(svc):
     _ask_code(svc, RunCtx("1", "api", pre_approved=True), "h4")
     assert any("exit=0" in r and "42" in r for r in _tool_results())
+
+
+def test_reply_carries_notice_when_code_refused(svc):
+    async def no(code, language): return False
+    async def yes(code, language): return True
+    refused = _ask_code(svc, RunCtx("1", "telegram", confirm=no), "h5")
+    assert "⚠️ Codice non eseguito: conferma negata o scaduta." in refused.text
+    assert "Codice non eseguito" not in _ask_code(svc, RunCtx("1", "telegram", confirm=yes), "h6").text
+
+
+def test_file_promise_notice():
+    s = Settings()
+    ctx = RunCtx("1", "telegram")
+    assert file_promise_notice(s, "Ecco il file report_Rigetti.docx pronto", ctx) == NO_FILE_NOTICE
+    assert file_promise_notice(s, "Scarica ionq.PDF", ctx) == NO_FILE_NOTICE
+    assert file_promise_notice(s, "Ho usato python-docx e README.md, nessun documento", ctx) == ""
+    ctx.outputs.append(OutputFile(Path("/x/report.docx"), "report.docx", 3))
+    assert file_promise_notice(s, "Ecco report.docx", ctx) == ""             # consegnato davvero
 
 
 def test_sandbox_strips_secrets_and_times_out(tmp_path):

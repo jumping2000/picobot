@@ -32,9 +32,9 @@ Si usa da Telegram, da una CLI interattiva e da un'API REST, tutti serviti da un
 | **ComplexTeam** | Team sul modello forte: Researcher, Analyst, Writer, Critic (opzionale), con skill e MCP |
 | **DocSummary** | Workflow Agno che riassume un documento caricato |
 | **Skill** | Cartella in formato Agent Skills (`SKILL.md` + eventuali script e riferimenti) |
-| **Workspace** | `workspace/`: l'unica cartella in cui gira il codice generato; i file consegnati escono da `workspace/outputs/` |
+| **Workspace** | `workspace/`: l'unica cartella in cui gira il codice generato; i file consegnati escono da `workspace/outputs/` (sull'host `./workspace/outputs/`, nel container `/app/workspace/outputs/`) |
 | **Outbox** | `data/outbox/`: copie per utente dei file consegnati, scaricabili dall'API per 24 ore |
-| **HITL** | Human-in-the-loop: ogni esecuzione di codice richiede un'approvazione esplicita |
+| **HITL** | Human-in-the-loop: il codice gira solo con un'approvazione esplicita (Telegram/CLI: una volta per richiesta) |
 
 ## Altri documenti
 

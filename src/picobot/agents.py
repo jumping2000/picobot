@@ -9,13 +9,14 @@ from agno.tools.yfinance import YFinanceTools
 
 from . import prompts
 from .config import Settings
+from .logs import log_tool_call
 from .models import make_model
 from .skills import SkillRegistry
 from .storage import make_learning_view
 from .tools.documents import make_read_tools
 from .tools.email import make_email_tools
 from .tools.files import make_file_tools, make_text_tools
-from .tools.sandbox import make_code_tools, make_node_tools
+from .tools.sandbox import make_code_tools, make_node_tools, make_skill_script_tools
 from .tools.websearch import make_web_tools
 
 
@@ -56,6 +57,7 @@ def build_finance(s: Settings, db=None) -> Agent:
         name="Finance",
         role="Quotazioni, storico prezzi, fondamentali e news di titoli/ETF/crypto via yfinance.",
         model=make_model(s), tools=[_yf()], instructions=dated(s, [prompts.FINANCE]), **_view(s, db),
+        tool_hooks=[log_tool_call],
     )
 
 
@@ -63,7 +65,7 @@ def build_web(s: Settings) -> Agent:
     return Agent(
         name="Web",
         role="Cerca informazioni e notizie aggiornate sul web.",
-        model=make_model(s), tools=make_web_tools(s), instructions=dated(s, [prompts.WEB]),
+        model=make_model(s), tools=make_web_tools(s), instructions=dated(s, [prompts.WEB]), tool_hooks=[log_tool_call],
     )
 
 
@@ -77,7 +79,7 @@ def build_coder(s: Settings, mailbox=None, record_mail=None) -> Agent:
         role="Scrive piccoli programmi Python (eseguiti solo con conferma umana) e file di testo; consegna i file.",
         model=make_model(s),
         tools=[*make_code_tools(s), *make_text_tools(s), *make_file_tools(s), *_mail(s, mailbox, record_mail)],
-        instructions=dated(s, [prompts.CODER]),
+        instructions=dated(s, [prompts.CODER]), tool_hooks=[log_tool_call],
     )
 
 
@@ -88,7 +90,7 @@ def build_simple_team(s: Settings, db=None, mailbox=None, record_mail=None) -> T
         role="Compiti rapidi ed economici: quotazioni e dati di mercato, ricerche web, piccoli programmi Python, file di testo.",
         mode=TeamMode.coordinate, model=make_model(s),
         members=[build_web(s), build_finance(s, db), build_coder(s, mailbox, record_mail)],
-        instructions=dated(s, [prompts.SIMPLE_LEADER]), **_view(s, db),
+        instructions=dated(s, [prompts.SIMPLE_LEADER]), tool_hooks=[log_tool_call], **_view(s, db),
     )
 
 
@@ -101,25 +103,27 @@ def build_complex_team(s: Settings, registry: SkillRegistry | None = None, mcp_t
     skills = registry.skills if registry is not None and registry.skills is not None else None
     mcp = list(mcp_tools or [])
     read = make_read_tools(s)
+    scripts = make_skill_script_tools(s, registry) if skills is not None else []   # script delle skill nel sandbox
     members = [
         Agent(name="Researcher", role="Ricerca web approfondita con fonti.", model=strong(),
-              tools=[*make_web_tools(s), *mcp], skills=skills, instructions=dated(s, [prompts.RESEARCHER])),
+              tools=[*make_web_tools(s), *mcp], skills=skills, instructions=dated(s, [prompts.RESEARCHER]), tool_hooks=[log_tool_call]),
         Agent(name="Analyst", role="Ragiona, analizza e calcola (dati di mercato, codice, grafici); passa il materiale al Writer.",
-              model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *read, *mcp],
-              skills=skills, instructions=dated(s, [prompts.ANALYST])),
+              model=strong(), tools=[_yf(), *make_code_tools(s), *make_node_tools(s), *scripts, *read, *mcp],
+              skills=skills, instructions=dated(s, [prompts.ANALYST]), tool_hooks=[log_tool_call]),
         Agent(name="Writer", role="Scrive, formatta e produce il risultato finale (testo, Word, PowerPoint, Excel) e lo consegna.",
               model=strong(),
-              tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *make_file_tools(s),
+              tools=[*make_text_tools(s), *make_code_tools(s), *make_node_tools(s), *scripts, *make_file_tools(s),
                      *_mail(s, mailbox, record_mail), *read, *mcp],
-              skills=skills, instructions=dated(s, [prompts.WRITER])),
+              skills=skills, instructions=dated(s, [prompts.WRITER]), tool_hooks=[log_tool_call]),
     ]
     if s.enable_critic:
         members.append(Agent(name="Critic", role="Revisiona la bozza: allucinazioni e dati senza fonte.",
-                             model=strong(), tools=[*mcp], skills=skills, instructions=dated(s, [prompts.CRITIC])))
+                             model=strong(), tools=[*mcp], skills=skills, instructions=dated(s, [prompts.CRITIC]),
+                             tool_hooks=[log_tool_call]))
     return Team(
         name="ComplexTeam",
         role=("Task complessi multi-step (ricerca approfondita + analisi + report) e creazione di documenti "
               "Word/PowerPoint/Excel con le skill installate. Costoso: usalo solo se necessario."),
         mode=TeamMode.coordinate, model=strong(), members=members, skills=skills,
-        instructions=dated(s, [prompts.COMPLEX_LEADER]), **_view(s, db),
+        instructions=dated(s, [prompts.COMPLEX_LEADER]), tool_hooks=[log_tool_call], **_view(s, db),
     )

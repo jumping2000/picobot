@@ -10,7 +10,7 @@ from ..scheduler import ScheduleError, code_approval_prompt
 from ..service import PicoBotService
 from ..web import is_url
 from .common import (
-    HELP, add_skill_flow, format_memory_report, format_schedules, parse_schedule_args, remove_skill_flow, trace_text,
+    HELP, add_skill_flow, code_approval_note, format_memory_report, format_schedules, parse_schedule_args, remove_skill_flow, trace_text,
 )
 
 CLI_HELP = (HELP
@@ -48,9 +48,12 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
 
     async def confirm(code: str, language: str) -> bool:
         print(f"\n--- Codice da eseguire ({language}) ---\n{code}\n--------------------------")
+        print(code_approval_note(s))
         return await ask_yes_no("Eseguire?")
 
-    ctx = RunCtx(user_id=uid, channel="cli", confirm=confirm, ask=ask_yes_no)
+    def new_ctx(**kw) -> RunCtx:   # uno per richiesta: conferma, conteggio e file non passano alla successiva
+        return RunCtx(user_id=uid, channel="cli", confirm=confirm, ask=ask_yes_no, **kw)
+
     print(f"PicoBot CLI (utente '{uid}'). /help per i comandi.")
     while True:
         try:
@@ -95,7 +98,7 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
                 if not arg.strip():
                     print(f"Uso: {cmd} <richiesta>")
                     continue
-                reply = await service.ask(arg.strip(), user_id=uid, session_id=session, ctx=ctx, target=cmd[1:])
+                reply = await service.ask(arg.strip(), user_id=uid, session_id=session, ctx=new_ctx(), target=cmd[1:])
                 _print_reply(reply)
             elif cmd in {"/file", "/riassumi"}:
                 path_s, _, instr = arg.strip().partition(" ")
@@ -133,7 +136,7 @@ async def run_cli(s: Settings, service: PicoBotService) -> None:
             elif cmd == "/unschedule":
                 print("Eliminato." if service.scheduler.remove(uid, int(arg)) else "Task non trovato.")
             else:
-                _print_reply(await service.ask(line, user_id=uid, session_id=session, ctx=ctx))
+                _print_reply(await service.ask(line, user_id=uid, session_id=session, ctx=new_ctx()))
         except (ValueError, ScheduleError, DocumentError) as e:
             print(e)
         except Exception as e:  # noqa: BLE001

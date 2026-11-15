@@ -3,3 +3,10 @@
 # Esempio:
 # # skill: pdf
 # poppler-utils
+# skill: pdf, docx, pptx (pdftoppm/pdftotext, anche per pdf2image)
+poppler-utils
+# skill: docx (lettura e accettazione revisioni)
+pandoc
+# skill: pdf (unione, divisione, rotazione, decrittazione)
+qpdf
+# LibreOffice volutamente escluso (~500 MB): soffice.py, recalc.py, accept_changes.py e thumbnail.py non funzionano

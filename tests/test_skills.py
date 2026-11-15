@@ -1,5 +1,6 @@
 """Skill estensibili: registry con reload a caldo, catalogo senza esecuzione di script."""
 
+import inspect
 import shutil
 
 import pytest
@@ -83,13 +84,20 @@ def test_refresh_detects_edit(d):
     assert reg.refresh() is True and reg.info()[0].description == "nuova"
 
 
-def test_tools_no_script(d):
+def test_tools_script_read_only(d):
     mk(d, "docx", "Word")
-    assert {t.name for t in reg_of(d).skills.get_tools()} == {
+    (d / "docx" / "scripts").mkdir()
+    (d / "docx" / "scripts" / "a.py").write_text("print('ciao')", encoding="utf-8")
+    reg = reg_of(d)
+    assert {t.name for t in reg.skills.get_tools()} == {
         "get_skill_instructions",
         "get_skill_reference",
+        "get_skill_script",
         "list_skills",
     }
+    read = tool(reg, "get_skill_script").entrypoint
+    assert "execute" not in inspect.signature(read).parameters   # si esegue solo con run_skill_script
+    assert "print('ciao')" in read("docx", "a.py")
 
 
 def test_list_skills_rank_and_cap(d):
@@ -178,12 +186,12 @@ def test_skills_only_in_complexteam(d, tmp_path):
     assert {"run_python", "run_node"} <= _names(
         member["Analyst"]
     ) and "deliver_file" not in _names(member["Analyst"])
+    assert all("run_skill_script" in _names(member[m]) for m in ("Analyst", "Writer"))
     for other in ("Researcher", "Critic"):
-        assert not ({"run_python", "run_node", "deliver_file"} & _names(member[other]))
+        assert not ({"run_python", "run_node", "run_skill_script", "deliver_file"} & _names(member[other]))
     simple = next(m for m in team.members if m.name == "SimpleTeam")
-    assert "run_node" not in _names(
-        next(m for m in simple.members if m.name == "Coder")
-    )
+    coder = _names(next(m for m in simple.members if m.name == "Coder"))
+    assert "run_node" not in coder and "run_skill_script" not in coder
     assert simple.skills is None and all(m.skills is None for m in simple.members)
 
 

@@ -1,8 +1,8 @@
 """Skill estensibili (formato Agent Skills) per il ComplexTeam.
 
 - Installare = copiare una cartella in SKILLS_DIR; cancellare = eliminarla. Nessun riavvio: `refresh()` le ricarica.
-- `CatalogSkills`: istruzioni e riferimenti si'; esecuzione degli script delle skill (`get_skill_script`) NO.
-  Il codice si esegue solo con run_python/run_node, dopo conferma umana.
+- `CatalogSkills`: istruzioni, riferimenti e script in sola lettura (`get_skill_script` senza `execute`).
+  Gli script si eseguono con run_skill_script (tools/sandbox.py), con le stesse regole di run_python/run_node.
 - Lo snippet nel prompt ha lunghezza fissa: gli agenti scoprono le skill con `list_skills(query)`.
 """
 import logging
@@ -65,7 +65,7 @@ def skill_problem(folder: Path) -> str | None:
 
 
 class CatalogSkills(Skills):
-    """Skills senza esecuzione di script, con catalogo ricercabile e snippet di lunghezza fissa."""
+    """Skills con script in sola lettura, catalogo ricercabile e snippet di lunghezza fissa."""
 
     def __init__(self, loaders, list_max: int = 50):
         self.list_max = list_max
@@ -86,8 +86,24 @@ class CatalogSkills(Skills):
             return "Nessuna skill installata."
         return "\n".join(f"- {sk.name}: {' '.join(sk.description.split())[:DESC_MAX]}" for sk in skills)
 
+    def read_skill_script(self, skill_name: str, script_path: str) -> str:
+        """Legge uno script della cartella scripts/ di una skill (non lo esegue: per quello c'e' run_skill_script).
+
+        Args:
+            skill_name: nome della skill, es. "docx"
+            script_path: nome del file in scripts/, es. "unpack.py"
+        """
+        return self._get_skill_script(skill_name, script_path, execute=False)
+
     def get_tools(self) -> list[Function]:
+        # get_skill_script di Agno eseguirebbe gli script fuori dal sandbox (env con le chiavi API, niente limiti):
+        # lo sostituiamo con la sola lettura
         tools = [t for t in super().get_tools() if t.name != "get_skill_script"]
+        tools.append(Function(
+            name="get_skill_script",
+            description="Legge uno script della cartella scripts/ di una skill (non lo esegue: usa run_skill_script).",
+            entrypoint=self.read_skill_script,
+        ))
         tools.append(Function(
             name="list_skills",
             description="Elenca le skill installate (nome e descrizione), le piu' pertinenti alla query per prime.",
