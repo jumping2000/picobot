@@ -4,6 +4,15 @@ All notable changes to PicoBot are listed here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
 [Semantic Versioning](https://semver.org/).
 
+## [0.9.2] - 2026-11-15
+
+### Added
+
+- Brave Search (official API, LLM Context endpoint) is now the first web search engine, before DuckDuckGo and
+  Keenable. It returns page excerpts instead of one-line descriptions, joined in `description` like the other
+  engines, about 2048 tokens per search. It needs `BRAVE_API_KEY` in `.env`; without a key it is skipped. Web only,
+  no news. It calls the REST API with httpx because the `brave-search` package pins `httpx<0.26` and does not install.
+
 ## [0.9.1] - 2026-11-15
 
 ### Changed

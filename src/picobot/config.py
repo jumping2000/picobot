@@ -23,7 +23,7 @@ CONFIG_FILE = Path("config/config.yaml")   # relativo alla cartella di lavoro (/
 ENV_ONLY = frozenset({
     "openrouter_api_key", "openai_api_key", "openrouter_base_url", "llm_model_id", "llm_strong_model_id",
     "telegram_bot_token", "telegram_allowed_user_ids", "api_tokens", "cli_user_id", "admin_user_ids",
-    "agentmail_api_key", "email_allowed_senders",
+    "agentmail_api_key", "email_allowed_senders", "brave_api_key",
 })
 
 BLOCKS: dict[str, tuple[str, ...]] = {
@@ -170,6 +170,7 @@ class Settings(BaseSettings):
 
     # --- Ricerca web ---
     region: str = "it-it"   # regione dei risultati DDGS (es. us-en, uk-en)
+    brave_api_key: str = ""   # API Brave Search: vuota = motore Brave saltato
 
     # --- Codice generato ---
     code_timeout_s: int = 30

@@ -6,7 +6,7 @@
 
 🇬🇧 English · 🇮🇹 [Italiano](README_IT.md)
 
-[![Version](https://img.shields.io/badge/version-0.9.1-blue)](pyproject.toml)
+[![Version](https://img.shields.io/badge/version-0.9.2-blue)](pyproject.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Agno](https://img.shields.io/badge/Agno-3.x-FF6B35)](https://github.com/agno-agi/agno)
@@ -177,7 +177,7 @@ see [development → CI/CD](docs/en/development.md#cicd).
 
 [Agno 3](https://github.com/agno-agi/agno) · [python-telegram-bot 21](https://python-telegram-bot.org/) ·
 [FastAPI](https://fastapi.tiangolo.com/) + Uvicorn · [APScheduler 3](https://apscheduler.readthedocs.io/) ·
-SQLite · [yfinance](https://github.com/ranaroussi/yfinance) · [DDGS](https://pypi.org/project/ddgs/) ·
+SQLite · [yfinance](https://github.com/ranaroussi/yfinance) · [DDGS](https://pypi.org/project/ddgs/) · [Brave Search API](https://brave.com/search/api/) ·
 [MCP](https://modelcontextprotocol.io/) · pypdf · python-docx · trafilatura · PyYAML · [uv](https://docs.astral.sh/uv/)
 
 ## 📜 License

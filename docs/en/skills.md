@@ -155,12 +155,15 @@ Comparison is by package name, not version.
 | File | Packages | Skill |
 |---|---|---|
 | `deps/pip.txt` | `pdfplumber`, `pdf2image`, `reportlab` | pdf |
-| `deps/pip.txt` | `markitdown[docx,pptx,xlsx,pdf]` (also brings `python-pptx`), `openpyxl` | docx, pptx, xlsx, pdf |
+| `deps/pip.txt` | `markitdown[docx,pptx,xlsx,pdf]` (also brings `python-pptx`) | pptx, xlsx |
+| `deps/pip.txt` | `openpyxl` | xlsx |
 | `deps/npm.txt` | `docx`, `pptxgenjs`, `react`, `react-dom`, `react-icons`, `sharp` | docx, pptx |
 | `deps/apt.txt` | `poppler-utils` (`pdftoppm`, `pdftotext`), `pandoc`, `qpdf` | pdf, docx, pptx |
 
-`pypdf`, `python-docx`, `lxml`, `defusedxml`, `Pillow`, `pandas` and `numpy` already come with the bot's
-dependencies. After changing `deps/`: `docker compose -f compose-build.yaml up -d --build`.
+`pypdf`, `python-docx`, `lxml`, `pandas` and `numpy` already come with the bot's dependencies. `defusedxml` and
+`Pillow` do not: in the Docker image they only come from `deps/pip.txt` (`defusedxml` from `markitdown`; `Pillow`
+from `pdf2image`, `pdfplumber`, `python-pptx` and `reportlab`), so do not comment out those lines if you use the
+skills that need them. After changing `deps/`: `docker compose -f compose-build.yaml up -d --build`.
 
 What does not work:
 

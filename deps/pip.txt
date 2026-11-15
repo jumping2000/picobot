@@ -4,8 +4,12 @@
 # skill: xlsx
 openpyxl==3.1.5
 # skill: pdf (estrazione testo/tabelle, PDF -> immagini con poppler, creazione PDF)
+# Dipendenza indiretta: pdfplumber, pdf2image e reportlab portano Pillow (PIL), usato dalle skill pdf e pptx.
+# Se li commenti tutti, Pillow sparisce dall'immagine (lo porta anche python-pptx, ma solo con markitdown).
 pdfplumber==0.11.10
 pdf2image==1.17.0
 reportlab==5.1.0
-# skill: docx, pptx, xlsx, pdf (lettura rapida; porta anche python-pptx e mammoth)
+# skill: pptx, xlsx (comando `markitdown` per leggere slide e fogli; porta anche python-pptx e mammoth)
+# Dipendenza indiretta: e' l'UNICA fonte di defusedxml nell'immagine, che gli script office/ di docx, pptx e xlsx
+# importano (unpack, validate): commentarlo li rompe. E' anche il pacchetto piu' pesante (magika -> onnxruntime, 78 MB).
 markitdown[docx,pptx,xlsx,pdf]==0.1.9

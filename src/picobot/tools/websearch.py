@@ -14,6 +14,7 @@ import sqlite3
 import time
 from contextlib import closing
 
+import httpx
 from agno.tools.keenable import KeenableTools
 from ddgs import DDGS
 from ddgs.exceptions import DDGSException
@@ -24,7 +25,12 @@ logger = logging.getLogger(__name__)
 
 # Provati il 2026-10-29: DuckDuckGo e' l'unico che risponde con costanza. Brave da' 429, Google e' disattivato in ddgs.
 # keenable non e' un motore ddgs: Agno KeenableTools, senza chiave usa l'endpoint pubblico (nessuna ricerca news).
-TEXT_ENGINES = ("duckduckgo", "keenable", "yahoo", "startpage", "mojeek")
+# brave non e' il backend ddgs (scraping, 429) ma l'API ufficiale con BRAVE_API_KEY: senza chiave si salta. Endpoint
+# LLM Context (estratti di pagina per l'LLM, non solo titolo e riga). Via httpx e non con Agno BraveSearchTools: il
+# pacchetto brave-search fissa httpx<0.26 e non si installa.
+BRAVE_URL = "https://api.search.brave.com/res/v1/llm/context"
+BRAVE_TOKENS = 2048   # token di estratti per ricerca (minimo 1024, default Brave 8192)
+TEXT_ENGINES = ("brave", "duckduckgo", "keenable", "yahoo", "startpage", "mojeek")
 NEWS_ENGINES = ("duckduckgo", "bing", "yahoo")
 NO_RESULTS = "Nessun risultato da nessun motore di ricerca: riprova con una query piu' breve o con parole diverse."
 WINDOW_S, KEEP_S = 24 * 3600, 7 * 24 * 3600
@@ -60,6 +66,18 @@ def make_web_tools(s: Settings) -> list:
             logger.warning("statistiche ricerca non scrivibili: %s", e)
 
     def ask(engine: str, category: str, query: str, max_results: int) -> list:
+        if engine == "brave":
+            country, lang = s.region.split("-")   # shortcut: "uk-en" non e' un paese per Brave (GB), da mappare se serve
+            try:
+                r = httpx.get(BRAVE_URL, headers={"X-Subscription-Token": s.brave_api_key}, timeout=10,
+                              params={"q": query, "maximum_number_of_urls": max_results, "maximum_number_of_tokens": BRAVE_TOKENS,
+                                      "country": country.upper(), "search_lang": lang})
+                r.raise_for_status()
+                found = r.json().get("grounding", {}).get("generic", [])
+            except (httpx.HTTPError, ValueError) as e:   # 429, chiave errata, rete, query > 600 caratteri: si passa al motore dopo
+                logger.info("%s brave: %s", category, e)
+                return []
+            return [{"title": x.get("title"), "url": x.get("url"), "description": " ".join(x.get("snippets", []))} for x in found]
         if engine == "keenable":
             out = KeenableTools(format="json", max_results=max_results, timeout=10).web_search(query)
             try:
@@ -88,7 +106,8 @@ def make_web_tools(s: Settings) -> list:
             query: cosa cercare
             max_results: numero massimo di risultati (default 5)
         """
-        return cascade("text", TEXT_ENGINES, query, max_results)
+        engines = tuple(e for e in TEXT_ENGINES if e != "brave" or s.brave_api_key)
+        return cascade("text", engines, query, max_results)
 
     def search_news(query: str, max_results: int = 5) -> str:
         """Cerca le notizie piu' recenti.

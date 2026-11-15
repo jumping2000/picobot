@@ -154,11 +154,14 @@ Il confronto avviene per nome del pacchetto, non per versione.
 | File | Pacchetti | Skill |
 |---|---|---|
 | `deps/pip.txt` | `pdfplumber`, `pdf2image`, `reportlab` | pdf |
-| `deps/pip.txt` | `markitdown[docx,pptx,xlsx,pdf]` (porta anche `python-pptx`), `openpyxl` | docx, pptx, xlsx, pdf |
+| `deps/pip.txt` | `markitdown[docx,pptx,xlsx,pdf]` (porta anche `python-pptx`) | pptx, xlsx |
+| `deps/pip.txt` | `openpyxl` | xlsx |
 | `deps/npm.txt` | `docx`, `pptxgenjs`, `react`, `react-dom`, `react-icons`, `sharp` | docx, pptx |
 | `deps/apt.txt` | `poppler-utils` (`pdftoppm`, `pdftotext`), `pandoc`, `qpdf` | pdf, docx, pptx |
 
-`pypdf`, `python-docx`, `lxml`, `defusedxml`, `Pillow`, `pandas` e `numpy` arrivano già con le dipendenze del bot.
+`pypdf`, `python-docx`, `lxml`, `pandas` e `numpy` arrivano già con le dipendenze del bot. `defusedxml` e `Pillow`
+no: nell'immagine Docker arrivano solo da `deps/pip.txt` (`defusedxml` da `markitdown`; `Pillow` da `pdf2image`,
+`pdfplumber`, `python-pptx` e `reportlab`), quindi non commentare quelle righe se usi le skill che ne hanno bisogno.
 Dopo una modifica a `deps/`: `docker compose -f compose-build.yaml up -d --build`.
 
 Cosa non funziona:
